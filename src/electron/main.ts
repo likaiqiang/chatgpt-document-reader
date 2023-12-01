@@ -1,4 +1,5 @@
-import {app, BrowserWindow, dialog, ipcMain} from 'electron'
+import {app, BrowserWindow, dialog, ipcMain, Menu} from 'electron'
+import type {MenuItemConstructorOptions} from 'electron'
 import {Channel} from "@/types/bridge";
 // import "web-streams-polyfill/es6";
 import ingestData from './ingest-data'
@@ -7,10 +8,91 @@ import path from 'path'
 import chat from "./chat";
 import  fs from 'fs';
 import { outputDir } from '@/config';
+import prompt from './prompt'
+import {
+  setApikey as setLocalApikey,
+  setProxy as setLocalProxy,
+  getApikey as getLocalApikey,
+  getProxy as getLocalProxy
+} from './storage'
+
+
+let mainWindow: BrowserWindow = null
+
+async function setapikey(){
+  return prompt({
+    title: 'please enter openai_api_key',
+    label:'please enter openai_api_key',
+    value: '',
+    inputAttrs: {
+      type: 'text'
+    },
+    type: 'input'
+  })
+    .then((r) => {
+      if(r === null) {
+        return Promise.reject(new Error('user cancelled'))
+      } else {
+        console.log('result', r);
+        setLocalProxy(r)
+        return Promise.resolve()
+      }
+    })
+}
+async function setproxy(){
+  return prompt({
+    title: 'please enter proxy url',
+    label:'please enter openai_api_key',
+    value: '',
+    inputAttrs: {
+      type: 'url',
+    },
+    type: 'input'
+  })
+    .then((r) => {
+      if(r === null) {
+        return Promise.reject(new Error('user cancelled'))
+      } else {
+        console.log('result', r);
+        setLocalProxy(r)
+        return Promise.resolve()
+      }
+    })
+}
+
+function setCustomMenu() {
+  // 定义一个菜单模板，是一个数组，每个元素是一个菜单对象
+  const template:MenuItemConstructorOptions[] = [
+    {
+      // 菜单的标签，显示在菜单栏上
+      label: 'Setting',
+      // 菜单的子菜单，是一个数组，每个元素是一个菜单项对象
+      submenu: [
+        {
+          label: 'OPENAI_API_KEY',
+          click() {
+            setapikey().then()
+          }
+        },
+        {
+          label: 'Proxy',
+          click() {
+            setproxy().then()
+          }
+        }
+      ]
+    },
+  ]
+
+  // 使用Menu.buildFromTemplate方法，根据模板创建一个菜单对象
+  const menu = Menu.buildFromTemplate(template)
+  // 使用Menu.setApplicationMenu方法，将菜单对象设置为应用程序的菜单
+  Menu.setApplicationMenu(menu)
+}
 
 function findSubdirs (dir:string) {
   // 定义一个空数组，用于存放符合条件的子目录
-  const subdirs:string[] = []
+  const subdirs:{filename:string, birthtime: Date}[] = []
 
   // 读取 dir 目录下的所有文件和文件夹，返回一个数组
   const files = fs.readdirSync(dir)
@@ -20,8 +102,9 @@ function findSubdirs (dir:string) {
     // 拼接 dir 和 file，得到完整的路径
     const path = dir + '/' + file
 
+    const stat = fs.statSync(path)
     // 判断 path 是否是一个文件夹，如果是，继续执行
-    if (fs.statSync(path).isDirectory()) {
+    if (stat.isDirectory()) {
       // 读取 path 文件夹下的所有文件和文件夹，返回一个数组
       const subfiles = fs.readdirSync(path)
 
@@ -30,7 +113,10 @@ function findSubdirs (dir:string) {
         // 判断 subfiles 数组是否包含 docstore.json 和 faiss.index 两个文件，如果是，继续执行
         if (subfiles.includes('docstore.json') && subfiles.includes('faiss.index')) {
           // 将 path 添加到 subdirs 数组中
-          subdirs.push(file)
+          subdirs.push({
+            filename: file,
+            birthtime: stat.birthtime
+          })
         }
       }
     }
@@ -46,7 +132,7 @@ if (require('electron-squirrel-startup')) {
 
 const createWindow = () => {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
@@ -54,18 +140,21 @@ const createWindow = () => {
     },
   });
 
-  ipcMain.handle(Channel.dialog, async ()=>{
+  ipcMain.handle(Channel.selectFile, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters:[
         {name:'pdf', extensions:['pdf']}
       ]
     })
+    return filePaths
+  })
+  ipcMain.handle(Channel.ingestdata, async (e,filePaths:string[])=>{
     if(filePaths.length){
       const buffer = await fsPromise.readFile(filePaths[0])
       const filename = filePaths[0].split(path.sep).pop()
-      await ingestData(buffer, filename!)
-      return filename
+      await ingestData({buffer, filename: filename!})
+      return {filename}
     }
     return Promise.reject(new Error('no file select'))
   })
@@ -74,11 +163,14 @@ const createWindow = () => {
     return chat({question, history, filename})
   })
   ipcMain.handle(Channel.resources,()=>{
-    return findSubdirs(outputDir).map(file=>{
-      return {
-        filename: file
-      }
-    })
+    return findSubdirs(outputDir)
+  })
+
+  ipcMain.handle(Channel.sendproxy, ()=>{
+    return setproxy()
+  })
+  ipcMain.handle(Channel.sendapikey, ()=>{
+    return setapikey()
   })
 
   // and load the index.html of the app.
@@ -87,7 +179,7 @@ const createWindow = () => {
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
-
+  setCustomMenu()
   // Open the DevTools.
   mainWindow.webContents.openDevTools();
 };

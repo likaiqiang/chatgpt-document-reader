@@ -8,9 +8,15 @@ export type Message = {
 };
 
 export interface Resource{
-  filename:string
+  filename:string,
+  birthtime: Date
 }
 export interface ChatResponse{
   text: string,
   sourceDocuments: Document[]
+}
+export interface ChatParams{
+  question: string,
+  filename:string,
+  history: [string,string][]
 }

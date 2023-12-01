@@ -1,24 +1,20 @@
 import type { Document } from 'langchain/document';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import {ChatFaissStore as FaissStore} from "./faiss";
+import {FaissStore } from "./faiss";
 import { makeChain } from '@/utils/makechain';
-import {app} from "electron";
 import path from 'path'
 import fsPromise from 'node:fs/promises';
 import {HttpsProxyAgent} from "https-proxy-agent";
 import {outputDir} from '@/config'
+import { ChatParams } from '@/types/chat';
+import { getApikey, getProxy } from '@/electron/storage';
 
 global.crypto = require('node:crypto').webcrypto
 
 
-interface ChatParams{
-    question: string,
-    filename:string,
-    history: [string,string][]
-}
-
 export default async ({question, history, filename}:ChatParams) => {
-
+    const proxy = getProxy() as string
+    const apikey = getApikey() as string
     console.log('question', question);
     console.log('history', history);
 
@@ -33,7 +29,8 @@ export default async ({question, history, filename}:ChatParams) => {
         const vectorStore = await FaissStore.load(
             outputFilePath,
             new OpenAIEmbeddings({},{
-                httpAgent: new HttpsProxyAgent('http://127.0.0.1:7890')
+                apiKey: apikey,
+                httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined
             })
         );
 

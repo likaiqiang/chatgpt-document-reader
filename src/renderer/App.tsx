@@ -10,26 +10,22 @@ import Whether, { Else, If } from '@/components/Whether';
 import useLocalStorage from '@/utils/useLocalStorage';
 import cloneDeep from 'lodash.clonedeep';
 import { useLatest, useMemoizedFn } from 'ahooks/es/index';
-import { Toaster } from 'react-hot-toast';
+import { toast, Toaster } from 'react-hot-toast';
 import { ChatResponse, Resource } from '@/types/chat';
-import { Channel } from '@/types/bridge';
+import { useImmer } from 'use-immer';
+import ReactLoading from 'react-loading';
+import ReactDOM from 'react-dom';
 
 const partKeyPrefix = '@___PART___'
-
-// export async function getFingerprint() {
-//     // const fp = await FingerprintJS.load();
-//     // const result = await fp.get();
-//     // return result.visitorId;
-//     return 'a07ec68042223e38014a70469d33627b'
-// }
 
 
 export default function App() {
 
     const [query, setQuery] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
+    const [uploadLoading, setUploadLoading] = useState(false)
     const [error, setError] = useState<string | null>(null);
-    const [active, setActive] = useState(-1)
+    const [active, setActive] = useState(0)
     // const [messageState, setMessageState] = useState<{
     //   messages: Message[];
     //   history: [string, string][];
@@ -45,10 +41,11 @@ export default function App() {
     // });
 
 
-    const [resources, setResources] = useState<Resource[]>([])
+
+    const [resources, setResources] = useImmer<Resource[]>([])
     const [cache, setCache] = useLocalStorage(partKeyPrefix + 'chat-cache', {})
     const cacheRef = useLatest(cache)
-    const curResourceName = resources.length ? resources[0].filename! : ''
+    const curResourceName = resources.length ? resources[active].filename! : ''
 
 
     const messageListRef = useRef<HTMLDivElement>(null);
@@ -72,10 +69,14 @@ export default function App() {
     })
 
     useEffect(() => {
-        window.chatBot.invoke(Channel.resources).then(res=>{
-            setResources(res)
+        window.chatBot.getResources().then(res=>{
+            const sortedRes = res.sort((a,b)=>{
+                return a.birthtime.getTime() - b.birthtime.getTime()
+            })
+            console.log('sortedRes',sortedRes);
+            setResources(sortedRes)
             if(res.length){
-                initCacheByName(res[0].filename!)
+                initCacheByName(sortedRes[0].filename!)
                 setActive(0)
             }
         })
@@ -86,7 +87,12 @@ export default function App() {
 
     const handleSubmit = useMemoizedFn(async (e) => {
         e.preventDefault();
-
+        try{
+            await window.chatBot.sendapikey()
+        } catch {
+            toast.error('set apikey failed')
+            return Promise.reject()
+        }
         setError(null);
         if (resources.length === 0) {
             return alert("Please upload a resource first")
@@ -108,7 +114,7 @@ export default function App() {
         setLoading(true);
         setQuery('');
         try {
-            const data: ChatResponse = await window.chatBot.invoke(Channel.chat, {
+            const data: ChatResponse = await window.chatBot.chat({
                 question,
                 history,
                 filename: resources[active].filename
@@ -127,14 +133,14 @@ export default function App() {
             setLoading(false);
             messageListRef.current?.scrollTo(0, messageListRef.current.scrollHeight);
         } catch (error){
-            debugger
+            toast.error(error)
             setError(error as string);
             setLoading(false);
         }
     })
 
     // prevent empty submissions
-    const handleEnter = useMemoizedFn(e => {
+    const handleEnter = useMemoizedFn( async e => {
         if (e.key === 'Enter' && query) {
             handleSubmit(e);
         } else if (e.key === 'Enter') {
@@ -147,11 +153,35 @@ export default function App() {
         initCacheByName(name)
         setActive(index)
     })
-    const onFileUpload = () => {
-        window.chatBot.invoke(Channel.dialog).then(console.log)
+    const onFileUpload = async () => {
+
+        try{
+            await window.chatBot.sendapikey()
+        } catch {
+            toast.error('set apikey failed')
+            return
+        }
+
+        return window.chatBot.selectFile().then(files=>{
+            setUploadLoading(true)
+            return window.chatBot.ingestData(files)
+        }).then(res=>{
+            setResources(draft => {
+                draft.push(res)
+            })
+            setActive(resources.length)
+            initCacheByName(res.filename!)
+        }).catch(()=>{
+            toast.error('upload failed')
+        }).finally(()=>{
+            setUploadLoading(false)
+        })
     }
 
     const { messages, history } = cache[curResourceName] || { messages: [], history: [] };
+
+    console.log('curResourceName',curResourceName);
+
     return (
         <>
             <Layout>
@@ -196,10 +226,8 @@ export default function App() {
                                                           d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                                                 </svg>
                                                 <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span
-                                                    className="font-semibold">Click to upload</span> or drag and drop
+                                                    className="font-semibold">Click to upload pdf</span> or drag and drop
                                                 </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG or
-                                                    GIF (MAX. 800x400px)</p>
                                             </div>
                                         </label>
                                     </div>
@@ -375,6 +403,16 @@ export default function App() {
                 </footer>
             </Layout>
             <Toaster />
+            <Whether value={uploadLoading}>
+                {
+                    ReactDOM.createPortal(
+                      <div className={styles.loadingMask}>
+                          <ReactLoading type={'bars'} color="#000" />
+                      </div>,
+                      document.body
+                    )
+                }
+            </Whether>
         </>
     );
 }
