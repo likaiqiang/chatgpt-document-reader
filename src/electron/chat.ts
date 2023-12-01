@@ -1,12 +1,15 @@
 import type { Document } from 'langchain/document';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import {FaissStore} from "langchain/vectorstores/faiss";
+import {ChatFaissStore as FaissStore} from "./faiss";
 import { makeChain } from '@/utils/makechain';
 import {app} from "electron";
 import path from 'path'
+import fsPromise from 'node:fs/promises';
 import {HttpsProxyAgent} from "https-proxy-agent";
+import {outputDir} from '@/config'
 
-const userPath = app.getPath('userData')
+global.crypto = require('node:crypto').webcrypto
+
 
 interface ChatParams{
     question: string,
@@ -24,7 +27,8 @@ export default async ({question, history, filename}:ChatParams) => {
     // OpenAI recommends replacing newlines with spaces for best results
     const sanitizedQuestion = question.trim().replaceAll('\n', ' ');
     try {
-        const outputFilePath = path.join(userPath,'.faisscache',filename)
+        const outputFilePath = path.join(outputDir,filename)
+        await fsPromise.mkdir(outputFilePath,{recursive: true})
         /* create vectorstore */
         const vectorStore = await FaissStore.load(
             outputFilePath,

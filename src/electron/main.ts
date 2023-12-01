@@ -1,10 +1,43 @@
 import {app, BrowserWindow, dialog, ipcMain} from 'electron'
 import {Channel} from "@/types/bridge";
-import "web-streams-polyfill/es6";
+// import "web-streams-polyfill/es6";
 import ingestData from './ingest-data'
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./chat";
+import  fs from 'fs';
+import { outputDir } from '@/config';
+
+function findSubdirs (dir:string) {
+  // 定义一个空数组，用于存放符合条件的子目录
+  const subdirs:string[] = []
+
+  // 读取 dir 目录下的所有文件和文件夹，返回一个数组
+  const files = fs.readdirSync(dir)
+
+  // 遍历数组中的每个元素
+  for (const file of files) {
+    // 拼接 dir 和 file，得到完整的路径
+    const path = dir + '/' + file
+
+    // 判断 path 是否是一个文件夹，如果是，继续执行
+    if (fs.statSync(path).isDirectory()) {
+      // 读取 path 文件夹下的所有文件和文件夹，返回一个数组
+      const subfiles = fs.readdirSync(path)
+
+      // 判断 subfiles 数组是否非空，如果是，继续执行
+      if (subfiles.length > 0) {
+        // 判断 subfiles 数组是否包含 docstore.json 和 faiss.index 两个文件，如果是，继续执行
+        if (subfiles.includes('docstore.json') && subfiles.includes('faiss.index')) {
+          // 将 path 添加到 subdirs 数组中
+          subdirs.push(file)
+        }
+      }
+    }
+  }
+  // 返回 subdirs 数组
+  return subdirs
+}
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (require('electron-squirrel-startup')) {
@@ -21,7 +54,7 @@ const createWindow = () => {
     },
   });
 
-  ipcMain.handle(Channel.dialog, async (event, arg)=>{
+  ipcMain.handle(Channel.dialog, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters:[
@@ -39,6 +72,13 @@ const createWindow = () => {
 
   ipcMain.handle(Channel.chat,  async (e,{question, history, filename})=>{
     return chat({question, history, filename})
+  })
+  ipcMain.handle(Channel.resources,()=>{
+    return findSubdirs(outputDir).map(file=>{
+      return {
+        filename: file
+      }
+    })
   })
 
   // and load the index.html of the app.

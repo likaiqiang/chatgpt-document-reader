@@ -1,18 +1,18 @@
 // eslint-disable-next-line no-use-before-define
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import ReactMarkdown from 'react-markdown';
 import LoadingDots from '@/components/ui/LoadingDots';
-import {Accordion, AccordionContent, AccordionItem, AccordionTrigger,} from '@/components/ui/accordion';
-import DataFor from "@/components/DataFor";
-import Whether, {Else, If} from "@/components/Whether";
-import useLocalStorage from "@/utils/useLocalStorage";
-import cloneDeep from "lodash.clonedeep"
-import {useLatest, useMemoizedFn} from "ahooks/es/index";
-import {Toaster} from 'react-hot-toast';
-import {ChatResponse, Resource} from "@/types/chat";
-import {Channel} from "@/types/bridge";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import DataFor from '@/components/DataFor';
+import Whether, { Else, If } from '@/components/Whether';
+import useLocalStorage from '@/utils/useLocalStorage';
+import cloneDeep from 'lodash.clonedeep';
+import { useLatest, useMemoizedFn } from 'ahooks/es/index';
+import { Toaster } from 'react-hot-toast';
+import { ChatResponse, Resource } from '@/types/chat';
+import { Channel } from '@/types/bridge';
 
 const partKeyPrefix = '@___PART___'
 
@@ -72,18 +72,13 @@ export default function App() {
     })
 
     useEffect(() => {
-        // const handler = async ()=>{
-        //     const key = await getFingerprint()
-        //     const res = await getResources({
-        //         key
-        //     })
-        //     setResources(res)
-        //     if(res.length){
-        //         initCacheByName(res[0].filename!)
-        //         setActive(0)
-        //     }
-        // }
-        // handler().then()
+        window.chatBot.invoke(Channel.resources).then(res=>{
+            setResources(res)
+            if(res.length){
+                initCacheByName(res[0].filename!)
+                setActive(0)
+            }
+        })
         textAreaRef.current?.focus();
     }, []);
 
@@ -228,7 +223,7 @@ export default function App() {
                                                                     <If>
                                                                         <img
                                                                             key={index}
-                                                                            src="/bot-image.png"
+                                                                            src={'/images/bot-image.png'}
                                                                             alt="AI"
                                                                             width="40"
                                                                             height="40"
@@ -238,7 +233,7 @@ export default function App() {
                                                                     <Else>
                                                                         <img
                                                                             key={index}
-                                                                            src="/usericon.png"
+                                                                            src="/images/usericon.png"
                                                                             alt="Me"
                                                                             width="30"
                                                                             height="30"

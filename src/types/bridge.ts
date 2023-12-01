@@ -1,4 +1,5 @@
 export enum Channel {
     dialog = 'open-dialog',
-    chat = 'chat'
+    chat = 'chat',
+    resources = 'get-resources'
 }

@@ -15,7 +15,7 @@ export class Document<
     Metadata extends Record<string, any> = Record<string, any>
 > implements DocumentInput
 {
-    pageContent: string = '';
+    pageContent = '';
 
     metadata: Metadata;
 

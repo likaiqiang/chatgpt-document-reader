@@ -1,14 +1,11 @@
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
-import {FaissStore} from "langchain/vectorstores/faiss";
+import {ChatFaissStore as FaissStore} from "./faiss";
 import PDFLoader from "@/loaders/pdf";
 import {HttpsProxyAgent} from "https-proxy-agent";
 import fsPromise from 'node:fs/promises'
-import {app} from "electron";
 import path from "path";
-
-const userPath = app.getPath('userData')
-
+import { outputDir } from '@/config';
 
 /* Name of directory to retrieve your files from
    Make sure to add your PDF files inside the 'docs' folder
@@ -31,7 +28,7 @@ export default async (buffer: Buffer, filename:string) => {
         const vectorStore = await FaissStore.fromDocuments(docs,new OpenAIEmbeddings({},{
             httpAgent: new HttpsProxyAgent('http://127.0.0.1:7890'),
         }))
-        const outputFilePath = path.join(userPath, 'faisscache',filename)
+        const outputFilePath = path.join(outputDir,filename)
         await fsPromise.mkdir(outputFilePath, { recursive: true });
         await vectorStore.save(outputFilePath);
 

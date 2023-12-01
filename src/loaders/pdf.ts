@@ -31,7 +31,7 @@ class PDFLoader {
             isEvalSupported: false,
             useSystemFonts: true,
         }).promise;
-        const meta = await pdf.getMetadata().catch(() => null);
+        const meta = await pdf.getMetadata().catch();
         const documents: Document[] = [];
 
         for (let i = 1; i <= pdf.numPages; i += 1) {

@@ -10,5 +10,15 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, 'src')
     }
+  },
+  build:{
+    minify: false,
+    sourcemap: true,
+    lib: {
+      entry: 'src/electron/main.ts', // 这里可以更改您的渲染进程的入口文件
+      name: 'main',
+      formats: ['cjs'],
+    }
+
   }
 });
