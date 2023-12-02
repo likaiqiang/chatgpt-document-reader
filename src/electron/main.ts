@@ -21,9 +21,8 @@ let mainWindow: BrowserWindow = null
 
 async function setapikey(){
   return prompt({
-    title: 'please enter openai_api_key',
     label:'please enter openai_api_key',
-    value: '',
+    value: getLocalApikey() || '',
     inputAttrs: {
       type: 'text'
     },
@@ -34,18 +33,18 @@ async function setapikey(){
         return Promise.reject(new Error('user cancelled'))
       } else {
         console.log('result', r);
-        setLocalProxy(r)
+        setLocalApikey(r)
         return Promise.resolve()
       }
     })
 }
 async function setproxy(){
   return prompt({
-    title: 'please enter proxy url',
-    label:'please enter openai_api_key',
-    value: '',
+    label:'please enter proxy url',
+    value: getLocalProxy() || '',
     inputAttrs: {
       type: 'url',
+      placeholder:'http://127.0.0.1:7890'
     },
     type: 'input'
   })
@@ -166,10 +165,14 @@ const createWindow = () => {
     return findSubdirs(outputDir)
   })
 
-  ipcMain.handle(Channel.sendproxy, ()=>{
+  ipcMain.handle(Channel.checkproxy, ()=>{
+    const proxy = getLocalProxy() || ''
+    if(proxy) return Promise.resolve()
     return setproxy()
   })
-  ipcMain.handle(Channel.sendapikey, ()=>{
+  ipcMain.handle(Channel.checkapikey, ()=>{
+    const apikey = getLocalApikey() || ''
+    if(apikey) return Promise.resolve()
     return setapikey()
   })
 

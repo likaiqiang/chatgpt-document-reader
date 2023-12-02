@@ -36,7 +36,7 @@ export default async ({buffer, filename}: {buffer:Buffer, filename:string}) => {
 
     } catch (error) {
         console.log('error', error);
-        throw new Error('Failed to ingest your data');
+        return Promise.reject(error.code || 'ingest data failed')
     }
 };
 

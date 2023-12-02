@@ -23,11 +23,11 @@ export const api = {
     getResources(): Promise<Resource[]>{
       return ipcRenderer.invoke(Channel.resources)
     },
-    sendproxy(proxy:string){
-        return ipcRenderer.invoke(Channel.sendproxy, proxy)
+    checkproxy(proxy:string){
+        return ipcRenderer.invoke(Channel.checkproxy, proxy)
     },
-    sendapikey(){
-        return ipcRenderer.invoke(Channel.sendapikey)
+    checkapikey(){
+        return ipcRenderer.invoke(Channel.checkapikey)
     },
 }
 

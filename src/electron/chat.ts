@@ -72,6 +72,7 @@ export default async ({question, history, filename}:ChatParams) => {
             text: response, sourceDocuments
         }
     } catch (error: any) {
-        console.log('error', error);
+        console.log('error', error.code);
+        return Promise.reject(error.code || 'chat failed')
     }
 }

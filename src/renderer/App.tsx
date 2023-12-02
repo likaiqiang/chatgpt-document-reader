@@ -24,7 +24,6 @@ export default function App() {
     const [query, setQuery] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [uploadLoading, setUploadLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null);
     const [active, setActive] = useState(0)
     // const [messageState, setMessageState] = useState<{
     //   messages: Message[];
@@ -88,12 +87,11 @@ export default function App() {
     const handleSubmit = useMemoizedFn(async (e) => {
         e.preventDefault();
         try{
-            await window.chatBot.sendapikey()
+            await window.chatBot.checkapikey()
         } catch {
             toast.error('set apikey failed')
             return Promise.reject()
         }
-        setError(null);
         if (resources.length === 0) {
             return alert("Please upload a resource first")
         }
@@ -111,9 +109,10 @@ export default function App() {
         })
         setCache(newCache)
 
-        setLoading(true);
         setQuery('');
+
         try {
+            setLoading(true);
             const data: ChatResponse = await window.chatBot.chat({
                 question,
                 history,
@@ -133,8 +132,7 @@ export default function App() {
             setLoading(false);
             messageListRef.current?.scrollTo(0, messageListRef.current.scrollHeight);
         } catch (error){
-            toast.error(error)
-            setError(error as string);
+            toast.error(error.toString())
             setLoading(false);
         }
     })
@@ -156,7 +154,7 @@ export default function App() {
     const onFileUpload = async () => {
 
         try{
-            await window.chatBot.sendapikey()
+            await window.chatBot.checkapikey()
         } catch {
             toast.error('set apikey failed')
             return
@@ -171,8 +169,8 @@ export default function App() {
             })
             setActive(resources.length)
             initCacheByName(res.filename!)
-        }).catch(()=>{
-            toast.error('upload failed')
+        }).catch((error)=>{
+            toast.error(error.toString())
         }).finally(()=>{
             setUploadLoading(false)
         })
@@ -367,11 +365,6 @@ export default function App() {
                                         </form>
                                     </div>
                                 </div>
-                                <Whether value={!!error}>
-                                    <div className="border border-red-400 rounded-md p-4">
-                                        <p className="text-red-500">{error}</p>
-                                    </div>
-                                </Whether>
                             </main>
                         </If>
                         <Else>

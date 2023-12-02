@@ -3,6 +3,6 @@ export enum Channel {
     ingestdata = 'ingest_data',
     chat = 'chat',
     resources = 'get_resources',
-    sendproxy = 'send_proxy',
-    sendapikey = 'set_apikey'
+    checkproxy = 'send_proxy',
+    checkapikey = 'set_apikey'
 }
