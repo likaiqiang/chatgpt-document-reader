@@ -1,30 +1,28 @@
 import { Document } from "@/types/document";
+const mod = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js')
+
+const {getDocument, version} = mod
 
 const formatDocumentsAsString = (
-    documents: Document[],
-    separator = "\n\n"
+  documents: Document[],
+  separator = "\n\n"
 ): string => documents.map((doc) => doc.pageContent).join(separator);
 
 class PDFLoader {
     private splitPages: boolean;
 
-    private pdfjs: typeof PDFLoaderImports;
-
     protected parsedItemSeparator: string;
     constructor(
-        {
-            splitPages = true,
-            pdfjs = PDFLoaderImports,
-            parsedItemSeparator = " ",
-        } = {}
+      {
+          splitPages = true,
+          parsedItemSeparator = " ",
+      } = {}
     ) {
         this.splitPages = splitPages;
-        this.pdfjs = pdfjs;
         this.parsedItemSeparator = parsedItemSeparator;
     }
 
     async parse(raw: Buffer, metadata: Document["metadata"]): Promise<Document[]>{
-        const { getDocument, version } = await this.pdfjs();
         const pdf = await getDocument({
             data: new Uint8Array(raw.buffer),
             useWorkerFetch: false,
@@ -61,21 +59,21 @@ class PDFLoader {
             const text = textItems.join(this.parsedItemSeparator);
 
             documents.push(
-                new Document({
-                    pageContent: text,
-                    metadata: {
-                        ...metadata,
-                        pdf: {
-                            version,
-                            info: meta?.info,
-                            metadata: meta?.metadata,
-                            totalPages: pdf.numPages,
-                        },
-                        loc: {
-                            pageNumber: i,
-                        },
-                    },
-                })
+              new Document({
+                  pageContent: text,
+                  metadata: {
+                      ...metadata,
+                      pdf: {
+                          version,
+                          info: meta?.info,
+                          metadata: meta?.metadata,
+                          totalPages: pdf.numPages,
+                      },
+                      loc: {
+                          pageNumber: i,
+                      },
+                  },
+              })
             );
         }
 
@@ -104,20 +102,3 @@ class PDFLoader {
     }
 }
 export default PDFLoader
-
-async function PDFLoaderImports() {
-    try {
-        const { default: mod } = await import(
-            // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-            // @ts-ignore
-            "pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js"
-            );
-        const { getDocument, version } = mod;
-        return { getDocument, version };
-    } catch (e) {
-        console.error(e);
-        throw new Error(
-            "Failed to load pdf-parse. Please install it with eg. `npm install pdf-parse`."
-        );
-    }
-}

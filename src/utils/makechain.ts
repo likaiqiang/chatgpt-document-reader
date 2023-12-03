@@ -4,7 +4,10 @@ import { RunnableSequence } from 'langchain/schema/runnable';
 import { StringOutputParser } from 'langchain/schema/output_parser';
 import type { VectorStoreRetriever } from 'langchain/vectorstores/base';
 import type { Document } from 'langchain/document';
-
+import {HttpsProxyAgent} from "https-proxy-agent";
+import { ProxyAgent } from 'proxy-agent';
+import { getApikey, getProxy } from '@/electron/storage';
+import fetch from 'node-fetch'
 const CONDENSE_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
 
 <chat_history>
@@ -36,13 +39,20 @@ const combineDocumentsFn = (docs: Document[], separator = '\n\n') => {
 
 
 export const makeChain = (retriever: VectorStoreRetriever) => {
+    const proxy = getProxy() as string;
     const condenseQuestionPrompt =
         ChatPromptTemplate.fromTemplate(CONDENSE_TEMPLATE);
     const answerPrompt = ChatPromptTemplate.fromTemplate(QA_TEMPLATE);
 
     const model = new ChatOpenAI({
         temperature: 0, // increase temperature to get more creative answers
-        modelName: 'gpt-3.5-turbo', //change this to gpt-4 if you have access
+        modelName: 'gpt-3.5-turbo',
+        openAIApiKey: getApikey() as string
+        //change this to gpt-4 if you have access
+    },{
+        httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+        // @ts-ignore
+        fetch
     });
 
     // Rephrase the initial question into a dereferenced standalone question based on

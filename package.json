@@ -40,10 +40,12 @@
     "eslint": "^8.0.1",
     "eslint-import-resolver-typescript": "^3.6.1",
     "eslint-plugin-import": "^2.25.0",
+    "pdfjs-dist": "^4.0.269",
     "postcss-nesting": "^12.0.1",
     "ts-node": "^10.0.0",
     "typescript": "~4.5.4",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vite-plugin-static-copy": "^1.0.0"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.1",
@@ -54,7 +56,7 @@
     "faiss-node": "^0.5.1",
     "flowbite": "^1.6.5",
     "immer": "^10.0.3",
-    "langchain": "^0.0.198",
+    "langchain": "0.0.198",
     "lodash.clonedeep": "^4.5.0",
     "lucide-react": "^0.125.0",
     "pdf-parse": "^1.1.1",

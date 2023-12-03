@@ -1,7 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import {Channel} from "@/types/bridge";
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
-import IpcRendererEvent = Electron.IpcRendererEvent;
 
 export const api = {
     /**
@@ -28,7 +27,7 @@ export const api = {
     },
     checkapikey(){
         return ipcRenderer.invoke(Channel.checkapikey)
-    },
+    }
 }
 
 contextBridge.exposeInMainWorld('chatBot', api)

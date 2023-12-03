@@ -8,8 +8,8 @@ import {HttpsProxyAgent} from "https-proxy-agent";
 import {outputDir} from '@/config'
 import { ChatParams } from '@/types/chat';
 import { getApikey, getProxy } from '@/electron/storage';
-
-global.crypto = require('node:crypto').webcrypto
+import fetch from 'node-fetch'
+import type {Fetch} from 'openai/src/core';
 
 
 export default async ({question, history, filename}:ChatParams) => {
@@ -28,10 +28,13 @@ export default async ({question, history, filename}:ChatParams) => {
         /* create vectorstore */
         const vectorStore = await FaissStore.load(
             outputFilePath,
-            new OpenAIEmbeddings({},{
-                apiKey: apikey,
-                httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined
-            })
+            new OpenAIEmbeddings({
+                openAIApiKey: apikey,
+            },{
+                httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+                // @ts-ignore
+                fetch
+            }),
         );
 
         // Use a callback to get intermediate sources from the middle of the chain

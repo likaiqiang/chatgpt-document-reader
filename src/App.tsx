@@ -15,8 +15,12 @@ import { ChatResponse, Resource } from '@/types/chat';
 import { useImmer } from 'use-immer';
 import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
+import botImage from '@/assets/images/bot-image.png'
+import userIcon from '@/assets/images/usericon.png'
 
 const partKeyPrefix = '@___PART___'
+
+
 
 
 export default function App() {
@@ -249,7 +253,7 @@ export default function App() {
                                                                     <If>
                                                                         <img
                                                                             key={index}
-                                                                            src={'/images/bot-image.png'}
+                                                                            src={botImage}
                                                                             alt="AI"
                                                                             width="40"
                                                                             height="40"
@@ -259,7 +263,7 @@ export default function App() {
                                                                     <Else>
                                                                         <img
                                                                             key={index}
-                                                                            src="/images/usericon.png"
+                                                                            src={userIcon}
                                                                             alt="Me"
                                                                             width="30"
                                                                             height="30"

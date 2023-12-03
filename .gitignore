@@ -30,7 +30,7 @@ coverage
 .lock-wscript
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+src/electron/faiss-node/binding/build/Release
 
 # Dependency directories
 node_modules/
@@ -92,3 +92,5 @@ typings/
 out/
 .dist/
 .idea
+/electron-dist/
+/dist/

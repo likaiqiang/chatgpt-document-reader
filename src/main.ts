@@ -1,20 +1,23 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu} from 'electron'
 import type {MenuItemConstructorOptions} from 'electron'
+// import { setGlobalDispatcher, ProxyAgent } from 'internal/deps/undici/undici'
 import {Channel} from "@/types/bridge";
 // import "web-streams-polyfill/es6";
-import ingestData from './ingest-data'
+import ingestData from './electron/ingest-data'
 import fsPromise from "node:fs/promises";
 import path from 'path'
-import chat from "./chat";
+import chat from "./electron/chat";
 import  fs from 'fs';
 import { outputDir } from '@/config';
-import prompt from './prompt'
+import prompt from './electron/prompt'
 import {
   setApikey as setLocalApikey,
   setProxy as setLocalProxy,
   getApikey as getLocalApikey,
   getProxy as getLocalProxy
-} from './storage'
+} from './electron/storage'
+
+// setGlobalDispatcher(new ProxyAgent('http://127.0.0.1:7890'))
 
 
 let mainWindow: BrowserWindow = null
@@ -175,16 +178,17 @@ const createWindow = () => {
     if(apikey) return Promise.resolve()
     return setapikey()
   })
-
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
   setCustomMenu()
   // Open the DevTools.
-  mainWindow.webContents.openDevTools();
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL){
+    mainWindow.webContents.openDevTools();
+  }
 };
 
 // This method will be called when Electron has finished

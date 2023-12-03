@@ -1,5 +1,5 @@
-const path = require('path');
 const electron = require('electron');
+const path = require('path');
 
 const DEFAULT_WIDTH = 370;
 const DEFAULT_HEIGHT = 162;
@@ -19,7 +19,7 @@ function getElectronMainExport(id) {
         + 'It is preferable to set up message exchanges for this using `ipcMain.handle()` and `ipcRenderer.invoke()`,\n'
         + 'avoiding remote IPC overhead costs, and one morepackage dependancy.\n\n'
         + 'Original error message:\n\n'
-        + originalError.message,
+        + originalError.message
       );
 
       error.originalError = originalError;
@@ -60,9 +60,9 @@ function electronPrompt(options, parentWindow) {
         customStylesheet: null,
         menuBarVisible: false,
         skipTaskbar: true,
-        showWhenReady: false,
+        showWhenReady: false
       },
-      options || {},
+      options || {}
     );
 
     if (options_.type === 'select' && (options_.selectOptions === null || typeof options_.selectOptions !== 'object')) {
@@ -89,8 +89,8 @@ function electronPrompt(options, parentWindow) {
       icon: options_.icon || undefined,
       webPreferences: {
         nodeIntegration: true,
-        contextIsolation: false,
-      },
+        contextIsolation: false
+      }
     });
 
     promptWindow.setMenu(null);
@@ -144,11 +144,13 @@ function electronPrompt(options, parentWindow) {
         promptWindow.show();
       });
     }
-
-    promptWindow.loadFile(
-      path.join(process.cwd(),'page','prompt.html'),
-      {hash: id},
-    );
+    // eslint-disable-next-line
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      // eslint-disable-next-line
+      promptWindow.loadFile(path.join(process.cwd(),'src','assets','promptPage','prompt.html'), { hash: id });
+    } else {
+      promptWindow.loadFile(path.join(__dirname, 'promptPage','prompt.html'),{hash: id});
+    }
   });
 }
 

@@ -2,7 +2,7 @@
 // plugin that tells the Electron app where to look for the Vite-bundled app code (depending on
 // whether you're running in development or production).
 
-import { api } from './electron/preload'
+import { api } from './preload'
 declare module '*.css';
 
 declare global {
