@@ -1,13 +1,15 @@
 {
   "name": "pdf-chatbot",
   "productName": "pdf-chatbot",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",
   "scripts": {
     "start": "chcp 65001 && electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make",
+    "make-win32": "electron-forge make --platform=win32",
+    "make-dmg": "electron-forge make --platform=darwin",
+    "make-linux": "electron-forge make --platform=linux",
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
@@ -20,11 +22,13 @@
   "devDependencies": {
     "@electron-forge/cli": "^7.1.0",
     "@electron-forge/maker-deb": "^7.1.0",
+    "@electron-forge/maker-dmg": "^7.2.0",
     "@electron-forge/maker-rpm": "^7.1.0",
     "@electron-forge/maker-squirrel": "^7.1.0",
     "@electron-forge/maker-zip": "^7.1.0",
     "@electron-forge/plugin-auto-unpack-natives": "^7.1.0",
     "@electron-forge/plugin-vite": "^7.1.0",
+    "@electron-forge/publisher-github": "^7.2.0",
     "@originjs/vite-plugin-commonjs": "^1.0.3",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-dynamic-import-vars": "^2.1.2",
