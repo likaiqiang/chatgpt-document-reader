@@ -35,7 +35,7 @@ const config: ForgeConfig = {
   publishers: [
     {
       "name": "@electron-forge/publisher-github",
-      "platforms": ['darwin', 'linux', 'win32'],
+      "platforms": ['darwin', 'win32'],
       "config": {
         "repository": {
           "owner": "likaiqiang",
