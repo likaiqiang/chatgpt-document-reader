@@ -1,5 +1,6 @@
 const electron = require('electron');
 const path = require('path');
+const Positioner = require('electron-positioner')
 
 const DEFAULT_WIDTH = 370;
 const DEFAULT_HEIGHT = 162;
@@ -92,6 +93,10 @@ function electronPrompt(options, parentWindow) {
         contextIsolation: false
       }
     });
+    if(parentWindow){
+      const positioner = new Positioner(promptWindow)
+      positioner.move('center', parentWindow.getBounds())
+    }
 
     promptWindow.setMenu(null);
     promptWindow.setMenuBarVisibility(options_.menuBarVisible);

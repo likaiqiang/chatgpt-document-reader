@@ -36,8 +36,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PDF_CHATBOT }}
         run: |
-          sudo apt-get install dpkg
-          sudo apt-get install rpm
+          sudo apt-get update
+          sudo apt-get install rpm alien build-essential
+          sudo apt-get install wine64
+          sudo apt-get install mono-complete wine64
           npm i
+          npm i electron-installer-redhat electron-installer-debian -D
           npm run publish
 

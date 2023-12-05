@@ -30,7 +30,7 @@ async function setapikey(){
       type: 'text'
     },
     type: 'input'
-  })
+  },mainWindow)
     .then((r) => {
       if(r === null) {
         return Promise.reject(new Error('user cancelled'))
@@ -50,7 +50,7 @@ async function setproxy(){
       placeholder:'http://127.0.0.1:7890'
     },
     type: 'input'
-  })
+  },mainWindow)
     .then((r) => {
       if(r === null) {
         return Promise.reject(new Error('user cancelled'))

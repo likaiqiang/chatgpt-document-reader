@@ -49,12 +49,14 @@
     "ts-node": "^10.0.0",
     "typescript": "~4.5.4",
     "vite-plugin-electron-renderer": "^0.14.5",
-    "vite-plugin-static-copy": "^1.0.0"
+    "vite-plugin-static-copy": "^1.0.0",
+    "which": "^4.0.0"
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.1.1",
     "ahooks": "^3.7.8",
     "clsx": "^1.2.1",
+    "electron-positioner": "^4.1.0",
     "electron-squirrel-startup": "^1.0.0",
     "electron-store": "^8.1.0",
     "faiss-node": "^0.5.1",
