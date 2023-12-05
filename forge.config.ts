@@ -16,20 +16,6 @@ const config: ForgeConfig = {
       platforms: ["win32"],
       config: {
         // your squirrel config
-      },
-    },
-    {
-      name: "@electron-forge/maker-deb",
-      platforms:["linux"],
-      config:{
-
-      }
-    },
-    {
-      name:"@electron-forge/maker-rpm",
-      platforms:["linux"],
-      config:{
-
       }
     }
   ],
