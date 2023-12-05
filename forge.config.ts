@@ -1,14 +1,38 @@
 import type { ForgeConfig } from '@electron-forge/shared-types';
-import { MakerSquirrel } from '@electron-forge/maker-squirrel';
-import { MakerZIP } from '@electron-forge/maker-zip';
-import { MakerDeb } from '@electron-forge/maker-deb';
-import { MakerRpm } from '@electron-forge/maker-rpm';
-import { MakerDMG } from '@electron-forge/maker-dmg'
 import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
   rebuildConfig: {},
-  makers: [new MakerSquirrel({}), new MakerDMG({}) ,new MakerZIP({}, ['darwin']), new MakerRpm({}), new MakerDeb({})],
+  makers:[
+    {
+      name: "@electron-forge/maker-dmg",
+      platforms: ["darwin"],
+      config: {
+        // your dmg config
+      },
+    },
+    {
+      name: "@electron-forge/maker-squirrel",
+      platforms: ["win32"],
+      config: {
+        // your squirrel config
+      },
+    },
+    {
+      name: "@electron-forge/maker-deb",
+      platforms:["linux"],
+      config:{
+
+      }
+    },
+    {
+      name:"@electron-forge/maker-rpm",
+      platforms:["linux"],
+      config:{
+
+      }
+    }
+  ],
   plugins: [
     new VitePlugin({
       // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
