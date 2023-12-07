@@ -91,7 +91,6 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install distutils
           npm i electron-installer-dmg appdmg -D
           npm ci
           npm run copy
