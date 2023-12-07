@@ -75,6 +75,10 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '18'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
 
       - name: Cache Node Dependencies
         uses: actions/cache@v3
@@ -86,6 +90,8 @@ jobs:
 
       - name: Install dependencies
         run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install distutils
           npm i electron-installer-dmg appdmg -D
           npm ci
           npm run copy
