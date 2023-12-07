@@ -39,6 +39,9 @@ jobs:
           npm i electron-winstaller -D
           npm ci
           npm run copy
+      - name: Build package
+        run: |
+          npm run make-win32
 
       - name: Get Version
         id: version
@@ -86,6 +89,10 @@ jobs:
           npm i electron-installer-dmg -D
           npm ci
           npm run copy
+
+      - name: Build package
+        run: |
+          npm run make-dmg
 
       - name: Get Version
         id: version
