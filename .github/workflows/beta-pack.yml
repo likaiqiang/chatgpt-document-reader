@@ -9,13 +9,56 @@ on:
         required: true
 
 jobs:
-  Android:
-    name: Build
-    runs-on: ubuntu-latest
+  build_windows:
+    name: Build on Windows
+    environment: release
+    runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - name: Check out git repository
         uses: actions/checkout@v3
+      - name: Install MKL
+        run: |
+          echo "MKLROOT=C:\Program Files (x86)\Intel\oneAPI\mkl\latest" >> $GITHUB_ENV
+          .github/workflows/install_mkl_windows.bat "https:/registrationcenter-download.intel.com/akdlm/IRC_NAS/c961e083-5685-4f0b-ada5-c6cf16f561dd/w_BaseKit_p_2023.1.0.47256_offline.exe" "intel.oneapi.win.mkl.devel"
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Cache Node Dependencies
+        uses: actions/cache@v3
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-caches-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-caches-
 
+      - name: Install dependencies
+        run: |
+          npm i electron-winstaller -D
+          npm ci
+          npm run copy
+
+      - name: Build Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PDF_CHATBOT }}
+        run: |
+          npm run publish
+
+  build_macos:
+    name: Build on MacOS
+    environment: release
+    runs-on: macos-11
+    permissions:
+      contents: write
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v3
+      - name: Install libomp
+        run: |
+          brew install libomp
+          brew info libomp
       - name: Install Node.js
         uses: actions/setup-node@v3
         with:
@@ -30,17 +73,14 @@ jobs:
             ${{ runner.os }}-node-caches-
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm i electron-installer-dmg -D
+          npm ci
+          npm run copy
 
       - name: Build Packages
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PDF_CHATBOT }}
         run: |
-          sudo apt-get update
-          sudo apt-get install rpm alien build-essential
-          sudo apt-get install wine64
-          sudo apt-get install mono-complete wine64
-          npm i
-          npm i electron-installer-redhat electron-installer-debian -D
           npm run publish
 

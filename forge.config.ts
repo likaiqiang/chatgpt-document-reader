@@ -16,6 +16,13 @@ const config: ForgeConfig = {
       platforms: ["win32"],
       config: {
         // your squirrel config
+      },
+    },
+    {
+      name: "@electron-forge/maker-deb",
+      platforms:["linux"],
+      config:{
+
       }
     }
   ],
@@ -45,7 +52,7 @@ const config: ForgeConfig = {
   publishers: [
     {
       "name": "@electron-forge/publisher-github",
-      "platforms": ['darwin', 'win32'],
+      "platforms": ['darwin', 'win32','linux'],
       "config": {
         "repository": {
           "owner": "likaiqiang",
