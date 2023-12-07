@@ -86,7 +86,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm i electron-installer-dmg -D
+          npm i electron-installer-dmg appdmg -D
           npm ci
           npm run copy
 
