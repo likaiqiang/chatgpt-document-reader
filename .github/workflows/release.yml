@@ -1,5 +1,5 @@
-name: Build Beta
-run-name: 'Build Beta ${{ github.event.inputs.name }}'
+name: Build
+run-name: 'Build ${{ github.event.inputs.name }}'
 
 on:
   workflow_dispatch:
@@ -11,6 +11,7 @@ on:
 jobs:
   build_windows:
     name: Build on Windows
+    environment: release
     runs-on: windows-latest
     permissions:
       contents: write
@@ -49,14 +50,16 @@ jobs:
           echo $VERSION
           echo VERSION=$VERSION >> $env:GITHUB_OUTPUT
 
-      - name: Upload Artifact win32
-        uses: actions/upload-artifact@v3
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
         with:
-          name: pdf-chatbot-v${{ env.VERSION }}
-          path: out/make/squirrel.windows/x64/*.exe
+          draft: true
+          fail_on_unmatched_files: true
+          files: out/make/squirrel.windows/x64/*.exe
 
   build_macos:
     name: Build on MacOS
+    environment: release
     runs-on: macos-11
     permissions:
       contents: write
@@ -102,8 +105,9 @@ jobs:
           echo $VERSION
           echo VERSION=$VERSION >> "$GITHUB_OUTPUT"
 
-      - name: Upload Artifact dmg
-        uses: actions/upload-artifact@v3
+      - name: Upload to Release
+        uses: softprops/action-gh-release@v1
         with:
-            name: pdf-chatbot-v${{ env.VERSION }}
-            path: out/make/*.dmg
+          draft: true
+          fail_on_unmatched_files: true
+          files: out/make/*.dmg
