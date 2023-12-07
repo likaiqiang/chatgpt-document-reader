@@ -1,6 +1,6 @@
 {
-  "name": "pdf-chatbot",
-  "productName": "pdf-chatbot",
+  "name": "chatgpt-pdf-reader",
+  "productName": "chatgpt-pdf-reader",
   "version": "0.0.1",
   "description": "My Electron application description",
   "main": ".vite/build/main.js",

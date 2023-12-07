@@ -15,10 +15,10 @@ const config: ForgeConfig = {
       name: "@electron-forge/maker-squirrel",
       platforms: ["win32"],
       config: {
-        name:'pdf-chatbot',
+        name:'chatgpt-pdf-reader',
         authors:'likaiqiang',
         description:'a electron pdf chatbot',
-        exe: 'pdf-chatbot.exe',
+        exe: 'chatgpt-pdf-reader.exe',
       },
     },
     {

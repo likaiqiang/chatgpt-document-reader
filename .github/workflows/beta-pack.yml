@@ -52,7 +52,7 @@ jobs:
       - name: Upload Artifact win32
         uses: actions/upload-artifact@v3
         with:
-          name: pdf-chatbot-v${{ env.VERSION }}
+          name: chatgpt-pdf-reader-v${{ env.VERSION }}
           path: out/make/squirrel.windows/x64/*.exe
 
   build_macos:
@@ -105,5 +105,5 @@ jobs:
       - name: Upload Artifact dmg
         uses: actions/upload-artifact@v3
         with:
-            name: pdf-chatbot-v${{ env.VERSION }}
+            name: chatgpt-pdf-reader-v${{ env.VERSION }}
             path: out/make/*.dmg
