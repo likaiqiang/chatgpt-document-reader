@@ -1,4 +1,4 @@
-import {app, BrowserWindow, dialog, ipcMain, Menu} from 'electron'
+import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
 import type {MenuItemConstructorOptions} from 'electron'
 // import { setGlobalDispatcher, ProxyAgent } from 'internal/deps/undici/undici'
 import {Channel} from "@/types/bridge";
@@ -80,6 +80,12 @@ function setCustomMenu() {
           label: 'Proxy',
           click() {
             setproxy().then()
+          }
+        },
+        {
+          label:"Open Vector Cache",
+          click(){
+            shell.openPath(outputDir).then()
           }
         }
       ]
