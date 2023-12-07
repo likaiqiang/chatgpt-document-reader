@@ -5,6 +5,10 @@ function copyFiles(sourceDir, destinationDir) {
   // 读取源文件夹中的所有文件
   const files = fs.readdirSync(sourceDir);
 
+  if (!fs.existsSync(destinationDir)) {
+    fs.mkdirSync(destinationDir, { recursive: true });
+  }
+
   // 遍历每个文件并复制到目标文件夹
   files.forEach((file) => {
     const sourcePath = path.join(sourceDir, file);

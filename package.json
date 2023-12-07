@@ -12,7 +12,6 @@
     "make-dmg": "electron-forge make --platform=darwin",
     "make-linux": "electron-forge make --platform=linux",
     "copy": "node ./copy.js",
-    "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx ."
   },
   "keywords": [],
