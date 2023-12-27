@@ -1,36 +1,109 @@
-import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
 import { FaissStore } from './faiss';
-import PDFLoader from '@/loaders/pdf';
+import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import path from 'path';
 import { outputDir } from '@/config';
 import { getApikey, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 
-/* Name of directory to retrieve your files from
-   Make sure to add your PDF files inside the 'docs' folder
-*/
+import { Document } from 'langchain/dist/document';
+import { getPdfDocs } from '@/loaders';
+import { getMaxToken, getTokenCount, default as Embeddings } from '@/electron/embeddings';
 
-export default async ({ buffer, filename }: { buffer: Buffer, filename: string }) => {
+const embeddingModel = 'text-embedding-ada-002'
+
+
+const supportedLanguages = [
+  ".cpp",
+  ".go",
+  ".java",
+  ".js",
+  ".php",
+  ".proto",
+  ".python",
+  ".rst",
+  ".ruby",
+  ".rust",
+  ".scala",
+  ".swift",
+  ".markdown",
+  ".latex",
+  ".html",
+  ".sol",
+  ".kotlin",
+  ".pdf",
+  ".txt"
+]
+
+function splitText(text:string, modelName:string):string[]{
+  if(getTokenCount(text) <= getMaxToken(modelName)){
+    return [text]
+  }
+  else{
+    const mid = Math.floor(text.length / 2)
+    return splitText(
+      text.slice(0,mid),
+      modelName
+    ).concat(
+      splitText(
+        text.slice(mid),
+        modelName
+      )
+    )
+  }
+}
+
+async function getDocuments({buffer, filename, filePath}: IngestParams): Promise<Document[]>{
+  if(filePath.endsWith('.pdf')){
+    return getPdfDocs({buffer, filename, filePath})
+  }
+  if(filePath.endsWith('.zip')){
+    const tasks: Array<Promise<Document[]>> = []
+    const files = await new ZipLoader().parse(buffer, path=> {
+      return supportedLanguages.reduce((acc, ext)=>{
+        return acc || path.endsWith(ext)
+      },false)
+    })
+    for(const file of files){
+      const {path,content} = file
+      if(path.endsWith('.pdf')){
+        tasks.push(
+          getPdfDocs({buffer, filename, filePath})
+        )
+      }
+      tasks.push(
+        Promise.resolve(
+          splitText(content, embeddingModel).map(text=>{
+            return new Document({
+              pageContent: text,
+              metadata:{
+                source: path
+              }
+            })
+          })
+        )
+      )
+    }
+    return Promise.all(tasks).then(docs=>{
+      return docs.flat()
+    })
+  }
+  return Promise.reject('unknown file')
+}
+
+export default async ({ buffer, filename,filePath }: IngestParams) => {
   const proxy = getProxy() as string;
   const apikey = getApikey() as string;
   try {
-    const rawDocsArray = await new PDFLoader().parse(buffer, { source: filename });
-
-    /* Split text into chunks */
-    const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 1000,
-      chunkOverlap: 200
-    });
-
-    const docs = await textSplitter.splitDocuments(rawDocsArray);
-    console.log('split docs', docs);
-
-    console.log('creating vector store...');
+    const docs = await getDocuments({
+      buffer,
+      filename,
+      filePath
+    })
     const vectorStore = await FaissStore.fromDocuments(docs,
-    new OpenAIEmbeddings({
-        openAIApiKey: apikey
+    new Embeddings({
+        openAIApiKey: apikey,
+        modelName: embeddingModel
       },{
         httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
         // @ts-ignore

@@ -9,7 +9,6 @@ import {outputDir} from '@/config'
 import { ChatParams } from '@/types/chat';
 import { getApikey, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
-import type {Fetch} from 'openai/src/core';
 
 
 export default async ({question, history, filename}:ChatParams) => {

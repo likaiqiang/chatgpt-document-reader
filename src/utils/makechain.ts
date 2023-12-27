@@ -5,7 +5,6 @@ import { StringOutputParser } from 'langchain/schema/output_parser';
 import type { VectorStoreRetriever } from 'langchain/vectorstores/base';
 import type { Document } from 'langchain/document';
 import {HttpsProxyAgent} from "https-proxy-agent";
-import { ProxyAgent } from 'proxy-agent';
 import { getApikey, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
 const CONDENSE_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.

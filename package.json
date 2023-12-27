@@ -63,6 +63,7 @@
     "faiss-node": "^0.5.1",
     "flowbite": "^1.6.5",
     "immer": "^10.0.3",
+    "jszip": "^3.10.1",
     "langchain": "0.0.198",
     "lodash.clonedeep": "^4.5.0",
     "lucide-react": "^0.125.0",

@@ -9,6 +9,11 @@ declare global {
     interface Window {
         chatBot: typeof api
     }
+    interface IngestParams{
+        buffer: Buffer,
+        filename: string,
+        filePath: string
+    }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string
 }

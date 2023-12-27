@@ -152,7 +152,7 @@ const createWindow = () => {
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters:[
-        {name:'pdf', extensions:['pdf']}
+        {name:'document',extensions:['zip','pdf']}
       ]
     })
     return filePaths
@@ -161,7 +161,7 @@ const createWindow = () => {
     if(filePaths.length){
       const buffer = await fsPromise.readFile(filePaths[0])
       const filename = filePaths[0].split(path.sep).pop()
-      await ingestData({buffer, filename: filename!})
+      await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
       return {filename}
     }
     return Promise.reject(new Error('no file select'))
