@@ -45,7 +45,7 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
 
     const model = new ChatOpenAI({
         temperature: 0, // increase temperature to get more creative answers
-        modelName: 'gpt-3.5-turbo',
+        modelName: 'gpt-3.5-turbo-1106',
         openAIApiKey: getApikey() as string
         //change this to gpt-4 if you have access
     },{

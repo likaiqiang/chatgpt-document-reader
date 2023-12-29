@@ -6,7 +6,7 @@ import { outputDir } from '@/config';
 import { getApikey, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 
-import { Document } from 'langchain/dist/document';
+import { Document } from '@/types/document';
 import { getPdfDocs } from '@/loaders';
 import { getMaxToken, getTokenCount, default as Embeddings } from '@/electron/embeddings';
 
@@ -27,6 +27,7 @@ const supportedLanguages = [
   ".scala",
   ".swift",
   ".markdown",
+  ".md",
   ".latex",
   ".html",
   ".sol",
@@ -71,18 +72,20 @@ async function getDocuments({buffer, filename, filePath}: IngestParams): Promise
           getPdfDocs({buffer, filename, filePath})
         )
       }
-      tasks.push(
-        Promise.resolve(
-          splitText(content, embeddingModel).map(text=>{
-            return new Document({
-              pageContent: text,
-              metadata:{
-                source: path
-              }
+      else{
+        tasks.push(
+          Promise.resolve(
+            splitText(content, embeddingModel).map(text=>{
+              return new Document({
+                pageContent: text,
+                metadata:{
+                  source: path
+                }
+              })
             })
-          })
+          )
         )
-      )
+      }
     }
     return Promise.all(tasks).then(docs=>{
       return docs.flat()

@@ -1,8 +1,27 @@
 import { type ClientOptions, OpenAI as OpenAIClient } from "openai";
 import { getEnvironmentVariable } from "@langchain/core/utils/env";
 import { Embeddings, type EmbeddingsParams } from "@langchain/core/embeddings";
-import { wrapOpenAIClientError } from 'langchain/dist/util/openai';
 import { encodingForModel } from 'js-tiktoken';
+import {
+  APIConnectionTimeoutError,
+  APIUserAbortError
+} from "openai";
+
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function wrapOpenAIClientError(e: any) {
+  let error;
+  if (e.constructor.name === APIConnectionTimeoutError.name) {
+    error = new Error(e.message);
+    error.name = "TimeoutError";
+  } else if (e.constructor.name === APIUserAbortError.name) {
+    error = new Error(e.message);
+    error.name = "AbortError";
+  } else {
+    error = e;
+  }
+  return error;
+}
 
 const embeddingModel = 'text-embedding-ada-002'
 const enc = encodingForModel(embeddingModel);
@@ -109,22 +128,22 @@ export default class OpenAIEmbeddings
     };
   }
 
-  private getBatch(texts: string[]): string[] {
-    let curChunk = ''
+  private getBatch(texts: string[]): Array<string[]> {
+    let curChunk: string[] = []
     let curChunkCount = 0
-    const batches = []
+    const batches: Array<string[]> = []
     for (const text of texts) {
       const tokenCount = getTokenCount(text)
       if (tokenCount + curChunkCount > getMaxToken(embeddingModel)) {
         batches.push(curChunk)
         curChunkCount = tokenCount
-        curChunk = text
+        curChunk = [text]
       } else {
         curChunkCount += tokenCount
-        curChunk += text
+        curChunk.push(text)
       }
     }
-    if (curChunk !== '') {
+    if (curChunk.length > 0) {
       batches.push(curChunk)
     }
     return batches
@@ -140,7 +159,7 @@ export default class OpenAIEmbeddings
   async embedDocuments(texts: string[]): Promise<number[][]> {
     const batches = this.getBatch(texts)
 
-    const batchRequests = batches.map((batch:string) =>
+    const batchRequests = batches.map((batch:string[]) =>
       this.embeddingWithRetry({
         model: this.modelName,
         input: batch,

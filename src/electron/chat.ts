@@ -1,5 +1,5 @@
 import type { Document } from 'langchain/document';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
+import { default as Embeddings } from '@/electron/embeddings';
 import {FaissStore } from "./faiss";
 import { makeChain } from '@/utils/makechain';
 import path from 'path'
@@ -27,7 +27,7 @@ export default async ({question, history, filename}:ChatParams) => {
         /* create vectorstore */
         const vectorStore = await FaissStore.load(
             outputFilePath,
-            new OpenAIEmbeddings({
+            new Embeddings({
                 openAIApiKey: apikey,
             },{
                 httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
