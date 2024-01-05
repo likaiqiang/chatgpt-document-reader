@@ -3,6 +3,7 @@
 // whether you're running in development or production).
 
 import { api } from './preload'
+
 declare module '*.css';
 
 declare global {
@@ -10,7 +11,7 @@ declare global {
         chatBot: typeof api
     }
     interface IngestParams{
-        buffer: Buffer,
+        buffer: Buffer | string,
         filename: string,
         filePath: string
     }

@@ -2,7 +2,9 @@ import type { ForgeConfig } from '@electron-forge/shared-types';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules:[]
+  },
   makers:[
     {
       name: "@electron-forge/maker-dmg",

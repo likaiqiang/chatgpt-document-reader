@@ -17,8 +17,9 @@ import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-
 const partKeyPrefix = '@___PART___'
+
+console.log('start');
 
 
 export default function App() {
@@ -69,9 +70,8 @@ export default function App() {
             })
         }
     })
-
-    useEffect(() => {
-        window.chatBot.getResources().then(res=>{
+    function getResources(){
+        return window.chatBot.getResources().then(res=>{
             const sortedRes = res.sort((a,b)=>{
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
@@ -82,7 +82,13 @@ export default function App() {
                 setActive(0)
             }
         })
+    }
+    useEffect(() => {
+        getResources().then()
         textAreaRef.current?.focus();
+        window.chatBot.onOutputDirChange(()=>{
+            getResources().then()
+        })
     }, []);
 
     // handle form submission

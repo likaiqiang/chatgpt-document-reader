@@ -1,6 +1,6 @@
 import type { Document } from 'langchain/document';
 import { default as Embeddings } from '@/electron/embeddings';
-import {FaissStore } from "./faiss";
+import {CustomFaissStore as FaissStore } from "./faiss";
 import { makeChain } from '@/utils/makechain';
 import path from 'path'
 import fsPromise from 'node:fs/promises';

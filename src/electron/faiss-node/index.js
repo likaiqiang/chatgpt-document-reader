@@ -5,7 +5,7 @@ import path from 'path'
 const faiss = bindings({
   bindings: 'faiss-node',
   // eslint-disable-next-line
-  module_root: MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','node') : path.join(__dirname,'node')
+  module_root: MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','node','faiss-node') : path.join(__dirname,'node','faiss-node')
 });
 
 faiss.MetricType = void 0;

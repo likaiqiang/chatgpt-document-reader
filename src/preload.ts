@@ -27,6 +27,9 @@ export const api = {
     },
     checkapikey(){
         return ipcRenderer.invoke(Channel.checkapikey)
+    },
+    onOutputDirChange(cb=()=>{}){
+        ipcRenderer.on(Channel.outputDirChange,cb)
     }
 }
 

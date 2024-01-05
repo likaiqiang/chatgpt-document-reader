@@ -1,9 +1,9 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
 import type {MenuItemConstructorOptions} from 'electron'
-// import { setGlobalDispatcher, ProxyAgent } from 'internal/deps/undici/undici'
+import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
-// import "web-streams-polyfill/es6";
-import ingestData from './electron/ingest-data'
+
+import ingestData, { supportedLanguages } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./electron/chat";
@@ -17,8 +17,11 @@ import {
   getProxy as getLocalProxy
 } from './electron/storage'
 
-// setGlobalDispatcher(new ProxyAgent('http://127.0.0.1:7890'))
-
+function mainSend(window: Electron.BrowserWindow, name: string): void
+function mainSend<T>(window: Electron.BrowserWindow, name: string, params: T): void
+function mainSend<T>(window: Electron.BrowserWindow, name: string, params?: T): void {
+  window && window.webContents.send(name, params)
+}
 
 let mainWindow: BrowserWindow = null
 
@@ -152,7 +155,7 @@ const createWindow = () => {
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters:[
-        {name:'document',extensions:['zip','pdf']}
+        {name:'document',extensions: supportedLanguages.map(ext=> ext.slice(1))}
       ]
     })
     return filePaths
@@ -195,6 +198,17 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL){
     mainWindow.webContents.openDevTools();
   }
+  watch(outputDir,()=>{
+    mainSend(mainWindow, Channel.outputDirChange)
+  })
+  mainWindow.webContents.on('render-process-gone', function (event, detailed) {
+    //  logger.info("!crashed, reason: " + detailed.reason + ", exitCode = " + detailed.exitCode)
+    if (detailed.reason == "crashed"){
+      // relaunch app
+      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
+      app.exit(0)
+    }
+  })
 };
 
 // This method will be called when Electron has finished
