@@ -2,68 +2,23 @@ import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
 import type {MenuItemConstructorOptions} from 'electron'
 import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
+import {mainSend, fetchModels} from '@/utils/default'
 
-import ingestData, { supportedLanguages } from './electron/ingest-data';
+import ingestData, { supportedDocuments } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./electron/chat";
 import  fs from 'fs';
 import { outputDir } from '@/config';
-import prompt from './electron/prompt'
 import {
-  setApikey as setLocalApikey,
+  setApiConfig as setLocalApikey,
   setProxy as setLocalProxy,
-  getApikey as getLocalApikey,
-  getProxy as getLocalProxy
-} from './electron/storage'
+  getApiConfig as getLocalApikey,
+  getProxy as getLocalProxy, getModel, setModal
+} from './electron/storage';
 
-function mainSend(window: Electron.BrowserWindow, name: string): void
-function mainSend<T>(window: Electron.BrowserWindow, name: string, params: T): void
-function mainSend<T>(window: Electron.BrowserWindow, name: string, params?: T): void {
-  window && window.webContents.send(name, params)
-}
 
 let mainWindow: BrowserWindow = null
-
-async function setapikey(){
-  return prompt({
-    label:'please enter openai_api_key',
-    value: getLocalApikey() || '',
-    inputAttrs: {
-      type: 'text'
-    },
-    type: 'input'
-  },mainWindow)
-    .then((r) => {
-      if(r === null) {
-        return Promise.reject(new Error('user cancelled'))
-      } else {
-        console.log('result', r);
-        setLocalApikey(r)
-        return Promise.resolve()
-      }
-    })
-}
-async function setproxy(){
-  return prompt({
-    label:'please enter proxy url',
-    value: getLocalProxy() || '',
-    inputAttrs: {
-      type: 'url',
-      placeholder:'http://127.0.0.1:7890'
-    },
-    type: 'input'
-  },mainWindow)
-    .then((r) => {
-      if(r === null) {
-        return Promise.reject(new Error('user cancelled'))
-      } else {
-        console.log('result', r);
-        setLocalProxy(r)
-        return Promise.resolve()
-      }
-    })
-}
 
 function setCustomMenu() {
   // 定义一个菜单模板，是一个数组，每个元素是一个菜单对象
@@ -74,16 +29,33 @@ function setCustomMenu() {
       // 菜单的子菜单，是一个数组，每个元素是一个菜单项对象
       submenu: [
         {
-          label: 'OPENAI_API_KEY',
+          label: 'Api Config',
           click() {
-            setapikey().then()
+            mainSend(mainWindow, Channel.apiConfigChange)
           }
         },
         {
-          label: 'Proxy',
-          click() {
-            setproxy().then()
-          }
+          label: 'Models',
+          submenu:[
+            {
+              label: 'gpt-4-1106-preview'.toUpperCase(),
+              type:'radio',
+              checked: getModel() === 'gpt-4-1106-preview',
+              click(){
+                this.checked = true
+                setModal('gpt-4-1106-preview')
+              }
+            },
+            {
+              label:'gpt-3.5-turbo-1106'.toUpperCase(),
+              type:'radio',
+              checked: getModel() === 'gpt-3.5-turbo-1106',
+              click(){
+                this.checked = true
+                setModal('gpt-3.5-turbo-1106')
+              }
+            }
+          ]
         },
         {
           label:"Open Vector Cache",
@@ -92,13 +64,25 @@ function setCustomMenu() {
           }
         }
       ]
-    },
+    }
   ]
 
   // 使用Menu.buildFromTemplate方法，根据模板创建一个菜单对象
   const menu = Menu.buildFromTemplate(template)
   // 使用Menu.setApplicationMenu方法，将菜单对象设置为应用程序的菜单
   Menu.setApplicationMenu(menu)
+}
+
+function hasRepeat(filename:string){
+  const files = fs.readdirSync(outputDir)
+  for(const file of files){
+    const path = outputDir + '/' + file
+    const stat = fs.statSync(path)
+    if(stat.isDirectory() && file === filename){
+      return true
+    }
+  }
+  return false
 }
 
 function findSubdirs (dir:string) {
@@ -155,7 +139,7 @@ const createWindow = () => {
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters:[
-        {name:'document',extensions: supportedLanguages.map(ext=> ext.slice(1))}
+        {name:'document',extensions: supportedDocuments.map(ext=> ext.slice(1))}
       ]
     })
     return filePaths
@@ -164,6 +148,9 @@ const createWindow = () => {
     if(filePaths.length){
       const buffer = await fsPromise.readFile(filePaths[0])
       const filename = filePaths[0].split(path.sep).pop()
+      if(hasRepeat(filename)){
+        return Promise.reject('filename repeat')
+      }
       await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
       return {filename}
     }
@@ -177,15 +164,30 @@ const createWindow = () => {
     return findSubdirs(outputDir)
   })
 
-  ipcMain.handle(Channel.checkproxy, ()=>{
+  ipcMain.handle(Channel.checkProxy, ()=>{
     const proxy = getLocalProxy() || ''
     if(proxy) return Promise.resolve()
-    return setproxy()
+    return Promise.reject('no proxy')
   })
-  ipcMain.handle(Channel.checkapikey, ()=>{
-    const apikey = getLocalApikey() || ''
-    if(apikey) return Promise.resolve()
-    return setapikey()
+  ipcMain.handle(Channel.checkApiConfig, ()=>{
+    const config = getLocalApikey()
+    if(config.baseUrl && config.apiKey) return Promise.resolve()
+    return Promise.reject('no api config')
+  })
+  ipcMain.handle(Channel.replyApiConfig, (e,config)=>{
+    setLocalApikey(config)
+  })
+  ipcMain.handle(Channel.replyProxy, (e,proxy)=>{
+    setLocalProxy(proxy)
+  })
+  ipcMain.handle(Channel.requestGetApiConfig,()=>{
+    return getLocalApikey()
+  })
+  ipcMain.handle(Channel.requestGetProxy,()=>{
+    return getLocalProxy()
+  })
+  ipcMain.handle(Channel.requestTestApi,(e,config)=>{
+    return fetchModels(config)
   })
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {

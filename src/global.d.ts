@@ -15,6 +15,10 @@ declare global {
         filename: string,
         filePath: string
     }
+    interface ApiConfig{
+        apiKey:string,
+        baseUrl:string
+    }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string
 }

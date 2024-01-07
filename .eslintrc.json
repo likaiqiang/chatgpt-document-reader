@@ -31,6 +31,7 @@
     "no-fallthrough": "off",
     "no-empty": "off",
     "no-async-promise-executor": "off",
-    "@typescript-eslint/no-empty-function": "off"
+    "@typescript-eslint/no-empty-function": "off",
+    "no-useless-escape": "off"
   }
 }

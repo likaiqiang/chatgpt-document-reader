@@ -4,7 +4,14 @@ export enum Channel {
     ingestdata = 'ingest_data',
     chat = 'chat',
     resources = 'get_resources',
-    checkproxy = 'send_proxy',
-    checkapikey = 'set_apikey',
-    outputDirChange = 'output_dir_change'
+    checkProxy = 'check_proxy',
+    checkApiConfig = 'check_apikey',
+    outputDirChange = 'output_dir_change',
+    apiConfigChange = 'api_config_change',
+    replyApiConfig = 'reply_api_config',
+    proxyChange = 'proxy_change',
+    replyProxy = 'reply_proxy',
+    requestGetApiConfig = 'request_get_api_config',
+    requestGetProxy = 'request_get_proxy',
+    requestTestApi = 'request_test_api'
 }

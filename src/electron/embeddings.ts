@@ -2,6 +2,7 @@ import { type ClientOptions, OpenAI as OpenAIClient } from 'openai';
 import { getEnvironmentVariable } from '@langchain/core/utils/env';
 import { Embeddings, type EmbeddingsParams } from '@langchain/core/embeddings';
 import { encodingForModel } from 'js-tiktoken';
+import type {Tiktoken, TiktokenModel} from 'js-tiktoken'
 import {
     APIConnectionTimeoutError,
     APIUserAbortError
@@ -129,12 +130,13 @@ export default class OpenAIEmbeddings
             ...fields?.configuration
         };
     }
-    private getBatch(texts: string[]): Array<string[]> {
+    private getBatch(texts: string[], modelName: TiktokenModel = embeddingModel): Array<string[]> {
+        const enc = encodingForModel(modelName)
         let curChunk: string[] = []
         let curChunkCount = 0
         const batches: Array<string[]> = []
         for (const text of texts) {
-            const tokenCount = getTokenCount(text)
+            const tokenCount = getTokenCount(enc, text)
             if (tokenCount + curChunkCount > getMaxToken(embeddingModel)) {
                 batches.push(curChunk)
                 curChunkCount = tokenCount
@@ -225,7 +227,7 @@ export default class OpenAIEmbeddings
     }
 }
 
-export function getTokenCount(text: string) {
+export function getTokenCount(enc: Tiktoken ,text: string) {
     return enc.encode(text).length;
 }
 

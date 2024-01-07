@@ -17,9 +17,15 @@ import Html from '@/electron/tree-sitter/html';
 import Solidity from '@/electron/tree-sitter/solidity';
 import Kotlin from '@/electron/tree-sitter/kotlin';
 import {embeddingModel, getTokenCount, getMaxToken} from '@/electron/embeddings'
+import { encodingForModel } from 'js-tiktoken';
+import type {TiktokenModel} from 'js-tiktoken'
+
+class CustomRecursiveCharacterTextSplitter extends RecursiveCharacterTextSplitter{
+
+}
 
 
-const getLanguageParser = (language: string) =>{
+export const getLanguageParser = (language: string) =>{
   if (language === 'js') return Javascript;
   if (language === 'cpp') return Cpp;
   if (language === 'go') return Go;
@@ -36,9 +42,9 @@ const getLanguageParser = (language: string) =>{
   return null
 }
 
-const MAX_SPLIT_LENGTH = getMaxToken(embeddingModel)
-
-const splitCode = (code:string, languageParser = Javascript) =>{
+export const splitCode = (code:string, languageParser = Javascript, modelName: TiktokenModel = embeddingModel) =>{
+  const maxSplitLength = getMaxToken(modelName)
+  const enc = encodingForModel(modelName)
   // 创建一个解析器
   const parser = new Parser();
   // 设置解析器的语言
@@ -46,6 +52,7 @@ const splitCode = (code:string, languageParser = Javascript) =>{
   // 解析代码，得到一个语法树
   const tree = parser.parse(code);
   // 获取语法树的根节点
+  console.log('tree',tree);
   const root = tree.rootNode;
   // 定义一个数组，用来存储拆分后的代码片段
   const codeFragments = [];
@@ -58,21 +65,21 @@ const splitCode = (code:string, languageParser = Javascript) =>{
     let text = child.text;
 
     while (text.length > 0) {
-      const fragmentLength = getTokenCount(text); // 获取当前文本的token计数
+      const fragmentLength = getTokenCount(enc ,text); // 获取当前文本的token计数
 
-      if (currentFragment === '' || currentLength + fragmentLength <= MAX_SPLIT_LENGTH) {
+      if (currentFragment === '' || currentLength + fragmentLength <= maxSplitLength) {
         // 如果新片段加上当前片段没有超过最大长度，就添加到当前片段
-        const chunk = text.substring(0, Math.min(text.length, MAX_SPLIT_LENGTH - currentLength));
+        const chunk = text.substring(0, Math.min(text.length, maxSplitLength - currentLength));
         text = text.substring(chunk.length); // 减少text的长度
         currentFragment += ('\n' + chunk);
-        currentLength += getTokenCount(chunk); // 更新currentLength为chunk的实际token计数
+        currentLength += getTokenCount(enc ,chunk); // 更新currentLength为chunk的实际token计数
       } else {
         // 如果当前片段已经满了，将其添加到数组并重置当前片段和长度
         codeFragments.push(currentFragment);
         currentFragment = '';
         currentLength = 0;
         // 注意：在这里不应该做任何有关text的操作。
-        // 因为你已经有一个超出MAX_SPLIT_LENGTH的text部分需要在下一个循环中处理。
+        // 因为你已经有一个超出maxSplitLength的text部分需要在下一个循环中处理。
       }
     }
   }
@@ -83,6 +90,10 @@ const splitCode = (code:string, languageParser = Javascript) =>{
   }
 
   return codeFragments;
+}
+
+const splitDocs = (docs: Document[])=>{
+
 }
 
 export const getTextDocs = async ({buffer, filePath}: IngestParams)=>{

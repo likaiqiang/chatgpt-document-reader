@@ -1,9 +1,9 @@
-import { CustomFaissStore as FaissStore } from './faiss';
+import { FaissStore } from './faiss';
 import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import path from 'path';
 import { outputDir } from '@/config';
-import { getApikey, getProxy } from '@/electron/storage';
+import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 
 import { Document } from '@/types/document';
@@ -29,7 +29,11 @@ export const supportedLanguages = [
     '.md',
     '.html',
     '.sol',
-    '.kotlin',
+    '.kotlin'
+]
+
+export const supportedDocuments = [
+    ...supportedLanguages,
     '.pdf',
     '.txt',
     '.zip'
@@ -46,7 +50,7 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
     if (filePath.endsWith('.zip')) {
         const tasks: Array<Promise<Document[]>> = [];
         const files = await new ZipLoader().parse(buffer as Buffer, path => {
-            return supportedLanguages.reduce((acc, ext) => {
+            return supportedDocuments.reduce((acc, ext) => {
                 return acc || path.endsWith(ext);
             }, false);
         });
@@ -77,7 +81,7 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
 
 export default async ({ buffer, filename, filePath }: IngestParams) => {
     const proxy = getProxy() as string;
-    const apikey = getApikey() as string;
+    const config = getApiConfig();
     try {
         const docs = await getDocuments({
             buffer,
@@ -86,13 +90,13 @@ export default async ({ buffer, filename, filePath }: IngestParams) => {
         });
         const vectorStore = await FaissStore.fromDocuments(docs,
             new Embeddings({
-                    openAIApiKey: apikey,
+                    openAIApiKey: config.apiKey,
                     modelName: embeddingModel
                 }, {
                     httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
                     // @ts-ignore
                     fetch,
-                    baseURL:'https://api.gptapi.us'
+                    baseURL: config.baseUrl
                 }
             ));
         const outputFilePath = path.join(outputDir, filename);

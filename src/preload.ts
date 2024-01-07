@@ -23,13 +23,34 @@ export const api = {
       return ipcRenderer.invoke(Channel.resources)
     },
     checkproxy(proxy:string){
-        return ipcRenderer.invoke(Channel.checkproxy, proxy)
+        return ipcRenderer.invoke(Channel.checkProxy, proxy)
     },
-    checkapikey(){
-        return ipcRenderer.invoke(Channel.checkapikey)
+    checkApiConfig(){
+        return ipcRenderer.invoke(Channel.checkApiConfig)
     },
     onOutputDirChange(cb=()=>{}){
         ipcRenderer.on(Channel.outputDirChange,cb)
+    },
+    onApiConfigChange(cb=()=>{}){
+        ipcRenderer.on(Channel.apiConfigChange, cb)
+    },
+    replyApiConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.replyApiConfig, config)
+    },
+    onProxyChange(cb=()=>{}){
+        ipcRenderer.on(Channel.proxyChange,cb)
+    },
+    replyProxy(proxy:string){
+        return ipcRenderer.invoke(Channel.replyProxy, proxy)
+    },
+    requestGetApiConfig(){
+        return ipcRenderer.invoke(Channel.requestGetApiConfig)
+    },
+    requestGetProxy(){
+        return ipcRenderer.invoke(Channel.requestGetProxy)
+    },
+    requestTestApi(config: ApiConfig & {proxy: string}){
+        return ipcRenderer.invoke(Channel.requestTestApi, config)
     }
 }
 
