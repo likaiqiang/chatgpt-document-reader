@@ -42,7 +42,6 @@ function setCustomMenu() {
               type:'radio',
               checked: getModel() === 'gpt-4-1106-preview',
               click(){
-                this.checked = true
                 setModal('gpt-4-1106-preview')
               }
             },
@@ -51,7 +50,6 @@ function setCustomMenu() {
               type:'radio',
               checked: getModel() === 'gpt-3.5-turbo-1106',
               click(){
-                this.checked = true
                 setModal('gpt-3.5-turbo-1106')
               }
             }

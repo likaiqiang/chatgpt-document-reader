@@ -19,6 +19,8 @@ Standalone question:`;
 
 
 export const makeChain = (retriever: VectorStoreRetriever) => {
+    const modelName = getModel()
+    console.log('modelName',modelName);
     const proxy = getProxy() as string;
     const condenseQuestionPrompt =
         ChatPromptTemplate.fromTemplate(CONDENSE_TEMPLATE);
@@ -27,7 +29,7 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
 
     const model = new ChatOpenAI({
         temperature: 0, // increase temperature to get more creative answers
-        modelName: getModel(),
+        modelName,
         openAIApiKey: config.apiKey
         //change this to gpt-4 if you have access
     },{
