@@ -6,12 +6,11 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start-win": "chcp 65001 && electron-forge start",
-    "start:unix": "npm run copy && electron-forge start",
+    "start:unix": "electron-forge start",
     "package": "electron-forge package",
     "make-win32": "electron-forge make --platform=win32",
     "make-dmg": "electron-forge make --platform=darwin",
     "make-linux": "electron-forge make --platform=linux",
-    "copy": "node ./copy.js",
     "lint": "eslint --ext .ts,.tsx .",
     "install-tree-sitter": "cd src/deps/tree-sitter && git checkout 2a3d93a7416cb4e8c9c24a04bb3bc1951045d5ca && npm install",
     "postinstall": "npm run install-tree-sitter && node build.js"
