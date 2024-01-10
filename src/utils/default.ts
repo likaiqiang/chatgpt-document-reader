@@ -10,15 +10,18 @@ export function mainSend<T>(window: Electron.BrowserWindow, name: string, params
 
 export const fetchModels = async ({baseUrl, apiKey, proxy}: ApiConfig & {proxy: string})=>{
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0,baseUrl.length -1) : baseUrl
-  return fetch(`${baseUrl}/v1/models`,{
-    headers:{
-      'Authorization': `Bearer ${apiKey}`
-    },
-    agent: proxy ? new HttpsProxyAgent(proxy) : undefined
-  }).then(res=>{
-    if(res.status !== 200) return Promise.reject()
-    return res.json()
-  })
+  try{
+    return fetch(`${baseUrl}/models`,{
+      headers:{
+        'Authorization': `Bearer ${apiKey}`
+      },
+      agent: proxy ? new HttpsProxyAgent(proxy) : undefined
+    }).then(res=>{
+      return res.json()
+    })
+  } catch (e){
+    return Promise.reject(e)
+  }
 }
 
 export const getNormalizeBaseUrl = (baseUrl:string)=>{

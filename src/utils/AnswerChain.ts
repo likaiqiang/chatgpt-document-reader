@@ -41,34 +41,10 @@ If the question is not related to the context or chat history, politely respond 
 Helpful answer in markdown:
 `
 
-const config = getApiConfig()
-const proxy = getProxy() as string;
-
-const model = new ChatOpenAI({
-  temperature: 0, // increase temperature to get more creative answers
-  modelName,
-  openAIApiKey: config.apiKey
-  //change this to gpt-4 if you have access
-},{
-  httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
-  // @ts-ignore
-  fetch,
-  baseURL: config.baseUrl
-});
-
 
 const answerPrompt = ChatPromptTemplate.fromTemplate(ANSWER_TEMPLATE);
 const combinePrompt = ChatPromptTemplate.fromTemplate(COMBINE_TEMPLATE);
-const answerChain = RunnableSequence.from([
-  answerPrompt,
-  model,
-  new StringOutputParser()
-])
-const combineChain = RunnableSequence.from([
-  combinePrompt,
-  model,
-  new StringOutputParser()
-])
+
 
 interface AnswerInvokeParams{
   context: Document[],
@@ -79,11 +55,42 @@ interface AnswerInvokeParams{
 
 export class AnswerChain extends Runnable{
   lc_namespace = ["langchain_core", "runnables"];
+  private getChatOpenAIModel(){
+    const config = getApiConfig()
+    const proxy = getProxy() as string;
+    return new ChatOpenAI({
+      temperature: 0, // increase temperature to get more creative answers
+      modelName,
+      openAIApiKey: config.apiKey
+      //change this to gpt-4 if you have access
+    },{
+      httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+      // @ts-ignore
+      fetch,
+      baseURL: config.baseUrl
+    });
+  }
+  private getAnswerChain(){
+    return RunnableSequence.from([
+      answerPrompt,
+      this.getChatOpenAIModel(),
+      new StringOutputParser()
+    ])
+  }
+  private getCombineChain(){
+    return RunnableSequence.from([
+      combinePrompt,
+      this.getChatOpenAIModel(),
+      new StringOutputParser()
+    ])
+  }
   async invoke(input:AnswerInvokeParams): Promise<any> {
     const enc = encodingForModel(modelName as TiktokenModel)
     const maxToken = getMaxToken(modelName) - 200
     const {context,chat_history,question} = input
     const answers:string[] = []
+    const answerChain = this.getAnswerChain()
+    const combineChain = this.getCombineChain()
 
     for(const ctx of context){
       const {pageContent,metadata} = ctx
