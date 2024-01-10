@@ -17,6 +17,8 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install MKL
         run: |
           echo "MKLROOT=C:\Program Files (x86)\Intel\oneAPI\mkl\latest" >> $GITHUB_ENV
@@ -63,6 +65,8 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install libomp
         run: |
           brew install libomp
