@@ -3,11 +3,21 @@
 // whether you're running in development or production).
 
 import { api } from './preload'
+
 declare module '*.css';
 
 declare global {
     interface Window {
         chatBot: typeof api
+    }
+    interface IngestParams{
+        buffer: Buffer | string,
+        filename: string,
+        filePath: string
+    }
+    interface ApiConfig{
+        apiKey:string,
+        baseUrl:string
     }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string

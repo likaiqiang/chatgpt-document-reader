@@ -94,4 +94,5 @@ out/
 .idea
 /electron-dist/
 /dist/
-/src/assets/node/build/
+/src/assets/node/
+/r.txt

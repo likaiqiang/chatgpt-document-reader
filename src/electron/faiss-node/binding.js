@@ -2,12 +2,12 @@
  * Module dependencies.
  */
 
-var fs = require('fs'),
-  path = require('path'),
-  fileURLToPath = require('file-uri-to-path'),
-  join = path.join,
-  dirname = path.dirname,
-  exists =
+import fs from 'fs'
+import  path from 'path'
+import  fileURLToPath from './fileUriToPath.js'
+const  join = path.join
+const  dirname = path.dirname
+const  exists =
     (fs.accessSync &&
       function(path) {
         try {

@@ -1,5 +1,5 @@
 // eslint-disable-next-line no-use-before-define
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import ReactMarkdown from 'react-markdown';
@@ -17,32 +17,23 @@ import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-
+import { Box, Button, FormControl, FormHelperText, Modal, TextField, Typography } from '@mui/material';
+import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
+import { api } from '@/preload';
 const partKeyPrefix = '@___PART___'
 
 
-
+ValidatorForm.addValidationRule('isURL', (value) => {
+    // 定义一个正则表达式，用来验证URL格式
+    const urlRegex = /^(https?:\/\/)?((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|((\d{1,3}\.){3}\d{1,3}))(?::\d{2,5})?(\/[-a-zA-Z\d%_.~+]*)*(\?[;&a-zA-Z\d%_.~+=-]*)?(\#[-a-zA-Z\d_]*)?$/i;
+    return urlRegex.test(value)
+});
 
 export default function App() {
-
     const [query, setQuery] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [uploadLoading, setUploadLoading] = useState(false)
     const [active, setActive] = useState(0)
-    // const [messageState, setMessageState] = useState<{
-    //   messages: Message[];
-    //   history: [string, string][];
-    //   pendingSourceDocs?: Document[];
-    // }>({
-    //   messages: [
-    //     {
-    //       message: 'Hi, what would you like to learn about this document?',
-    //       type: 'apiMessage',
-    //     },
-    //   ],
-    //   history: [],
-    // });
-
 
 
     const [resources, setResources] = useImmer<Resource[]>([])
@@ -50,6 +41,14 @@ export default function App() {
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
 
+    const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string}>({
+        isOpen:false,
+        config: {
+            baseUrl:'',
+            apiKey:''
+        },
+        proxy:''
+    })
 
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
@@ -70,9 +69,8 @@ export default function App() {
             })
         }
     })
-
-    useEffect(() => {
-        window.chatBot.getResources().then(res=>{
+    function getResources(){
+        return window.chatBot.getResources().then(res=>{
             const sortedRes = res.sort((a,b)=>{
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
@@ -83,7 +81,33 @@ export default function App() {
                 setActive(0)
             }
         })
+    }
+    function getApiConfig(){
+        return window.chatBot.requestGetApiConfig().then(config=>{
+            setApiConfigModal(draft => {
+                draft.config = config
+            })
+        })
+    }
+    useEffect(() => {
+        getResources().then()
         textAreaRef.current?.focus();
+        window.chatBot.onOutputDirChange(()=>{
+            getResources().then()
+        })
+        window.chatBot.onApiConfigChange(()=>{
+            getApiConfig().then(()=>{
+                setApiConfigModal(draft => {
+                    draft.isOpen = true
+                })
+            })
+        })
+        getApiConfig().then()
+        window.chatBot.requestGetProxy().then(proxy=>{
+            setApiConfigModal(draft => {
+                draft.proxy = proxy
+            })
+        })
     }, []);
 
     // handle form submission
@@ -91,17 +115,18 @@ export default function App() {
     const handleSubmit = useMemoizedFn(async (e) => {
         e.preventDefault();
         try{
-            await window.chatBot.checkapikey()
+            await window.chatBot.checkApiConfig()
         } catch {
-            toast.error('set apikey failed')
+            setApiConfigModal(draft => {
+                draft.isOpen = true
+            })
             return Promise.reject()
         }
         if (resources.length === 0) {
-            return alert("Please upload a resource first")
+            return toast('Please upload a resource first')
         }
         if (!query) {
-            alert('Please input a question');
-            return;
+            return toast('Please input a question')
         }
 
         const question = query.trim();
@@ -158,10 +183,12 @@ export default function App() {
     const onFileUpload = async () => {
 
         try{
-            await window.chatBot.checkapikey()
+            await window.chatBot.checkApiConfig()
         } catch {
-            toast.error('set apikey failed')
-            return
+            setApiConfigModal(draft => {
+                draft.isOpen = true
+            })
+            return Promise.reject()
         }
 
         return window.chatBot.selectFile().then(files=>{
@@ -182,7 +209,17 @@ export default function App() {
 
     const { messages, history } = cache[curResourceName] || { messages: [], history: [] };
 
-    console.log('curResourceName',curResourceName);
+    const modalStyle = {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: 400,
+        bgcolor: 'background.paper',
+        border: '2px solid #000',
+        boxShadow: 24,
+        p: 4,
+    };
 
     return (
         <>
@@ -384,9 +421,7 @@ export default function App() {
                                                   d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                                         </svg>
                                         <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span
-                                            className="font-semibold">Click to upload</span></p>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400">SVG, PNG, JPG or GIF
-                                            (MAX. 800x400px)</p>
+                                            className="font-semibold">Click to upload pdf</span></p>
                                     </div>
                                 </label>
                             </div>
@@ -394,9 +429,7 @@ export default function App() {
                     </Whether>
                 </div>
                 <footer className="m-auto p-4">
-                    <a href="https://twitter.com/mayowaoshin">
-                        Powered by LangChainAI.
-                    </a>
+                    Powered by LangChainAI.
                 </footer>
             </Layout>
             <Toaster />
@@ -410,6 +443,89 @@ export default function App() {
                     )
                 }
             </Whether>
+            <Modal
+              open={apiConfigModal.isOpen}
+              onClose={()=>{
+                  setApiConfigModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+            >
+                <Box sx={modalStyle}>
+                    <ValidatorForm onSubmit={e=>{
+                        e.preventDefault()
+                        Promise.all([
+                            window.chatBot.replyApiConfig(apiConfigModal.config),
+                            window.chatBot.replyProxy(apiConfigModal.proxy)
+                        ]).then(()=>{
+                            setApiConfigModal(draft => {
+                                draft.isOpen = false
+                            })
+                        })
+                    }}>
+                        <TextValidator
+                          name={'baseUrl'}
+                          value={apiConfigModal.config.baseUrl}
+                          validators={["required","isURL"]}
+                          errorMessages={["please enter baseurl","please enter the correct url"]}
+                          label="please enter baseurl"
+                          style={{width:'100%', marginBottom: '20px'}}
+                          size={"small"}
+                          onChange={e=> {
+                              setApiConfigModal(draft => {
+                                  // @ts-ignore
+                                  draft.config.baseUrl = e.target.value
+                              })
+                          }}
+                        />
+                        <TextValidator
+                          name={'apiKey'}
+                          value={apiConfigModal.config.apiKey}
+                          label="please enter apikey"
+                          validators={["required"]}
+                          errorMessages={["please enter apikey"]}
+                          style={{width: '100%', marginBottom: '20px'}}
+                          size={"small"}
+                          onChange={e=> {
+                              setApiConfigModal(draft => {
+                                  // @ts-ignore
+                                  draft.config.apiKey = e.target.value
+                              })
+                          }}
+                        />
+                        <TextValidator
+                          name={'proxy'}
+                          value={apiConfigModal.proxy}
+                          label="proxy config eg: http://127.0.0.1:7890"
+                          style={{width: '100%', marginBottom: '20px'}}
+                          size={"small"}
+                          onChange={e=> {
+                              setApiConfigModal(draft => {
+                                  // @ts-ignore
+                                  draft.proxy = e.target.value
+                              })
+                          }}
+                        />
+                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                            <Button variant="contained" color="secondary" onClick={()=>{
+                                window.chatBot.requestTestApi({
+                                    ...apiConfigModal.config,
+                                    proxy: apiConfigModal.proxy
+                                }).then(()=>{
+                                    toast.success('api test success')
+                                }).catch(()=>{
+                                    toast.error('api test failed')
+                                })
+                            }}>
+                                测试
+                            </Button>
+                            <Button type={'submit'} variant="contained" color="primary">
+                                确认
+                            </Button>
+                        </Box>
+                    </ValidatorForm>
+                </Box>
+            </Modal>
         </>
     );
 }

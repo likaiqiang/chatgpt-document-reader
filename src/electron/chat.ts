@@ -1,5 +1,5 @@
 import type { Document } from 'langchain/document';
-import { OpenAIEmbeddings } from 'langchain/embeddings/openai';
+import { default as Embeddings } from '@/electron/embeddings';
 import {FaissStore } from "./faiss";
 import { makeChain } from '@/utils/makechain';
 import path from 'path'
@@ -7,14 +7,13 @@ import fsPromise from 'node:fs/promises';
 import {HttpsProxyAgent} from "https-proxy-agent";
 import {outputDir} from '@/config'
 import { ChatParams } from '@/types/chat';
-import { getApikey, getProxy } from '@/electron/storage';
+import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
-import type {Fetch} from 'openai/src/core';
 
 
 export default async ({question, history, filename}:ChatParams) => {
     const proxy = getProxy() as string
-    const apikey = getApikey() as string
+    const config = getApiConfig()
     console.log('question', question);
     console.log('history', history);
 
@@ -28,12 +27,13 @@ export default async ({question, history, filename}:ChatParams) => {
         /* create vectorstore */
         const vectorStore = await FaissStore.load(
             outputFilePath,
-            new OpenAIEmbeddings({
-                openAIApiKey: apikey,
+            new Embeddings({
+                openAIApiKey: config.apiKey,
             },{
                 httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
                 // @ts-ignore
-                fetch
+                fetch,
+                baseURL: config.baseUrl
             }),
         );
 
@@ -75,7 +75,7 @@ export default async ({question, history, filename}:ChatParams) => {
             text: response, sourceDocuments
         }
     } catch (error: any) {
-        console.log('error', error.code);
+        console.log('error', error);
         return Promise.reject(error.code || 'chat failed')
     }
 }

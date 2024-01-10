@@ -2,7 +2,12 @@ import type { ForgeConfig } from '@electron-forge/shared-types';
 import { VitePlugin } from '@electron-forge/plugin-vite';
 
 const config: ForgeConfig = {
-  rebuildConfig: {},
+  rebuildConfig: {
+    onlyModules:[]
+  },
+  packagerConfig:{
+    ignore: [/src\/deps/]
+  },
   makers:[
     {
       name: "@electron-forge/maker-dmg",
@@ -37,7 +42,7 @@ const config: ForgeConfig = {
         {
           // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
           entry: 'src/main.ts',
-          config: 'vite.main.config.ts',
+          config: 'vite.main.config.mts',
         },
         {
           entry: 'src/preload.ts',

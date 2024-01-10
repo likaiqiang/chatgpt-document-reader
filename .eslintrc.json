@@ -2,7 +2,8 @@
   "env": {
     "browser": true,
     "es6": true,
-    "node": true
+    "node": true,
+    "es2020": true
   },
   "extends": [
     "eslint:recommended",
@@ -24,6 +25,13 @@
   "rules": {
     "no-debugger": "off",
     "@typescript-eslint/no-var-requires": "off",
-    "@typescript-eslint/ban-ts-comment": "off"
+    "@typescript-eslint/ban-ts-comment": "off",
+    "no-case-declarations": "off",
+    "getter-return": "off",
+    "no-fallthrough": "off",
+    "no-empty": "off",
+    "no-async-promise-executor": "off",
+    "@typescript-eslint/no-empty-function": "off",
+    "no-useless-escape": "off"
   }
 }

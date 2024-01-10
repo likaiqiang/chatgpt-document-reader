@@ -1,14 +1,11 @@
+import { viteStaticCopy } from 'vite-plugin-static-copy'
 import { defineConfig } from 'vite';
 import path from "path";
-
 // https://vitejs.dev/config
 export default defineConfig({
   build:{
     sourcemap: true,
-    minify:false,
-    commonjsOptions: {
-      transformMixedEsModules: true
-    }
+    minify:true
   },
   publicDir:'./src/assets',
   resolve: {
@@ -16,21 +13,17 @@ export default defineConfig({
     mainFields: ['node','module', 'jsnext:main', 'jsnext'],
     alias: {
       '@': path.resolve(__dirname, 'src'),
-      'uuid': 'node_modules/uuid/dist/esm-node/index.js'
+      'uuid': 'node_modules/uuid/dist/esm-node/index.js',
     },
   },
-  // plugins:[
-  //   viteStaticCopy({
-  //     targets: [
-  //       {
-  //         src: 'src/electron/prompt/page',
-  //         dest: './'
-  //       },
-  //       {
-  //         src: 'src/electron/faiss-node/node',
-  //         dest:'./'
-  //       }
-  //     ]
-  //   })
-  // ]
+  plugins:[
+    viteStaticCopy({
+      targets: [
+        {
+          src: 'src/loaders/parse',
+          dest: './'
+        }
+      ]
+    })
+  ]
 });

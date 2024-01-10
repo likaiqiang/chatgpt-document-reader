@@ -1,0 +1,3 @@
+[submodule "src/deps/tree-sitter"]
+	path = src/deps/tree-sitter
+	url = git@github.com:tree-sitter/node-tree-sitter.git

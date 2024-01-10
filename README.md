@@ -25,3 +25,4 @@ ChatGPT PDF Reader 是一个基于Electron构建的应用，它能让ChatGPT模�
 
 ### 代理设置
 如果您处于需要代理服务器的环境中，您可以在设置中进行配置。
+

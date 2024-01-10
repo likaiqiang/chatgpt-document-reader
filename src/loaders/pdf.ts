@@ -1,7 +1,6 @@
 import { Document } from "@/types/document";
-const mod = require('pdf-parse/lib/pdf.js/v1.10.100/build/pdf.js')
-
-const {getDocument, version} = mod
+const mod = require('./parse/pdf')
+const {getDocument,version} = mod
 
 const formatDocumentsAsString = (
   documents: Document[],

@@ -1,9 +1,10 @@
-import  {FaissStore} from "langchain/vectorstores/faiss";
-import * as faiss from './faiss-node'
+import { FaissStore } from 'langchain/vectorstores/faiss';
+import faiss  from "./faiss-node";
 
 FaissStore.importFaiss = ()=>{
-  return { IndexFlatL2: faiss.default.IndexFlatL2 };
+  return { IndexFlatL2: faiss.IndexFlatL2 };
 }
+
 
 export {FaissStore}
 

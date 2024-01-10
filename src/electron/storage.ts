@@ -2,19 +2,26 @@ import Store from 'electron-store';
 const store = new Store()
 
 const partKeyPrefix = '@___PART___'
-
-export const getApikey = ()=>{
-  return store.get(partKeyPrefix + 'apikey') || ''
-}
-export const getProxy = ()=>{
-  return store.get(partKeyPrefix + 'proxy') || ''
+export const getProxy = ():string=>{
+  return (store.get(partKeyPrefix + 'proxy') || '') as string
 }
 
-export const setApikey = (apikey:string)=>{
-  store.set(partKeyPrefix + 'apikey', apikey)
-}
 
 export const setProxy = (proxy:string)=>{
   store.set(partKeyPrefix + 'proxy', proxy)
+}
+export const getApiConfig = (): ApiConfig=>{
+  return (store.get(partKeyPrefix + 'apiConfig') || {apiKey:'',baseUrl:'https://api.openai.com/v1'}) as ApiConfig
+}
+export const setApiConfig = (config: ApiConfig)=>{
+  store.set(partKeyPrefix + 'apiConfig', config)
+}
+
+export const getModel = ()=>{
+  return (store.get(partKeyPrefix + 'model') as string) || 'gpt-3.5-turbo-1106'
+}
+
+export const setModal = (model:string)=>{
+  return store.set(partKeyPrefix + 'model', model)
 }
 

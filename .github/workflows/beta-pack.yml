@@ -17,6 +17,15 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Cache MKL
+        uses: actions/cache@v3
+        with:
+          path: C:\Program Files (x86)\Intel\oneAPI\mkl\latest
+          key: ${{ runner.os }}-mkl-caches-w_BaseKit_p_2023.1.0.47256_offline
+          restore-keys: |
+            ${{ runner.os }}-mkl-
       - name: Install MKL
         run: |
           echo "MKLROOT=C:\Program Files (x86)\Intel\oneAPI\mkl\latest" >> $GITHUB_ENV
@@ -37,7 +46,6 @@ jobs:
         run: |
           npm i electron-winstaller -D
           npm ci
-          npm run copy
       - name: Build package
         run: |
           npm run make-win32
@@ -63,6 +71,8 @@ jobs:
     steps:
       - name: Check out git repository
         uses: actions/checkout@v3
+        with:
+          submodules: recursive
       - name: Install libomp
         run: |
           brew install libomp
@@ -89,7 +99,6 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           npm i electron-installer-dmg appdmg -D
           npm ci
-          npm run copy
 
       - name: Build package
         run: |
