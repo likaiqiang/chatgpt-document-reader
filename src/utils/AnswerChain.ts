@@ -106,7 +106,7 @@ export class AnswerChain extends Runnable{
       else{
         const ext = path.extname(source);
         if(supportedLanguages.includes(ext)){
-          const Parser = getLanguageParser(
+          const Parser = await getLanguageParser(
             ext.slice(1)
           )
           const codes = splitCode(pageContent, Parser)

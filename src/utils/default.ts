@@ -17,6 +17,8 @@ export const fetchModels = async ({baseUrl, apiKey, proxy}: ApiConfig & {proxy: 
       },
       agent: proxy ? new HttpsProxyAgent(proxy) : undefined
     }).then(res=>{
+      const status = res.status + ''
+      if(status.startsWith('4') || status.startsWith('5')) return Promise.reject(res.statusText)
       return res.json()
     })
   } catch (e){
