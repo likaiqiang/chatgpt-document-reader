@@ -20,6 +20,7 @@ jobs:
         with:
           submodules: recursive
       - name: Cache MKL
+        id: mkl
         uses: actions/cache@v3
         with:
           path: C:\Program Files (x86)\Intel\oneAPI\mkl\latest
@@ -27,6 +28,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-mkl-
       - name: Install MKL
+        if: steps.mkl.outputs.cache-hit != 'true'
         run: |
           echo "MKLROOT=C:\Program Files (x86)\Intel\oneAPI\mkl\latest" >> $GITHUB_ENV
           .github/workflows/install_mkl_windows.bat "https:/registrationcenter-download.intel.com/akdlm/IRC_NAS/c961e083-5685-4f0b-ada5-c6cf16f561dd/w_BaseKit_p_2023.1.0.47256_offline.exe" "intel.oneapi.win.mkl.devel"
