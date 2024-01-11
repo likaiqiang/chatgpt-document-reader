@@ -13,6 +13,18 @@ export const getTreeSitterBinding = (paths = [])=>{
 }
 
 
+export const getTreeSitterWASMBindingPath = (paths = [])=>{
+    const bp =  paths.reduce(
+      (acc,p)=>{
+          acc = path.join(acc,p)
+          return acc
+      },
+      // eslint-disable-next-line
+      MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','wasm') : path.join(__dirname,'wasm')
+    )
+    return bp
+}
+
 const binding = getTreeSitterBinding(['tree-sitter','tree_sitter_runtime_binding'])
 
 console.log('binding',binding);

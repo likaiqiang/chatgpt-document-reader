@@ -6,14 +6,13 @@
   "main": ".vite/build/main.js",
   "scripts": {
     "start-win": "chcp 65001 && electron-forge start",
-    "start:unix": "electron-forge start",
+    "start-unix": "electron-forge start",
     "package": "electron-forge package",
     "make-win32": "electron-forge make --platform=win32",
     "make-dmg": "electron-forge make --platform=darwin",
     "make-linux": "electron-forge make --platform=linux",
     "lint": "eslint --ext .ts,.tsx .",
-    "install-tree-sitter": "cd src/deps/tree-sitter && git checkout 2a3d93a7416cb4e8c9c24a04bb3bc1951045d5ca && npm install",
-    "postinstall": "npm run install-tree-sitter && node build.js"
+    "postinstall": "node build.js"
   },
   "keywords": [],
   "author": {
@@ -58,11 +57,13 @@
     "rollup-plugin-node-resolve": "^5.2.0",
     "tar": "^6.2.0",
     "textract": "^2.5.0",
+    "tree-sitter-cli": "^0.20.8",
     "ts-node": "^10.0.0",
     "typescript": "~4.5.4",
     "vite-plugin-commonjs": "^0.10.1",
     "vite-plugin-electron-renderer": "^0.14.5",
     "vite-plugin-static-copy": "^1.0.0",
+    "web-tree-sitter": "^0.20.8",
     "which": "^4.0.0"
   },
   "dependencies": {
@@ -81,7 +82,6 @@
     "langchain": "0.0.198",
     "lodash.clonedeep": "^4.5.0",
     "lucide-react": "^0.125.0",
-    "node-utils": "github:likaiqiang/node-utils#a9a6a632a097a9cec1ea9bba821e6c3579c39d66",
     "pdf-parse": "^1.1.1",
     "prebuild-install": "^7.1.1",
     "react": "^18.2.0",

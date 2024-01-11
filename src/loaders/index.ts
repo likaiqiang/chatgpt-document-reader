@@ -2,7 +2,7 @@ import PDFLoader from '@/loaders/pdf';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import path from 'path';
 import {Document} from '@/types/document'
-import {Parser} from '@/electron/tree-sitter';
+import Parser from 'web-tree-sitter';
 import Javascript from '@/electron/tree-sitter/javascript';
 import Cpp from '@/electron/tree-sitter/cpp';
 import Go from '@/electron/tree-sitter/go';
@@ -19,30 +19,40 @@ import Kotlin from '@/electron/tree-sitter/kotlin';
 import {embeddingModel, getTokenCount, getMaxToken} from '@/electron/embeddings'
 import { encodingForModel } from 'js-tiktoken';
 import type {TiktokenModel} from 'js-tiktoken'
+import { getTreeSitterWASMBindingPath } from '@/electron/tree-sitter';
 
-class CustomRecursiveCharacterTextSplitter extends RecursiveCharacterTextSplitter{
 
+
+export const getLanguageParser = async (language: string) =>{
+  await Parser.init({
+    locateFile(scriptName: string, scriptDirectory: string) {
+      return getTreeSitterWASMBindingPath([scriptName])
+    },
+  });
+  if(language === 'js') language = 'javascript'
+  if(language === 'md') language = 'markdown'
+  if(language === 'sol') language = 'solidity'
+  const Lang = await Parser.Language.load(
+    getTreeSitterWASMBindingPath([`tree-sitter-${language}.wasm`])
+  );
+  return Lang
+  // if (language === 'js') return Javascript;
+  // if (language === 'cpp') return Cpp;
+  // if (language === 'go') return Go;
+  // if (language === 'java') return Java;
+  // if (language === 'php') return Php;
+  // if (language === 'python') return Python;
+  // if (language === 'ruby') return Ruby;
+  // if (language === 'rust') return Rust;
+  // if (language === 'scala') return Scala;
+  // if (language === 'md' || language === 'markdown') return Markdown;
+  // if (language === 'html') return Html;
+  // if (language === 'sol') return Solidity;
+  // if (language === 'kotlin') return Kotlin;
+  // return null
 }
 
-
-export const getLanguageParser = (language: string) =>{
-  if (language === 'js') return Javascript;
-  if (language === 'cpp') return Cpp;
-  if (language === 'go') return Go;
-  if (language === 'java') return Java;
-  if (language === 'php') return Php;
-  if (language === 'python') return Python;
-  if (language === 'ruby') return Ruby;
-  if (language === 'rust') return Rust;
-  if (language === 'scala') return Scala;
-  if (language === 'md' || language === 'markdown') return Markdown;
-  if (language === 'html') return Html;
-  if (language === 'sol') return Solidity;
-  if (language === 'kotlin') return Kotlin;
-  return null
-}
-
-export const splitCode = (code:string, languageParser = Javascript, modelName: TiktokenModel = embeddingModel) =>{
+export const splitCode = (code:string, languageParser: Parser.Language, modelName: TiktokenModel = embeddingModel) =>{
   const maxSplitLength = getMaxToken(modelName)
   const enc = encodingForModel(modelName)
   // 创建一个解析器
@@ -92,9 +102,6 @@ export const splitCode = (code:string, languageParser = Javascript, modelName: T
   return codeFragments;
 }
 
-const splitDocs = (docs: Document[])=>{
-
-}
 
 export const getTextDocs = async ({buffer, filePath}: IngestParams)=>{
   const rawDocsArray = [
@@ -124,7 +131,7 @@ export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
 }
 export const getCodeDocs = async ({buffer, filePath}: IngestParams)=>{
   const ext = path.extname(filePath);
-  const Parser = getLanguageParser(
+  const Parser = await getLanguageParser(
       ext.slice(1)
   );
   const chunks = splitCode(buffer as string, Parser);
