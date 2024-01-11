@@ -59,15 +59,17 @@ const buildFaiss = async function(){
   }
 }
 
-const taskFunc = [
-  buildFaiss,
-  ()=>{
-    return Promise.all(
-      ['javascript','cpp','go','java','php','python','ruby','rust','scala','markdown','html','solidity','kotlin'].map(language=> buildWasm({languageName: language}))
-    )
-  }
-]
+// const taskFunc = [
+//   buildFaiss,
+//   ()=>{
+//     return Promise.all(
+//       ['javascript','cpp','go','java','php','python','ruby','rust','scala','markdown','html','solidity','kotlin'].map(language=> buildWasm({languageName: language}))
+//     )
+//   }
+// ]
+//
+// serialPrommise(taskFunc).then().catch(err=>{
+//   console.log(err);
+// })
 
-serialPrommise(taskFunc).then().catch(err=>{
-  console.log(err);
-})
+buildFaiss().then()
