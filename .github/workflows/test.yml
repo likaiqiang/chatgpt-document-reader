@@ -1,0 +1,33 @@
+name: Build
+run-name: 'Build ${{ github.event.inputs.name }}'
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: 'Enter your build name'
+        required: true
+
+jobs:
+
+  build_macos:
+    name: Build on MacOS
+    environment: release
+    runs-on: macos-11
+    permissions:
+      contents: write
+    steps:
+      - name: Check out git repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Setup tmate session
+        uses: mxschmitt/action-tmate@v3
