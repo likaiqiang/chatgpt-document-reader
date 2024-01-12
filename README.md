@@ -2,6 +2,8 @@
 
 ChatGPT PDF Reader 是一个基于Electron构建的应用，它能让ChatGPT模型阅读和理解PDF文件中的文本内容。该应用利用了OpenAI提供的Embeddings API。
 
+![79e7fd09-8c12-4884-b789-1cce7357aa6b-image.png](https://likaiqiang-blog.oss-cn-beijing.aliyuncs.com/images/79e7fd09-8c12-4884-b789-1cce7357aa6b-image.png)
+
 ## 特点
 
 - **ChatGPT 文档阅读器**: 不只是pdf，还支持各种编程语言，详细支持列表看[这里](https://github.com/likaiqiang/chatgpt-pdf-reader/blob/v0.0.3/src/electron/ingest-data.ts#L35)。
@@ -27,5 +29,8 @@ ChatGPT PDF Reader 是一个基于Electron构建的应用，它能让ChatGPT模�
 如果您处于需要代理服务器的环境中，您可以在设置中进行配置。
 
 ### 特别说明
-默认模型是gpt-3.5-turbo-1106，如果你的文档很长，embeddings的过程会自动截断合并，代码的话会根据ast进行截断，gpt的回答也一样，如果上下文太长的话，会先分批向gpt提问，然后再合并处理。当然你可以使用gpt-4-1106-preview，如果你资金充足的话。
+默认模型是gpt-3.5-turbo-1106，如果你的文档很长，embeddings的过程会自动截断合并，代码的话会根据ast进行截断，gpt的回答也一样，如果上下文太长的话，会先分批向gpt提问，然后再合并处理。当然以上方式虽然价格便宜，但是有时候效果并不好，你也可以在设置里面选择gpt4，有一些网站可以把gpt4的价格打下来，比如 https://www.gptapi.us/ ，同样在 设置里面可以更换baseurl。
 
+![5265e746-40d1-462f-ba2a-ebdbb9d741ec-image.png](https://likaiqiang-blog.oss-cn-beijing.aliyuncs.com/images/5265e746-40d1-462f-ba2a-ebdbb9d741ec-image.png)
+
+这个测试按钮会调用 `${baseUrl}/v1/models`来验证配置是否有效。
