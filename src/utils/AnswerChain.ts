@@ -13,8 +13,6 @@ import { getLanguageParser, splitCode } from '@/loaders';
 import { supportedLanguages } from '@/electron/ingest-data';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
-const modelName = getModel()
-
 const ANSWER_TEMPLATE = `You are an expert researcher. Use the following pieces of context to answer the question at the end.
 If you don't know the answer, just say you don't know. DO NOT try to make up an answer.
 If the question is not related to the context or chat history, politely respond that you are tuned to only answer questions that are related to the context.
@@ -55,12 +53,15 @@ interface AnswerInvokeParams{
 
 export class AnswerChain extends Runnable{
   lc_namespace = ["langchain_core", "runnables"];
+  private getModelName(){
+    return getModel()
+  }
   private getChatOpenAIModel(){
     const config = getApiConfig()
     const proxy = getProxy() as string;
     return new ChatOpenAI({
       temperature: 0, // increase temperature to get more creative answers
-      modelName,
+      modelName: this.getModelName(),
       openAIApiKey: config.apiKey
       //change this to gpt-4 if you have access
     },{
@@ -85,6 +86,7 @@ export class AnswerChain extends Runnable{
     ])
   }
   async invoke(input:AnswerInvokeParams): Promise<any> {
+    const modelName = this.getModelName()
     const enc = encodingForModel(modelName as TiktokenModel)
     const maxToken = getMaxToken(modelName) - 200
     const {context,chat_history,question} = input
