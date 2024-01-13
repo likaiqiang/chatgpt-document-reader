@@ -26,17 +26,17 @@ function setCustomMenu() {
   const template:MenuItemConstructorOptions[] = [
     {
       // 菜单的标签，显示在菜单栏上
-      label: 'Setting',
+      label: '设置',
       // 菜单的子菜单，是一个数组，每个元素是一个菜单项对象
       submenu: [
         {
-          label: 'Api Config',
+          label: 'api配置',
           click() {
             mainSend(mainWindow, Channel.apiConfigChange)
           }
         },
         {
-          label: 'Models',
+          label: '选择模型',
           submenu:[
             {
               label: 'gpt-4-1106-preview'.toUpperCase(),
@@ -57,7 +57,7 @@ function setCustomMenu() {
           ]
         },
         {
-          label:"Open Vector Cache",
+          label:"打开向量缓存目录",
           click(){
             shell.openPath(outputDir).then()
           }

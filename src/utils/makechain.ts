@@ -7,14 +7,14 @@ import {HttpsProxyAgent} from "https-proxy-agent";
 import { getApiConfig, getModel, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
 import { AnswerChain } from '@/utils/AnswerChain';
-const CONDENSE_TEMPLATE = `Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question.
+const CONDENSE_TEMPLATE = `鉴于以下对话和后续问题，将后续问题改写为一个独立的问题。
 
 <chat_history>
   {chat_history}
 </chat_history>
 
-Follow Up Input: {question}
-Standalone question:`;
+后续输入: {question}
+独立问题:`;
 
 
 

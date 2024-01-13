@@ -60,7 +60,7 @@ export default function App() {
                 [name]: {
                     messages: [
                         {
-                            message: 'Hi, what would you like to learn about this document?',
+                            message: '您好，请问您想了解本文档的哪些内容？',
                             type: 'apiMessage',
                         },
                     ],
@@ -123,10 +123,10 @@ export default function App() {
             return Promise.reject()
         }
         if (resources.length === 0) {
-            return toast('Please upload a resource first')
+            return toast('请先上传一个文档')
         }
         if (!query) {
-            return toast('Please input a question')
+            return toast('请先输入一个问题')
         }
 
         const question = query.trim();
@@ -265,7 +265,7 @@ export default function App() {
                                                           d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                                                 </svg>
                                                 <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span
-                                                    className="font-semibold">Click to upload pdf</span>
+                                                    className="font-semibold">点击上传文档</span>
                                                 </p>
                                             </div>
                                         </label>
@@ -421,7 +421,7 @@ export default function App() {
                                                   d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2" />
                                         </svg>
                                         <p className="mb-2 text-sm text-gray-500 dark:text-gray-400"><span
-                                            className="font-semibold">Click to upload pdf</span></p>
+                                            className="font-semibold">点击上传文档</span></p>
                                     </div>
                                 </label>
                             </div>
