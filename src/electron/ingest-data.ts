@@ -20,7 +20,7 @@ export const supportedLanguages = [
     '.js',
     '.php',
     '.proto', //
-    '.python',
+    '.py',
     '.rst', //
     '.ruby',
     '.rust',
@@ -29,7 +29,8 @@ export const supportedLanguages = [
     '.md',
     '.html',
     '.sol',
-    '.kotlin'
+    '.kotlin',
+    '.cs'
 ]
 
 export const supportedDocuments = [

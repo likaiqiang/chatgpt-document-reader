@@ -63,7 +63,7 @@ const buildFaiss = async function(){
 //   buildFaiss,
 //   ()=>{
 //     return Promise.all(
-//       ['javascript','cpp','go','java','php','python','ruby','rust','scala','markdown','html','solidity','kotlin'].map(language=> buildWasm({languageName: language}))
+//       ['javascript','cpp','go','java','php','python','ruby','rust','scala','markdown','html','solidity','kotlin','c-sharp].map(language=> buildWasm({languageName: language}))
 //     )
 //   }
 // ]

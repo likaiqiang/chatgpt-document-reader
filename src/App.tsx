@@ -168,6 +168,7 @@ export default function App() {
 
     // prevent empty submissions
     const handleEnter = useMemoizedFn( async e => {
+        if(e.shiftKey) return
         if (e.key === 'Enter' && query) {
             handleSubmit(e);
         } else if (e.key === 'Enter') {
@@ -513,8 +514,10 @@ export default function App() {
                                     proxy: apiConfigModal.proxy
                                 }).then(()=>{
                                     toast.success('api test success')
-                                }).catch(()=>{
-                                    toast.error('api test failed')
+                                }).catch((e)=>{
+                                    if(!e.toString().includes('AbortError')){
+                                        toast.error('api test failed')
+                                    }
                                 })
                             }}>
                                 测试
