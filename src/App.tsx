@@ -19,7 +19,9 @@ import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
 import { Box, Button, FormControl, FormHelperText, Modal, TextField, Typography } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
-import { api } from '@/preload';
+import TextareaAutosize from 'react-textarea-autosize';
+import { FindInPage } from '@/components/electron-find'
+import { webContents } from "@electron/remote"
 const partKeyPrefix = '@___PART___'
 
 
@@ -52,6 +54,7 @@ export default function App() {
 
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const findInPageRef = useRef(null)
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -108,6 +111,21 @@ export default function App() {
                 draft.proxy = proxy
             })
         })
+        findInPageRef.current = new FindInPage({
+            findInPage: window.chatBot.findInPage,
+            stopFindInPage: window.chatBot.stopFindInPage,
+            on: window.chatBot.webContentsOn
+        })
+        const fListener = (event: KeyboardEvent)=>{
+            if (event.ctrlKey && event.key === "f") {
+                event.preventDefault();
+                findInPageRef.current.openFindWindow()
+            }
+        }
+        document.addEventListener('keydown',fListener)
+        return ()=>{
+            document.removeEventListener('keydown', fListener)
+        }
     }, []);
 
     // handle form submission
@@ -363,7 +381,7 @@ export default function App() {
                                 <div className={styles.center}>
                                     <div className={styles.cloudform}>
                                         <form onSubmit={handleSubmit}>
-                                            <textarea
+                                            <TextareaAutosize
                                                 disabled={loading}
                                                 onKeyDown={handleEnter}
                                                 ref={textAreaRef}
