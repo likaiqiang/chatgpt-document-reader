@@ -1,6 +1,6 @@
-# ChatGPT PDF Reader
+# ChatGPT Document Reader
 
-ChatGPT PDF Reader 是一个基于Electron构建的应用，它能让ChatGPT模型阅读和理解PDF文件中的文本内容。该应用利用了OpenAI提供的Embeddings API。
+ChatGPT Document Reader 是一个基于Electron构建的应用，它能让ChatGPT模型阅读和理解PDF文件中的文本内容。该应用利用了OpenAI提供的Embeddings API。
 
 ![79e7fd09-8c12-4884-b789-1cce7357aa6b-image.png](https://likaiqiang-blog.oss-cn-beijing.aliyuncs.com/images/79e7fd09-8c12-4884-b789-1cce7357aa6b-image.png)
 
