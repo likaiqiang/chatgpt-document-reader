@@ -7,7 +7,7 @@ ChatGPT PDF Reader 是一个基于Electron构建的应用，它能让ChatGPT模�
 ![0299cdb0-8688-4928-8950-847a4fd4e462-image.png](https://likaiqiang-blog.oss-cn-beijing.aliyuncs.com/images/0299cdb0-8688-4928-8950-847a4fd4e462-image.png)
 ## 特点
 
-- **ChatGPT 文档阅读器**: 不只是pdf，还支持各种编程语言，详细支持列表看[这里](https://github.com/likaiqiang/chatgpt-pdf-reader/blob/v0.0.3/src/electron/ingest-data.ts#L35)。
+- **ChatGPT 文档阅读器**: 不只是pdf，还支持各种编程语言，详细支持列表看[这里](https://github.com/likaiqiang/chatgpt-document-reader/blob/v0.0.3/src/electron/ingest-data.ts#L35)。
 - **跨平台支持**: 支持Mac和Windows操作系统(linux太麻烦，发行版众多，有需要的可以自行编译)。
 - **本地缓存**: 应用将对话历史本地缓存，以便用户随时查看过往互动，支持多文档。
 - **自定义配置**: 用户可以在设置中输入自己的`openai_api_key`和代理服务器(`proxy`)配置。
