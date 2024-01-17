@@ -1,6 +1,7 @@
 import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
 import electronSquirrelStartup from 'electron-squirrel-startup';
 import type {MenuItemConstructorOptions} from 'electron'
+
 import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
 import {mainSend, fetchModels} from '@/utils/default'
@@ -17,6 +18,12 @@ import {
   getApiConfig as getLocalApikey,
   getProxy as getLocalProxy, getModel, setModal
 } from './electron/storage';
+import {
+  FindInPageParmas,
+  StopFindInPageParmas,
+  WebContentsOnListener,
+  WebContentsOnParams
+} from '@/types/webContents';
 
 
 let mainWindow: BrowserWindow = null
@@ -133,6 +140,10 @@ const createWindow = () => {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    shell.openExternal(url);
+    return { action: 'deny' };
+  });
 
   ipcMain.handle(Channel.selectFile, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
@@ -187,6 +198,30 @@ const createWindow = () => {
   })
   ipcMain.handle(Channel.requestTestApi,(e,config)=>{
     return fetchModels(config)
+  })
+  // ipcMain.handle(Channel.requestElectronFindParams,()=>{
+  //   return {
+  //     findInPage: mainWindow.webContents.findInPage,
+  //     stopFindInPage: mainWindow.webContents.stopFindInPage,
+  //     on: mainWindow.webContents.on
+  //   }
+  // })
+  ipcMain.handle(Channel.findInPage,(e, params: FindInPageParmas)=>{
+    console.log('findInPage handle');
+    return mainWindow.webContents.findInPage(params.text, params.options)
+  })
+  ipcMain.handle(Channel.stopFindInPage, (e, params: StopFindInPageParmas)=>{
+    console.log('stopFindInPage handle');
+    return mainWindow.webContents.stopFindInPage(params.action)
+  })
+  ipcMain.handle(Channel.webContentsOn,(e, params: WebContentsOnParams)=>{
+    console.log('webContentsOn handle');
+    return new Promise((resolve)=>{
+      const listener:WebContentsOnListener = (e,r)=>{
+        resolve(r)
+      }
+      mainWindow.webContents.on(params.event, listener)
+    })
   })
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {

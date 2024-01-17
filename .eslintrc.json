@@ -32,6 +32,7 @@
     "no-empty": "off",
     "no-async-promise-executor": "off",
     "@typescript-eslint/no-empty-function": "off",
-    "no-useless-escape": "off"
+    "no-useless-escape": "off",
+    "@typescript-eslint/ban-types": "off"
   }
 }

@@ -20,16 +20,16 @@ export const supportedLanguages = [
     '.js',
     '.php',
     '.proto', //
-    '.python',
+    '.py',
     '.rst', //
     '.ruby',
     '.rust',
     '.scala',
     '.markdown',
     '.md',
-    '.html',
     '.sol',
-    '.kotlin'
+    '.kotlin',
+    '.cs'
 ]
 
 export const supportedDocuments = [
@@ -66,11 +66,16 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
                     getTextDocs({ buffer: content, filename, filePath })
                 )
             }
-            else {
+            else if(
+              supportedLanguages.reduce((acc, ext)=>{
+                  return acc || path.endsWith(ext)
+              },false)
+            ){
                 tasks.push(
-                    getCodeDocs({ buffer: content, filename, filePath })
+                  getCodeDocs({ buffer: content, filename, filePath:path })
                 )
             }
+
         }
         return Promise.all(tasks).then(docs => {
             return docs.flat();

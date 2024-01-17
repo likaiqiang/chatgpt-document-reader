@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import {Channel} from "@/types/bridge";
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
+import { FindInPageParmas, StopFindInPageParmas, WebContentsOnParams } from '@/types/webContents';
+
 
 export const api = {
     /**
@@ -51,6 +53,15 @@ export const api = {
     },
     requestTestApi(config: ApiConfig & {proxy: string}){
         return ipcRenderer.invoke(Channel.requestTestApi, config)
+    },
+    findInPage(params: FindInPageParmas){
+        return ipcRenderer.invoke(Channel.findInPage, params)
+    },
+    stopFindInPage(params: StopFindInPageParmas){
+        return ipcRenderer.invoke(Channel.stopFindInPage, params)
+    },
+    webContentsOn(params: WebContentsOnParams){
+        return ipcRenderer.invoke(Channel.webContentsOn, params)
     }
 }
 

@@ -3,19 +3,7 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import path from 'path';
 import {Document} from '@/types/document'
 import Parser from 'web-tree-sitter';
-import Javascript from '@/electron/tree-sitter/javascript';
-import Cpp from '@/electron/tree-sitter/cpp';
-import Go from '@/electron/tree-sitter/go';
-import Java from '@/electron/tree-sitter/java';
-import Php from '@/electron/tree-sitter/php';
-import Python from '@/electron/tree-sitter/python';
-import Ruby from '@/electron/tree-sitter/ruby';
-import Rust from '@/electron/tree-sitter/rust';
-import Scala from '@/electron/tree-sitter/scala';
-import Markdown from '@/electron/tree-sitter/markdown';
-import Html from '@/electron/tree-sitter/html';
-import Solidity from '@/electron/tree-sitter/solidity';
-import Kotlin from '@/electron/tree-sitter/kotlin';
+
 import {embeddingModel, getTokenCount, getMaxToken} from '@/electron/embeddings'
 import { encodingForModel } from 'js-tiktoken';
 import type {TiktokenModel} from 'js-tiktoken'
@@ -32,24 +20,12 @@ export const getLanguageParser = async (language: string) =>{
   if(language === 'js') language = 'javascript'
   if(language === 'md') language = 'markdown'
   if(language === 'sol') language = 'solidity'
+  if(language === 'py') language = 'python'
+  if(language === '.cs') language = 'c_sharp'
   const Lang = await Parser.Language.load(
     getTreeSitterWASMBindingPath([`tree-sitter-${language}.wasm`])
   );
   return Lang
-  // if (language === 'js') return Javascript;
-  // if (language === 'cpp') return Cpp;
-  // if (language === 'go') return Go;
-  // if (language === 'java') return Java;
-  // if (language === 'php') return Php;
-  // if (language === 'python') return Python;
-  // if (language === 'ruby') return Ruby;
-  // if (language === 'rust') return Rust;
-  // if (language === 'scala') return Scala;
-  // if (language === 'md' || language === 'markdown') return Markdown;
-  // if (language === 'html') return Html;
-  // if (language === 'sol') return Solidity;
-  // if (language === 'kotlin') return Kotlin;
-  // return null
 }
 
 export const splitCode = (code:string, languageParser: Parser.Language, modelName: TiktokenModel = embeddingModel) =>{
