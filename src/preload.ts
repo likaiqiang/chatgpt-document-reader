@@ -62,6 +62,12 @@ export const api = {
     },
     webContentsOn(params: WebContentsOnParams){
         return ipcRenderer.invoke(Channel.webContentsOn, params)
+    },
+    electronStoreGet(key:string){
+        return ipcRenderer.invoke(Channel.electronStoreGet, key)
+    },
+    electronStoreSet(key:string,value:any){
+        return ipcRenderer.invoke(Channel.electronStoreSet, key, value)
     }
 }
 

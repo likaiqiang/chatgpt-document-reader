@@ -1,6 +1,7 @@
 import { FaissStore } from './faiss';
 import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
+import {fileTypeFromStream} from 'file-type';
 import path from 'path';
 import { outputDir } from '@/config';
 import { getApiConfig, getProxy } from '@/electron/storage';
@@ -29,7 +30,9 @@ export const supportedLanguages = [
     '.md',
     '.sol',
     '.kotlin',
-    '.cs'
+    '.cs',
+    '.ts',
+    '.tsx'
 ]
 
 export const supportedDocuments = [
@@ -39,8 +42,21 @@ export const supportedDocuments = [
     '.zip'
 ];
 
+const checkSupported = (path:string)=>{
+    return supportedDocuments.reduce((acc, ext) => {
+        return acc || path.endsWith(ext);
+    }, false);
+}
 
-async function getDocuments({ buffer, filename, filePath }: IngestParams): Promise<Document[]> {
+
+async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & {ext?:string}): Promise<Document[]> {
+    if(/^https?/.test(filePath)){
+        const {buffer: remoteBuffer, ext} = await getRemoteBuffer(filePath)
+        if(checkSupported('.' + ext)){
+            return getDocuments({buffer: remoteBuffer, filePath, filename, ext})
+        }
+        return Promise.reject({code: '不支持的文件'})
+    }
     if (filePath.endsWith('.pdf')) {
         return getPdfDocs({ buffer, filename, filePath });
     }
@@ -50,9 +66,7 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
     if (filePath.endsWith('.zip')) {
         const tasks: Array<Promise<Document[]>> = [];
         const files = await new ZipLoader().parse(buffer as Buffer, path => {
-            return supportedDocuments.reduce((acc, ext) => {
-                return acc || path.endsWith(ext);
-            }, false);
+            return checkSupported(path)
         });
         for (const file of files) {
             const { path, content } = file;
@@ -81,10 +95,20 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
             return docs.flat();
         });
     }
-    return getCodeDocs({ buffer: buffer.toString(), filename, filePath })
+    return getCodeDocs({ buffer: buffer.toString(), filename, filePath, ext })
 }
 
-export default async ({ buffer, filename, filePath }: IngestParams) => {
+const getRemoteBuffer = async (url:string)=>{
+    const response = await fetch(url)
+    // @ts-ignore
+    const ext = (await fileTypeFromStream(response.body)).ext
+    return {
+        ext,
+        buffer: new TextDecoder().decode(await response.arrayBuffer())
+    }
+}
+
+export const ingestData = async ({ buffer, filename, filePath }: IngestParams) => {
     const proxy = getProxy() as string;
     const config = getApiConfig();
     try {

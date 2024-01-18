@@ -285,3 +285,21 @@
 .modalContent{
   width: 70%;
 }
+.tabItem{
+  max-width: 200px;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  position: relative;
+  padding-bottom: 20px;
+  cursor: pointer;
+}
+.tabActive::after{
+  content: " ";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: rgb(28 100 242 / var(--tw-border-opacity));
+}

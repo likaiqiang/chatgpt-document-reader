@@ -21,7 +21,8 @@ export const getLanguageParser = async (language: string) =>{
   if(language === 'md') language = 'markdown'
   if(language === 'sol') language = 'solidity'
   if(language === 'py') language = 'python'
-  if(language === '.cs') language = 'c_sharp'
+  if(language === 'cs') language = 'c_sharp'
+  if(language === 'ts') language = 'typescript'
   const Lang = await Parser.Language.load(
     getTreeSitterWASMBindingPath([`tree-sitter-${language}.wasm`])
   );
@@ -105,11 +106,11 @@ export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
   });
   return await textSplitter.splitDocuments(rawDocsArray);
 }
-export const getCodeDocs = async ({buffer, filePath}: IngestParams)=>{
-  const ext = path.extname(filePath);
-  const Parser = await getLanguageParser(
-      ext.slice(1)
-  );
+
+export const getCodeDocs = async ({buffer, filePath, ext}: IngestParams & {ext?:string})=>{
+
+  ext = ext || (path.extname(filePath)).slice(1);
+  const Parser = await getLanguageParser(ext);
   const chunks = splitCode(buffer as string, Parser);
   const docs: Document[] = chunks.map(chunk=>{
     return new Document({

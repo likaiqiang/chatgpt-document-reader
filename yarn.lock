@@ -1391,6 +1391,11 @@
   dependencies:
     defer-to-connect "^2.0.0"
 
+"@tokenizer/token@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/@tokenizer/token/-/token-0.3.0.tgz"
+  integrity sha512-OvjF+z51L3ov0OyAU0duzsYuvO01PH7x4t6DJx+guahgTnBHkhJdG7soQeTSFLWN3efnHyibZ4Z8l2EuWwJN3A==
+
 "@tootallnate/once@2":
   version "2.0.0"
   resolved "https://r2.cnpmjs.org/@tootallnate/once/-/once-2.0.0.tgz"
@@ -2559,7 +2564,7 @@ cheerio-select@^2.1.0:
 
 cheerio@^1.0.0-rc.12:
   version "1.0.0-rc.12"
-  resolved "https://r.cnpmjs.org/cheerio/-/cheerio-1.0.0-rc.12.tgz"
+  resolved "https://registry.npmjs.org/cheerio/-/cheerio-1.0.0-rc.12.tgz"
   integrity sha512-VqR8m68vM46BNnuZ5NtnGBKIE/DfN0cRIzg9n40EIq9NOv90ayxLBXA8fXC5gquFRGJSTRqBq25Jt2ECLR431Q==
   dependencies:
     cheerio-select "^2.1.0"
@@ -3156,6 +3161,13 @@ define-properties@^1.1.3, define-properties@^1.1.4, define-properties@^1.2.0:
     has-property-descriptors "^1.0.0"
     object-keys "^1.1.1"
 
+dejavu-call@^0.7.3:
+  version "0.7.3"
+  resolved "https://registry.npmjs.org/dejavu-call/-/dejavu-call-0.7.3.tgz"
+  integrity sha512-xN5ZFQ0y/GGoUM0lEfzD3I1YXXs688bet5qpEpiNH8gVjtoymjtri9jDeyPu2KsvTuvO12/cKhNoav82PGTnbQ==
+  dependencies:
+    pytils "^1.30.0"
+
 delayed-stream@~1.0.0:
   version "1.0.0"
   resolved "https://r2.cnpmjs.org/delayed-stream/-/delayed-stream-1.0.0.tgz"
@@ -3380,11 +3392,6 @@ ee-first@1.1.1:
   version "1.1.1"
   resolved "https://r2.cnpmjs.org/ee-first/-/ee-first-1.1.1.tgz"
   integrity sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==
-
-electron-find@^1.0.7:
-  version "1.0.7"
-  resolved "https://registry.npmjs.org/electron-find/-/electron-find-1.0.7.tgz"
-  integrity sha512-C2FQJuk8567P2a2loBNwl5c8kwOTQVMB0capgHtPI7zKwZG16X0UxG+sNYZExQfnJ0PA+ecECA/4LcXxQa2TCA==
 
 electron-installer-dmg@^4.0.0:
   version "4.0.0"
@@ -4111,6 +4118,15 @@ file-entry-cache@^6.0.1:
   integrity sha512-7Gps/XWymbLk2QLYK4NzpMOrYjMhdIxXuIvy2QBsLE6ljuodKvdkWs/cpyJJ3CVIVpH0Oi1Hvg1ovbMzLdFBBg==
   dependencies:
     flat-cache "^3.0.4"
+
+file-type@^19.0.0:
+  version "19.0.0"
+  resolved "https://registry.npmjs.org/file-type/-/file-type-19.0.0.tgz"
+  integrity sha512-s7cxa7/leUWLiXO78DVVfBVse+milos9FitauDLG1pI7lNaJ2+5lzPnr2N24ym+84HVwJL6hVuGfgVE+ALvU8Q==
+  dependencies:
+    readable-web-to-node-stream "^3.0.2"
+    strtok3 "^7.0.0"
+    token-types "^5.0.1"
 
 file-uri-to-path@1.0.0:
   version "1.0.0"
@@ -4936,6 +4952,14 @@ html-entities@1.2.0:
   version "1.2.0"
   resolved "https://r2.cnpmjs.org/html-entities/-/html-entities-1.2.0.tgz"
   integrity sha512-0md7tlUUyb0BEQGsZzbqty1CgV6RESOoxdivt94AScqhBhYsPCCQCOaGvur/RospMjYpPJ7iFe3zw4Bu4SVA8g==
+
+html-parse-regex@^1.1.2:
+  version "1.2.2"
+  resolved "https://registry.npmjs.org/html-parse-regex/-/html-parse-regex-1.2.2.tgz"
+  integrity sha512-T3Dh+IRO+VRlkq9eFonVPOH9T/v6qWjrlH9IPm+bqjg6SD4K0KuPSqrAeCHWDBDKecAE0Mk38w6mRVAMrih6ww==
+  dependencies:
+    dejavu-call "^0.7.3"
+    pytils "^1.31.0"
 
 html-url-attributes@^3.0.0:
   version "3.0.0"
@@ -7309,6 +7333,11 @@ pdfjs-dist@^4.0.269:
     canvas "^2.11.2"
     path2d-polyfill "^2.0.1"
 
+peek-readable@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.npmjs.org/peek-readable/-/peek-readable-5.0.0.tgz"
+  integrity sha512-YtCKvLUOvwtMGmrniQPdO7MwPjgkFBtFIrmfSbYmYuq3tKDV/mcfAhBth1+C3ru7uXIZasc/pHnb+YDYNkkj4A==
+
 pend@~1.2.0:
   version "1.2.0"
   resolved "https://r2.cnpmjs.org/pend/-/pend-1.2.0.tgz"
@@ -7586,6 +7615,11 @@ punycode@^2.1.0, punycode@^2.1.1:
   version "2.3.1"
   resolved "https://r.cnpmjs.org/punycode/-/punycode-2.3.1.tgz"
   integrity sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg==
+
+pytils@^1.30.0, pytils@^1.31.0:
+  version "1.40.3"
+  resolved "https://registry.npmjs.org/pytils/-/pytils-1.40.3.tgz"
+  integrity sha512-k1Vn87Zg5hIyEhXy29eUs9YrOnOq+TNPOxTt5meSxiOH/3Sv1SkJMTEIBXri7lChdoeIXpc/GY1i0hw3BovCdg==
 
 qs@~6.5.2:
   version "6.5.3"
@@ -7899,6 +7933,13 @@ readable-stream@~2.3.6:
     safe-buffer "~5.1.1"
     string_decoder "~1.1.1"
     util-deprecate "~1.0.1"
+
+readable-web-to-node-stream@^3.0.2:
+  version "3.0.2"
+  resolved "https://registry.npmjs.org/readable-web-to-node-stream/-/readable-web-to-node-stream-3.0.2.tgz"
+  integrity sha512-ePeK6cc1EcKLEhJFt/AebMCLL+GgSKhuygrZ/GLaKZYEecIgIECf4UaUuaByiGtzckwR4ain9VzUh95T1exYGw==
+  dependencies:
+    readable-stream "^3.6.0"
 
 readdirp@~3.6.0:
   version "3.6.0"
@@ -8578,6 +8619,14 @@ statuses@2.0.1:
   resolved "https://r2.cnpmjs.org/statuses/-/statuses-2.0.1.tgz"
   integrity sha512-RwNA9Z/7PrK06rYLIzFMlaF+l73iwpzsqRIFgbMLbTcLD6cOao82TaWefPXQvB2fOC4AjuYSEndS7N/mTCbkdQ==
 
+stream-web@^0.5.2:
+  version "0.5.2"
+  resolved "https://registry.npmjs.org/stream-web/-/stream-web-0.5.2.tgz"
+  integrity sha512-95SbzQOtY+mye89e3F6yCchrPqkqRdWEfR0FCzE7khh1j6nHkSbfQqgcyFDGKrq6qXI49/HspyMKwhDv4F0A6w==
+  dependencies:
+    html-parse-regex "^1.1.2"
+    pytils "^1.31.0"
+
 streamx@^2.15.0:
   version "2.15.6"
   resolved "https://r.cnpmjs.org/streamx/-/streamx-2.15.6.tgz"
@@ -8736,6 +8785,14 @@ strip-outer@^1.0.1:
   integrity sha512-k55yxKHwaXnpYGsOzg4Vl8+tDrWylxDEpknGjhTiZB8dFRU5rTo9CAzeycivxV3s+zlTKwrs6WxMxR95n26kwg==
   dependencies:
     escape-string-regexp "^1.0.2"
+
+strtok3@^7.0.0:
+  version "7.0.0"
+  resolved "https://registry.npmjs.org/strtok3/-/strtok3-7.0.0.tgz"
+  integrity sha512-pQ+V+nYQdC5H3Q7qBZAz/MO6lwGhoC2gOAjuouGf/VO0m7vQRh8QNMl2Uf6SwAtzZ9bOw3UIeBukEGNJl5dtXQ==
+  dependencies:
+    "@tokenizer/token" "^0.3.0"
+    peek-readable "^5.0.0"
 
 style-to-object@^0.4.0:
   version "0.4.4"
@@ -8981,6 +9038,14 @@ toidentifier@1.0.1:
   resolved "https://r2.cnpmjs.org/toidentifier/-/toidentifier-1.0.1.tgz"
   integrity sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==
 
+token-types@^5.0.1:
+  version "5.0.1"
+  resolved "https://registry.npmjs.org/token-types/-/token-types-5.0.1.tgz"
+  integrity sha512-Y2fmSnZjQdDb9W4w4r1tswlMHylzWIeOKpx0aZH9BgGtACHhrk3OkT52AzwcuqTRBZtvvnTjDBh8eynMulu8Vg==
+  dependencies:
+    "@tokenizer/token" "^0.3.0"
+    ieee754 "^1.2.1"
+
 tough-cookie@~2.5.0:
   version "2.5.0"
   resolved "https://r2.cnpmjs.org/tough-cookie/-/tough-cookie-2.5.0.tgz"
@@ -9097,6 +9162,13 @@ tree-sitter-solidity@^1.2.0:
   integrity sha512-oQqSZ96npWi0FLNrM8FZ9M8HHrZfNVLF9CF9nTYlS5a8Svm2I1UAYffq+dxc4K4M+qEnzYiZrJubxdh+BbgdMQ==
   dependencies:
     nan "^2.15.0"
+
+tree-sitter-typescript@^0.20.3:
+  version "0.20.3"
+  resolved "https://registry.npmjs.org/tree-sitter-typescript/-/tree-sitter-typescript-0.20.3.tgz"
+  integrity sha512-5+RZ9G3/VOxxSzyniVc5dfNhfan1eOxQvUdTgXhpsGIYlmSW3HwIuPEJ7r65FWH2WnJWirOu11Pm0usmkx2JOg==
+  dependencies:
+    nan "^2.14.0"
 
 trim-lines@^3.0.0:
   version "3.0.1"

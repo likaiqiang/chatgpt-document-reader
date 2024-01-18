@@ -15,7 +15,7 @@ import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
 const ANSWER_TEMPLATE = `你是一位专家研究员。使用以下上下文来回答最后的问题.
 如果你不知道答案，就说你不知道。不要试图编造答案。
-如果问题与上下文或聊天记录无关，请礼貌地回答您只回答与上下文相关的问题
+如果问题与上下文或聊天记录无关，您只回答与上下文相关的问题
 
 <context>
   {context}

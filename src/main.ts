@@ -6,7 +6,7 @@ import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
 import {mainSend, fetchModels} from '@/utils/default'
 
-import ingestData, { supportedDocuments } from './electron/ingest-data';
+import { ingestData, supportedDocuments } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./electron/chat";
@@ -16,7 +16,10 @@ import {
   setApiConfig as setLocalApikey,
   setProxy as setLocalProxy,
   getApiConfig as getLocalApikey,
-  getProxy as getLocalProxy, getModel, setModal
+  getProxy as getLocalProxy,
+  getModel,
+  setModal,
+  store as electronStore
 } from './electron/storage';
 import {
   FindInPageParmas,
@@ -156,12 +159,18 @@ const createWindow = () => {
   })
   ipcMain.handle(Channel.ingestdata, async (e,filePaths:string[])=>{
     if(filePaths.length){
-      const buffer = await fsPromise.readFile(filePaths[0])
-      const filename = filePaths[0].split(path.sep).pop()
+      const filename = /^https?/.test(filePaths[0]) ? filePaths[0] : filePaths[0].split(path.sep).pop()
       if(hasRepeat(filename)){
         return Promise.reject('filename repeat')
       }
-      await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+      if(/^https?/.test(filePaths[0])){
+        const buffer = Buffer.from('')
+        await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+      }
+      else{
+        const buffer = await fsPromise.readFile(filePaths[0])
+        await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+      }
       return {filename}
     }
     return Promise.reject(new Error('no file select'))
@@ -199,13 +208,7 @@ const createWindow = () => {
   ipcMain.handle(Channel.requestTestApi,(e,config)=>{
     return fetchModels(config)
   })
-  // ipcMain.handle(Channel.requestElectronFindParams,()=>{
-  //   return {
-  //     findInPage: mainWindow.webContents.findInPage,
-  //     stopFindInPage: mainWindow.webContents.stopFindInPage,
-  //     on: mainWindow.webContents.on
-  //   }
-  // })
+
   ipcMain.handle(Channel.findInPage,(e, params: FindInPageParmas)=>{
     console.log('findInPage handle');
     return mainWindow.webContents.findInPage(params.text, params.options)
@@ -222,6 +225,12 @@ const createWindow = () => {
       }
       mainWindow.webContents.on(params.event, listener)
     })
+  })
+  ipcMain.handle(Channel.electronStoreSet, (_,key, value)=>{
+    return electronStore.set(key,value)
+  })
+  ipcMain.handle(Channel.electronStoreGet, (_,key)=>{
+    return electronStore.get(key)
   })
   // and load the index.html of the app.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {

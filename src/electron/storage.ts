@@ -1,5 +1,5 @@
 import Store from 'electron-store';
-const store = new Store()
+export const store = new Store()
 
 const partKeyPrefix = '@___PART___'
 export const getProxy = ():string=>{

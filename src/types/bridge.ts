@@ -16,5 +16,7 @@ export enum Channel {
     requestTestApi = 'request_test_api',
     findInPage = 'find_in_page',
     stopFindInPage = 'stop_find_in_page',
-    webContentsOn = 'web_contents_on'
+    webContentsOn = 'web_contents_on',
+    electronStoreGet = 'electron_store_get',
+    electronStoreSet = 'electron_store_set'
 }
