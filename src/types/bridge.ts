@@ -8,6 +8,7 @@ export enum Channel {
     checkApiConfig = 'check_apikey',
     outputDirChange = 'output_dir_change',
     apiConfigChange = 'api_config_change',
+    renderFileHistoryCleared = 'render_file_history_cleared',
     replyApiConfig = 'reply_api_config',
     proxyChange = 'proxy_change',
     replyProxy = 'reply_proxy',
@@ -16,7 +17,12 @@ export enum Channel {
     requestTestApi = 'request_test_api',
     findInPage = 'find_in_page',
     stopFindInPage = 'stop_find_in_page',
-    webContentsOn = 'web_contents_on',
     electronStoreGet = 'electron_store_get',
-    electronStoreSet = 'electron_store_set'
+    electronStoreSet = 'electron_store_set',
+    setRenderCurrentFile = 'set_render_current_file',
+    onFoundInPageResult = 'on_found_in_page_result',
+    onFound = 'on_found',
+    requestOpenFindWindow = 'request_open_find_window',
+    setSearchBoxSize = 'set_search_box_size',
+    closeSearchWindow = 'close_search_window'
 }

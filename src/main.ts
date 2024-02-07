@@ -1,10 +1,22 @@
-import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
+import {
+  app,
+  BrowserWindow,
+  dialog,
+  ipcMain,
+  Menu,
+  shell,
+  globalShortcut,
+  RenderProcessGoneDetails,
+  Result
+} from 'electron';
 import electronSquirrelStartup from 'electron-squirrel-startup';
 import type {MenuItemConstructorOptions} from 'electron'
+import contextMenu from 'electron-context-menu'
+import cloneDeep from 'lodash.clonedeep';
 
 import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
-import {mainSend, fetchModels} from '@/utils/default'
+import { mainSend, fetchModels, mainOn } from '@/utils/default';
 
 import { ingestData, supportedDocuments } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
@@ -29,7 +41,10 @@ import {
 } from '@/types/webContents';
 
 
-let mainWindow: BrowserWindow = null
+let mainWindow: BrowserWindow = null,
+    searchWindow: BrowserWindow = null
+
+let currentRenderFile = ''
 
 function setCustomMenu() {
   // 定义一个菜单模板，是一个数组，每个元素是一个菜单对象
@@ -79,7 +94,8 @@ function setCustomMenu() {
   // 使用Menu.buildFromTemplate方法，根据模板创建一个菜单对象
   const menu = Menu.buildFromTemplate(template)
   // 使用Menu.setApplicationMenu方法，将菜单对象设置为应用程序的菜单
-  Menu.setApplicationMenu(menu)
+  mainWindow.setMenu(menu)
+  searchWindow.setMenu(null)
 }
 
 function hasRepeat(filename:string){
@@ -132,6 +148,7 @@ function findSubdirs (dir:string) {
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (electronSquirrelStartup) {
   app.quit();
+  globalShortcut.unregister('CommandOrControl+F')
 }
 
 const createWindow = () => {
@@ -139,6 +156,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -147,7 +165,93 @@ const createWindow = () => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+  // 当found-in-page匹配出结果
+  mainOn<Result>(mainWindow,'found-in-page', (e, result)=>{
+    console.log('found-in-page result',result);
+    mainSend(searchWindow, Channel.onFoundInPageResult, result)
+  })
 
+  // 注册事件，ctrl + f 唤起关键字查找控件
+  mainWindow.on('focus',()=>{
+    globalShortcut.register('CommandOrControl+F', function () {
+      if (searchWindow && searchWindow.webContents) {
+        searchWindow.show()
+        mainSend(searchWindow, Channel.onFound)
+      }
+    })
+    globalShortcut.register('Esc',()=>{
+      searchWindow.hide()
+    })
+  })
+
+  mainWindow.on('blur', () => {
+    globalShortcut.unregisterAll()
+  })
+  mainWindow.once('ready-to-show',()=>{
+    mainWindow.show()
+  })
+  mainOn<RenderProcessGoneDetails>(mainWindow,'render-process-gone', function (event, detailed) {
+    //  logger.info("!crashed, reason: " + detailed.reason + ", exitCode = " + detailed.exitCode)
+    if (detailed.reason == "crashed"){
+      // relaunch app
+      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
+      app.exit(0)
+    }
+  })
+  const { x, y, width } = mainWindow.getBounds();
+  searchWindow = new BrowserWindow({
+    parent: mainWindow,
+    webPreferences:{
+      preload: path.join(__dirname, 'preload.js'),
+    },
+    // width: 200,
+    height: 50,
+    x,
+    y,
+    frame: false,
+    // movable: true,
+    show: false
+  })
+
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  }
+  if (SEARCH_WINDOW_VITE_DEV_SERVER_URL) {
+    searchWindow.loadURL(`${SEARCH_WINDOW_VITE_DEV_SERVER_URL}`);
+  } else {
+    searchWindow.loadFile(path.join(__dirname, `../renderer/${SEARCH_WINDOW_VITE_NAME}/index.html`));
+  }
+
+  searchWindow.on('close',()=>{
+    searchWindow = null
+  })
+
+  contextMenu({
+    showSaveImageAs: true,
+    window: mainWindow,
+    showInspectElement: false,
+    // 设置为false，不显示Select All
+    showLookUpSelection: false,
+    prepend: ()=>{
+      return [
+        {
+          label: '清空历史记录',
+          visible: true,
+          click: ()=>{
+            const renderChatCache = (cloneDeep(electronStore.get('@___PART___chat-cache') || {})) as {[key:string]: object}
+            delete renderChatCache[currentRenderFile]
+            electronStore.set('@___PART___chat-cache', renderChatCache)
+            mainSend(mainWindow, Channel.renderFileHistoryCleared, currentRenderFile)
+          }
+        }
+      ]
+    }
+  });
+  ipcMain.handle(Channel.closeSearchWindow,()=>{
+    searchWindow.hide()
+  })
   ipcMain.handle(Channel.selectFile, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -210,49 +314,38 @@ const createWindow = () => {
   })
 
   ipcMain.handle(Channel.findInPage,(e, params: FindInPageParmas)=>{
-    console.log('findInPage handle');
     return mainWindow.webContents.findInPage(params.text, params.options)
   })
   ipcMain.handle(Channel.stopFindInPage, (e, params: StopFindInPageParmas)=>{
-    console.log('stopFindInPage handle');
     return mainWindow.webContents.stopFindInPage(params.action)
   })
-  ipcMain.handle(Channel.webContentsOn,(e, params: WebContentsOnParams)=>{
-    console.log('webContentsOn handle');
-    return new Promise((resolve)=>{
-      const listener:WebContentsOnListener = (e,r)=>{
-        resolve(r)
-      }
-      mainWindow.webContents.on(params.event, listener)
-    })
-  })
+
   ipcMain.handle(Channel.electronStoreSet, (_,key, value)=>{
+    console.log('electronStoreSet', electronStore);
+    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
     return electronStore.set(key,value)
   })
   ipcMain.handle(Channel.electronStoreGet, (_,key)=>{
+    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
+    console.log('electronStoreGet',electronStore.get(key))
     return electronStore.get(key)
   })
+  ipcMain.handle(Channel.setRenderCurrentFile, (_,file)=>{
+    currentRenderFile = file
+  })
+  ipcMain.handle(Channel.setSearchBoxSize, (_,{width,height})=>{
+    console.log('setSearchBoxSize',width, height);
+    searchWindow.setSize(parseInt(width), parseInt(height))
+  })
   // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-  }
+
   setCustomMenu()
   // Open the DevTools.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL){
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools()
   }
   watch(outputDir,()=>{
     mainSend(mainWindow, Channel.outputDirChange)
-  })
-  mainWindow.webContents.on('render-process-gone', function (event, detailed) {
-    //  logger.info("!crashed, reason: " + detailed.reason + ", exitCode = " + detailed.exitCode)
-    if (detailed.reason == "crashed"){
-      // relaunch app
-      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
-      app.exit(0)
-    }
   })
 };
 
@@ -268,6 +361,7 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+  globalShortcut.unregisterAll()
 });
 
 app.on('activate', () => {

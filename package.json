@@ -76,6 +76,8 @@
     "ahooks": "^3.7.8",
     "cheerio": "^1.0.0-rc.12",
     "clsx": "^1.2.1",
+    "electron-context-menu": "^3.6.1",
+    "electron-find": "^1.0.7",
     "electron-positioner": "^4.1.0",
     "electron-store": "^8.1.0",
     "faiss-node": "^0.5.1",

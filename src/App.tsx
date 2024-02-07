@@ -7,7 +7,7 @@ import LoadingDots from '@/components/ui/LoadingDots';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import DataFor from '@/components/DataFor';
 import Whether, { Else, If } from '@/components/Whether';
-import useLocalStorage from '@/utils/useLocalStorage';
+import {useLocalStorage} from '@/utils/hooks';
 import cloneDeep from 'lodash.clonedeep';
 import { useLatest, useMemoizedFn } from 'ahooks/es/index';
 import { toast, Toaster } from 'react-hot-toast';
@@ -42,7 +42,7 @@ export default function App() {
 
 
     const [resources, setResources] = useImmer<Resource[]>([])
-    const [cache, setCache] = useLocalStorage('chat-cache', {})
+    const [cache, setCache, forceUpdateCache] = useLocalStorage('chat-cache', {})
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
 
@@ -84,15 +84,17 @@ export default function App() {
         }
     })
     function getResources(){
-        return window.chatBot.getResources().then(res=>{
+        return window.chatBot.getResources().then(async res=>{
             const sortedRes = res.sort((a,b)=>{
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
             console.log('sortedRes',sortedRes);
             setResources(sortedRes)
             if(res.length){
+                cacheRef.current =  await forceUpdateCache()
                 initCacheByName(sortedRes[0].filename!)
                 setActive(0)
+                return window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
             }
         })
     }
@@ -122,21 +124,7 @@ export default function App() {
                 draft.proxy = proxy
             })
         })
-        findInPageRef.current = new FindInPage({
-            findInPage: window.chatBot.findInPage,
-            stopFindInPage: window.chatBot.stopFindInPage,
-            on: window.chatBot.webContentsOn
-        })
-        const fListener = (event: KeyboardEvent)=>{
-            if (event.ctrlKey && event.key === "f") {
-                event.preventDefault();
-                findInPageRef.current.openFindWindow()
-            }
-        }
-        document.addEventListener('keydown',fListener)
-        return ()=>{
-            document.removeEventListener('keydown', fListener)
-        }
+        window.chatBot.onRenderFileHistoryCleared(forceUpdateCache)
     }, []);
 
     // handle form submission
@@ -209,9 +197,13 @@ export default function App() {
         const name = resources[index].filename!
         initCacheByName(name)
         setActive(index)
+        window.chatBot.setRenderCurrentFile(name)
     })
     const onLocalFileUpload = (type: IngestDataType = IngestDataType.local)=>{
         let promise = null
+        setUploadModal(draft => {
+            draft.isOpen = false
+        })
         setUploadLoading(true)
         if(type === IngestDataType.local){
             promise = window.chatBot.selectFile().then(files=>{
@@ -227,9 +219,7 @@ export default function App() {
             })
             setActive(resources.length)
             initCacheByName(res.filename!)
-            setUploadModal(draft => {
-                draft.isOpen = false
-            })
+            window.chatBot.setRenderCurrentFile(res.filename!)
         }).catch((error)=>{
             toast.error(error.toString())
         }).finally(()=>{

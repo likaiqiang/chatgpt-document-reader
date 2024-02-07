@@ -66,11 +66,9 @@ class FindInPage extends Find{
   }
   initialize () {
     if (this[initialized]) {
-      print('[FindInPage] Has initialize.')
       return true
     }
     if (!this.initFind()) {
-      print('[FindInPage] Failed to initialize.')
       return false
     }
     this[findBox] = creatElement('find-box')
@@ -94,6 +92,11 @@ class FindInPage extends Find{
     appendElement.call(this)
     onResult.call(this)
     move(this[findBox], (0 - this[findBox].offsetHeight - 10), this.duration)
+    const {width, height} = getComputedStyle(this[findBox])
+    this.options.setSearchBoxSize({
+      width: parseInt(width),
+      height: parseInt(height)
+    })
     return this[initialized] = true
   }
   openFindWindow () {
@@ -253,13 +256,11 @@ function creatEventHandler () {
   this[events].push({ ele: this[findInput], name: 'input', fn: this[inputEvent] })
 
   this[compositionstart] = (function () {
-    print('compositionstart')
     this[inComposition] = true
   }).bind(this)
   this[events].push({ ele: this[findInput], name: 'compositionstart', fn: this[compositionstart] })
 
   this[compositionend] = (function () {
-    print('compositionend')
     this[inComposition] = false
   }).bind(this)
   this[events].push({ ele: this[findInput], name: 'compositionend', fn: this[compositionend] })
@@ -369,7 +370,6 @@ function wrapInput (inputEle, caseEle, timeout = 50) {
 
   setTimeout(() => {
     if (inputEle.type !== 'text') {
-      print('[FindInPage] wrapInput timeout..')
       unwrapInput(inputEle, caseEle)
     }
   }, timeout)
@@ -446,6 +446,7 @@ async function onForwardClick () {
 }
 
 async function onCloseClick () {
+  this.options.closeSearchWindow()
   this.closeFindWindow() ? await this.stopFind() : ''
 }
 

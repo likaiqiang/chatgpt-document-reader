@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from "path";
 
 export default defineConfig({
+    root: path.resolve(__dirname, 'src'),
     build:{
         minify:true
     },
@@ -16,8 +17,5 @@ export default defineConfig({
     },
     css: {
         postcss: require('./postcss.config')
-    },
-    optimizeDeps:{
-        entries:'src/renderer/index.html'
     }
 })

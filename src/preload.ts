@@ -36,6 +36,9 @@ export const api = {
     onApiConfigChange(cb=()=>{}){
         ipcRenderer.on(Channel.apiConfigChange, cb)
     },
+    onRenderFileHistoryCleared(cb=()=>{}){
+        ipcRenderer.on(Channel.renderFileHistoryCleared, cb)
+    },
     replyApiConfig(config: ApiConfig){
         return ipcRenderer.invoke(Channel.replyApiConfig, config)
     },
@@ -60,14 +63,29 @@ export const api = {
     stopFindInPage(params: StopFindInPageParmas){
         return ipcRenderer.invoke(Channel.stopFindInPage, params)
     },
-    webContentsOn(params: WebContentsOnParams){
-        return ipcRenderer.invoke(Channel.webContentsOn, params)
+    onFoundInPageResult(cb=()=>{}){
+        ipcRenderer.on(Channel.onFoundInPageResult,cb)
     },
     electronStoreGet(key:string){
         return ipcRenderer.invoke(Channel.electronStoreGet, key)
     },
     electronStoreSet(key:string,value:any){
         return ipcRenderer.invoke(Channel.electronStoreSet, key, value)
+    },
+    setRenderCurrentFile(name: string){
+        return ipcRenderer.invoke(Channel.setRenderCurrentFile, name)
+    },
+    requestOpenFindWindow(){
+        return ipcRenderer.invoke(Channel.requestOpenFindWindow)
+    },
+    setSearchBoxSize({width, height}: {width: number, height: number}){
+        return ipcRenderer.invoke(Channel.setSearchBoxSize,{width,height})
+    },
+    onFind(cb=()=>{}){
+        ipcRenderer.on(Channel.onFound, cb)
+    },
+    closeSearchWindow(){
+        return ipcRenderer.invoke(Channel.closeSearchWindow)
     }
 }
 

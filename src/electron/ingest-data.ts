@@ -23,13 +23,13 @@ export const supportedLanguages = [
     '.proto', //
     '.py',
     '.rst', //
-    '.ruby',
-    '.rust',
+    '.rb',
+    '.rs',
     '.scala',
     '.markdown',
     '.md',
     '.sol',
-    '.kotlin',
+    '.kt',
     '.cs',
     '.ts',
     '.tsx'
@@ -42,10 +42,16 @@ export const supportedDocuments = [
     '.zip'
 ];
 
-const checkSupported = (path:string)=>{
+export const checkSupported = (path:string)=>{
     return supportedDocuments.reduce((acc, ext) => {
         return acc || path.endsWith(ext);
     }, false);
+}
+
+ export const checkSupportedLanguages = (path:string)=>{
+    return supportedLanguages.reduce((acc, ext)=>{
+        return acc || path.endsWith(ext)
+    },false)
 }
 
 
@@ -80,11 +86,7 @@ async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & 
                     getTextDocs({ buffer: content, filename, filePath })
                 )
             }
-            else if(
-              supportedLanguages.reduce((acc, ext)=>{
-                  return acc || path.endsWith(ext)
-              },false)
-            ){
+            else if(checkSupportedLanguages(path)){
                 tasks.push(
                   getCodeDocs({ buffer: content, filename, filePath:path })
                 )
@@ -99,7 +101,10 @@ async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & 
 }
 
 const getRemoteBuffer = async (url:string)=>{
-    const response = await fetch(url)
+    const proxy = getProxy() as string;
+    const response = await fetch(url,{
+        agent: proxy ? new HttpsProxyAgent(proxy) : undefined
+    })
     // @ts-ignore
     const ext = (await fileTypeFromStream(response.body)).ext
     return {
