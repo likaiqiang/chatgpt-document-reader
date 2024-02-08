@@ -1,13 +1,15 @@
 import {
   app,
   BrowserWindow,
+  BrowserView,
   dialog,
   ipcMain,
   Menu,
   shell,
   globalShortcut,
   RenderProcessGoneDetails,
-  Result
+  Result,
+  screen
 } from 'electron';
 import electronSquirrelStartup from 'electron-squirrel-startup';
 import type {MenuItemConstructorOptions} from 'electron'
@@ -40,9 +42,8 @@ import {
   WebContentsOnParams
 } from '@/types/webContents';
 
-
 let mainWindow: BrowserWindow = null,
-    searchWindow: BrowserWindow = null
+    searchWindow: BrowserView = null
 
 let currentRenderFile = ''
 
@@ -95,7 +96,7 @@ function setCustomMenu() {
   const menu = Menu.buildFromTemplate(template)
   // 使用Menu.setApplicationMenu方法，将菜单对象设置为应用程序的菜单
   mainWindow.setMenu(menu)
-  searchWindow.setMenu(null)
+  // searchWindow.setMenu(null)
 }
 
 function hasRepeat(filename:string){
@@ -175,12 +176,9 @@ const createWindow = () => {
   mainWindow.on('focus',()=>{
     globalShortcut.register('CommandOrControl+F', function () {
       if (searchWindow && searchWindow.webContents) {
-        searchWindow.show()
+        // searchWindow.show()
         mainSend(searchWindow, Channel.onFound)
       }
-    })
-    globalShortcut.register('Esc',()=>{
-      searchWindow.hide()
     })
   })
 
@@ -198,20 +196,15 @@ const createWindow = () => {
       app.exit(0)
     }
   })
-  const { x, y, width } = mainWindow.getBounds();
-  searchWindow = new BrowserWindow({
-    parent: mainWindow,
+
+  searchWindow = new BrowserView({
     webPreferences:{
       preload: path.join(__dirname, 'preload.js'),
     },
-    // width: 200,
-    height: 50,
-    x,
-    y,
-    frame: false,
-    // movable: true,
-    show: false
   })
+  searchWindow.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+
+  mainWindow.setBrowserView(searchWindow)
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
@@ -219,14 +212,10 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
   if (SEARCH_WINDOW_VITE_DEV_SERVER_URL) {
-    searchWindow.loadURL(`${SEARCH_WINDOW_VITE_DEV_SERVER_URL}`);
+    searchWindow.webContents.loadURL(`${SEARCH_WINDOW_VITE_DEV_SERVER_URL}`);
   } else {
-    searchWindow.loadFile(path.join(__dirname, `../renderer/${SEARCH_WINDOW_VITE_NAME}/index.html`));
+    searchWindow.webContents.loadFile(path.join(__dirname, `../renderer/${SEARCH_WINDOW_VITE_NAME}/index.html`));
   }
-
-  searchWindow.on('close',()=>{
-    searchWindow = null
-  })
 
   contextMenu({
     showSaveImageAs: true,
@@ -250,7 +239,8 @@ const createWindow = () => {
     }
   });
   ipcMain.handle(Channel.closeSearchWindow,()=>{
-    searchWindow.hide()
+    console.log('closeSearchWindow');
+    searchWindow.setBounds({x:0,y:0,width:0,height:0})
   })
   ipcMain.handle(Channel.selectFile, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
@@ -335,7 +325,20 @@ const createWindow = () => {
   })
   ipcMain.handle(Channel.setSearchBoxSize, (_,{width,height})=>{
     console.log('setSearchBoxSize',width, height);
-    searchWindow.setSize(parseInt(width), parseInt(height))
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    const { scaleFactor } = display
+
+    const {x,y, width: mainWidth} = mainWindow.getBounds()
+
+    console.log(x, scaleFactor, mainWidth);
+
+    searchWindow.setBounds({
+      x:0,
+      y:0,
+      width: parseInt(width) * scaleFactor,
+      height: parseInt(height) * scaleFactor
+    })
+
   })
   // and load the index.html of the app.
 

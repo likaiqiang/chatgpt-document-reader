@@ -20,7 +20,6 @@ import userIcon from '@/assets/images/usericon.png'
 import { Box, Button, Link, Modal, TextField } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
-import { FindInPage } from '@/lib/electron-find'
 
 enum IngestDataType{
     local = 'local',
@@ -65,7 +64,6 @@ export default function App() {
 
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
-    const findInPageRef = useRef(null)
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -277,7 +275,7 @@ export default function App() {
                                                 {
                                                     (item, index) => {
                                                         return (
-                                                            <li className={["mr-10", styles.tabItem,active === index ? styles.tabActive : ''].join(" ")}
+                                                            <li className={["mr-10", "mb-10",styles.tabItem,active === index ? styles.tabActive : ''].join(" ")}
                                                                 title={item.filename}
                                                                 onClick={() => {
                                                                     onTabClick(index)

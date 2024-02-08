@@ -1,14 +1,15 @@
 import fetch from 'node-fetch'
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import {IpcMainEvent} from 'electron'
+import { BrowserWindow, IpcMainEvent } from 'electron';
+import BrowserView = Electron.BrowserView;
 
-export function mainSend(window: Electron.BrowserWindow, name: string): void
-export function mainSend<T>(window: Electron.BrowserWindow, name: string, params: T): void
-export function mainSend<T>(window: Electron.BrowserWindow, name: string, params?: T): void {
+export function mainSend(window: Electron.BrowserWindow | Electron.BrowserView, name: string): void
+export function mainSend<T>(window: Electron.BrowserWindow | Electron.BrowserView, name: string, params: T): void
+export function mainSend<T>(window: Electron.BrowserWindow | Electron.BrowserView, name: string, params?: T): void {
   window && window.webContents.send(name, params)
 }
 
-export function mainOn<T>(window: Electron.BrowserWindow, name:string, cb:(event: IpcMainEvent, params?: T)=>void = ()=>{}): void {
+export function mainOn<T>(window: Electron.BrowserWindow | Electron.BrowserView, name:string, cb:(event: IpcMainEvent, params?: T)=>void = ()=>{}): void {
   window && window.webContents.on(name,cb)
 }
 
