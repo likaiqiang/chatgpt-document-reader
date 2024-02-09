@@ -17,9 +17,10 @@ import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-import { Box, Button, Link, Modal, TextField } from '@mui/material';
+import { Box, Button, Link, Modal, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
+import Confirm from '@/Confirm';
 
 enum IngestDataType{
     local = 'local',
@@ -60,6 +61,12 @@ export default function App() {
     const [urlModal, setUrlModal] = useImmer({
         isOpen: false,
         url:''
+    })
+    const [clearHistoryModal, setClearHistoryModal] = useImmer({
+        isOpen: false
+    })
+    const [deleteFileModal, setDeleteFileModal] = useImmer({
+        isOpen: false
     })
 
     const messageListRef = useRef<HTMLDivElement>(null);
@@ -116,13 +123,22 @@ export default function App() {
                 })
             })
         })
+        window.chatBot.onShowClearHistoryModal(()=>{
+            setClearHistoryModal(draft => {
+                draft.isOpen = true
+            })
+        })
+        window.chatBot.onShowDeleteFileModal(()=>{
+            setDeleteFileModal(draft => {
+                draft.isOpen = true
+            })
+        })
         getApiConfig().then()
         window.chatBot.requestGetProxy().then(proxy=>{
             setApiConfigModal(draft => {
                 draft.proxy = proxy
             })
         })
-        window.chatBot.onRenderFileHistoryCleared(forceUpdateCache)
     }, []);
 
     // handle form submission
@@ -225,6 +241,7 @@ export default function App() {
         })
     }
     const onRemoteFileUpload = ()=>{
+        if(!urlModal.url.includes('https://github.com')) return toast('不支持的url')
         return onLocalFileUpload(IngestDataType.remote)
     }
     const onFileUpload = async () => {
@@ -502,7 +519,7 @@ export default function App() {
                         <Box>
                             <TextField
                               value={urlModal.url}
-                              label="从远程网页上传, 例如https://github.com/langchain-ai/langchainjs/blob/main/langchain/src/document_loaders/web/cheerio.ts"
+                              label="从远程网页上传, 例如https://github.com/langchain-ai/langchainjs/blob/0.1.16/libs/langchain-openai/src/embeddings.ts"
                               style={{width:'100%'}}
                               size={"small"}
                               onChange={e=> {
@@ -527,6 +544,51 @@ export default function App() {
                     </ValidatorForm>
                 </Box>
             </Modal>
+            <Confirm
+              open={clearHistoryModal.isOpen}
+              onClose={()=>{
+                  setClearHistoryModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onCancel={()=>{
+                  setClearHistoryModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onConfirm={()=>{
+                  window.chatBot.replyClearHistory(
+                    resources[active].filename
+                  ).then(()=>{
+                      forceUpdateCache()
+                      setClearHistoryModal(draft => {
+                          draft.isOpen = false
+                      })
+                  })
+              }}
+            />
+            <Confirm
+              open={deleteFileModal.isOpen}
+              onClose={()=>{
+                  setDeleteFileModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onCancel={()=>{
+                  setDeleteFileModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onConfirm={()=>{
+                  window.chatBot.replyDeleteFile(resources[active].filename).then(()=>{
+                      return getResources().then(()=>{
+                          setDeleteFileModal(draft => {
+                              draft.isOpen = false
+                          })
+                      })
+                  })
+              }}
+            />
             <Modal
               open={apiConfigModal.isOpen}
               onClose={()=>{

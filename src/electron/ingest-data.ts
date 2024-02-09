@@ -1,12 +1,10 @@
 import { FaissStore } from './faiss';
 import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import {fileTypeFromStream} from 'file-type';
-import path from 'path';
 import { outputDir } from '@/config';
 import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
-
+import path from 'path'
 import { Document } from '@/types/document';
 import { getCodeDocs, getPdfDocs, getTextDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
@@ -56,13 +54,7 @@ export const checkSupported = (path:string)=>{
 
 
 async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & {ext?:string}): Promise<Document[]> {
-    if(/^https?/.test(filePath)){
-        const {buffer: remoteBuffer, ext} = await getRemoteBuffer(filePath)
-        if(checkSupported('.' + ext)){
-            return getDocuments({buffer: remoteBuffer, filePath, filename, ext})
-        }
-        return Promise.reject({code: '不支持的文件'})
-    }
+
     if (filePath.endsWith('.pdf')) {
         return getPdfDocs({ buffer, filename, filePath });
     }
@@ -100,16 +92,31 @@ async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & 
     return getCodeDocs({ buffer: buffer.toString(), filename, filePath, ext })
 }
 
-const getRemoteBuffer = async (url:string)=>{
+async function handleGithubUrl(url:string) {
     const proxy = getProxy() as string;
     const response = await fetch(url,{
         agent: proxy ? new HttpsProxyAgent(proxy) : undefined
-    })
-    // @ts-ignore
-    const ext = (await fileTypeFromStream(response.body)).ext
+    });
+    const data = await response.json();
+
+    console.log('data',data);
+
+    if (data.payload?.blob?.rawLines) {
+        return {
+            code: data.payload.blob.rawLines.join('\n'),
+            ext: path.extname(url),
+            filename: `github_${data.payload.repo.ownerLogin}_${data.payload.repo.name}_${encodeURIComponent(data.payload.path)}`
+        }
+    }
+    return Promise.reject('无法处理这个URL')
+}
+
+export const getRemoteCode = async (url:string)=>{
+    const {code, ext, filename} = await handleGithubUrl(url)
     return {
         ext,
-        buffer: new TextDecoder().decode(await response.arrayBuffer())
+        code,
+        filename
     }
 }
 

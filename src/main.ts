@@ -15,12 +15,13 @@ import electronSquirrelStartup from 'electron-squirrel-startup';
 import type {MenuItemConstructorOptions} from 'electron'
 import contextMenu from 'electron-context-menu'
 import cloneDeep from 'lodash.clonedeep';
+import {rimraf} from 'rimraf'
 
 import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
 import { mainSend, fetchModels, mainOn } from '@/utils/default';
 
-import { ingestData, supportedDocuments } from './electron/ingest-data';
+import { checkSupportedLanguages, getRemoteCode, ingestData, supportedDocuments } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./electron/chat";
@@ -37,9 +38,7 @@ import {
 } from './electron/storage';
 import {
   FindInPageParmas,
-  StopFindInPageParmas,
-  WebContentsOnListener,
-  WebContentsOnParams
+  StopFindInPageParmas
 } from '@/types/webContents';
 
 let mainWindow: BrowserWindow = null,
@@ -102,8 +101,8 @@ function setCustomMenu() {
 function hasRepeat(filename:string){
   const files = fs.readdirSync(outputDir)
   for(const file of files){
-    const path = outputDir + '/' + file
-    const stat = fs.statSync(path)
+    const filepath = path.join(outputDir, file)
+    const stat = fs.statSync(filepath)
     if(stat.isDirectory() && file === filename){
       return true
     }
@@ -223,16 +222,24 @@ const createWindow = () => {
     showInspectElement: false,
     // 设置为false，不显示Select All
     showLookUpSelection: false,
-    prepend: ()=>{
+    showCopyImage: false,
+    showCopyImageAddress: false,
+    showServices: false,
+
+    append: ()=>{
       return [
         {
           label: '清空历史记录',
           visible: true,
           click: ()=>{
-            const renderChatCache = (cloneDeep(electronStore.get('@___PART___chat-cache') || {})) as {[key:string]: object}
-            delete renderChatCache[currentRenderFile]
-            electronStore.set('@___PART___chat-cache', renderChatCache)
-            mainSend(mainWindow, Channel.renderFileHistoryCleared, currentRenderFile)
+            mainSend(mainWindow, Channel.showClearHistoryModal)
+          }
+        },
+        {
+          label:'删除文件',
+          visible: true,
+          click: ()=>{
+            mainSend(mainWindow, Channel.showDeleteFileModal)
           }
         }
       ]
@@ -254,15 +261,21 @@ const createWindow = () => {
   ipcMain.handle(Channel.ingestdata, async (e,filePaths:string[])=>{
     if(filePaths.length){
       const filename = /^https?/.test(filePaths[0]) ? filePaths[0] : filePaths[0].split(path.sep).pop()
-      if(hasRepeat(filename)){
-        return Promise.reject('filename repeat')
-      }
+
       if(/^https?/.test(filePaths[0])){
-        const buffer = Buffer.from('')
-        await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+        const {code, ext, filename} = await getRemoteCode(filePaths[0])
+        if(hasRepeat(filename)){
+          return Promise.reject('filename repeat')
+        }
+        if(checkSupportedLanguages(ext)){
+          await ingestData({buffer: code, filename: filename!, filePath: filePaths[0]!})
+        }
       }
       else{
         const buffer = await fsPromise.readFile(filePaths[0])
+        if(hasRepeat(filename)){
+          return Promise.reject('filename repeat')
+        }
         await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
       }
       return {filename}
@@ -340,7 +353,16 @@ const createWindow = () => {
     })
 
   })
-  // and load the index.html of the app.
+  ipcMain.handle(Channel.replyClearHistory,(e,{filename})=>{
+    const renderChatCache = (cloneDeep(electronStore.get('@___PART___chat-cache') || {})) as {[key:string]: object}
+    delete renderChatCache[filename]
+    electronStore.set('@___PART___chat-cache', renderChatCache)
+  })
+
+  ipcMain.handle(Channel.replyDeleteFile, (e, {filename})=>{
+    const filepath = path.join(outputDir, filename)
+    return rimraf(filepath)
+  })
 
   setCustomMenu()
   // Open the DevTools.

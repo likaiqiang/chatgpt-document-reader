@@ -85,7 +85,7 @@
     "flowbite": "^1.6.5",
     "immer": "^10.0.3",
     "jszip": "^3.10.1",
-    "langchain": "0.0.198",
+    "langchain": "0.1.6",
     "lodash.clonedeep": "^4.5.0",
     "lucide-react": "^0.125.0",
     "pdf-parse": "^1.1.1",

@@ -8,6 +8,8 @@ export enum Channel {
     checkApiConfig = 'check_apikey',
     outputDirChange = 'output_dir_change',
     apiConfigChange = 'api_config_change',
+    showClearHistoryModal = 'show_clear_history_modal',
+    showDeleteFileModal = 'showDeleteFileModal',
     renderFileHistoryCleared = 'render_file_history_cleared',
     replyApiConfig = 'reply_api_config',
     proxyChange = 'proxy_change',
@@ -24,5 +26,7 @@ export enum Channel {
     onFound = 'on_found',
     requestOpenFindWindow = 'request_open_find_window',
     setSearchBoxSize = 'set_search_box_size',
-    closeSearchWindow = 'close_search_window'
+    closeSearchWindow = 'close_search_window',
+    replyClearHistory = 'reply_clear_history',
+    replyDeleteFile = 'reply_delete_file'
 }

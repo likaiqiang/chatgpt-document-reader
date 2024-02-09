@@ -36,7 +36,6 @@ export default async ({question, history, filename}:ChatParams) => {
                 baseURL: config.baseUrl
             }),
         );
-
         // Use a callback to get intermediate sources from the middle of the chain
         let resolveWithDocuments: (value: Document[]) => void;
         const documentPromise = new Promise<Document[]>((resolve) => {
@@ -50,8 +49,8 @@ export default async ({question, history, filename}:ChatParams) => {
                     },
                 },
             ],
+            filter:([context, distance]:[context: string, distance: number])=> distance < 0.6
         });
-
         // create chain
         const chain = makeChain(retriever);
 

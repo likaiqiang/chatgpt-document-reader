@@ -105,6 +105,7 @@ export class AnswerChain extends Runnable{
     const enc = encodingForModel(modelName as TiktokenModel)
     const maxToken = getMaxToken(modelName) - 200
     const {context,chat_history,question} = input
+    if(context.length === 0) return '没有检索到有效的上下文'
     const answers:string[] = []
     const answerChain = this.getAnswerChain()
     const combineChain = this.getCombineChain()

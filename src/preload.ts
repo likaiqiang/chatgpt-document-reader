@@ -86,6 +86,18 @@ export const api = {
     },
     closeSearchWindow(){
         return ipcRenderer.invoke(Channel.closeSearchWindow)
+    },
+    onShowClearHistoryModal(cb=()=>{}){
+        ipcRenderer.on(Channel.showClearHistoryModal, cb)
+    },
+    onShowDeleteFileModal(cb=()=>{}){
+        ipcRenderer.on(Channel.showDeleteFileModal, cb)
+    },
+    replyClearHistory(filename:string){
+        return ipcRenderer.invoke(Channel.replyClearHistory, {filename})
+    },
+    replyDeleteFile(filename:string){
+        return ipcRenderer.invoke(Channel.replyDeleteFile, {filename})
     }
 }
 

@@ -133,8 +133,9 @@ export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
 }
 
 export const getCodeDocs = async ({buffer, filePath, ext}: IngestParams & {ext?:string})=>{
+  if(ext && ext.startsWith('.')) ext = ext.slice(1)
+  if(!ext) ext = path.extname(filePath).slice(1)
 
-  ext = ext || (path.extname(filePath)).slice(1);
   const Parser = await getLanguageParser(ext);
   const chunks = splitCode(buffer as string, Parser);
   const docs: Document[] = chunks.map(chunk=>{
