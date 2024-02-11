@@ -110,6 +110,22 @@ function hasRepeat(filename:string){
   return false
 }
 
+function convertChineseToUnicode(str:string) {
+  // 创建一个正则表达式，匹配中文字符的范围
+  const chineseRegex = /[\u4e00-\u9fa5]/g;
+  // 使用replace方法，将匹配的中文字符替换为Unicode转义序列
+  const result = str.replace(chineseRegex, function (match) {
+    // 获取中文字符的码点
+    const codePoint = match.codePointAt(0);
+    // 将码点转换为十六进制数，并补齐四位
+    const hex = codePoint.toString(16).padStart(4, "0");
+    // 返回Unicode转义序列
+    return "\\u" + hex;
+  });
+  // 返回结果字符串
+  return result;
+}
+
 function findSubdirs (dir:string) {
   // 定义一个空数组，用于存放符合条件的子目录
   const subdirs:{filename:string, birthtime: Date}[] = []
@@ -260,7 +276,7 @@ const createWindow = () => {
   })
   ipcMain.handle(Channel.ingestdata, async (e,filePaths:string[])=>{
     if(filePaths.length){
-      const filename = /^https?/.test(filePaths[0]) ? filePaths[0] : filePaths[0].split(path.sep).pop()
+      let filename = /^https?/.test(filePaths[0]) ? filePaths[0] : filePaths[0].split(path.sep).pop()
 
       if(/^https?/.test(filePaths[0])){
         const {code, ext, filename} = await getRemoteCode(filePaths[0])
@@ -273,6 +289,7 @@ const createWindow = () => {
       }
       else{
         const buffer = await fsPromise.readFile(filePaths[0])
+        filename = convertChineseToUnicode(filename)
         if(hasRepeat(filename)){
           return Promise.reject('filename repeat')
         }

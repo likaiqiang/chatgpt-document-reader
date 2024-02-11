@@ -27,6 +27,22 @@ enum IngestDataType{
     remote = 'remote'
 }
 
+function convertUnicodeToNormal(str:string) {
+    // 创建一个正则表达式，匹配Unicode转义序列的格式
+    const unicodeRegex = /\\u[0-9a-fA-F]{4}/g;
+    // 使用replace方法，将匹配的Unicode转义序列还原为普通字符
+    const result = str.replace(unicodeRegex, function (match) {
+        // 去掉转义序列的前缀
+        const hex = match.slice(2);
+        // 将十六进制数转换为十进制数
+        const codePoint = parseInt(hex, 16);
+        // 返回对应的字符
+        return String.fromCharCode(codePoint);
+    });
+    // 返回结果字符串
+    return result;
+}
+
 const isUrl = (value:string)=>{
     const urlRegex = /^(https?:\/\/)?((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|((\d{1,3}\.){3}\d{1,3}))(?::\d{2,5})?(\/[-a-zA-Z\d%_.~+]*)*(\?[;&a-zA-Z\d%_.~+=-]*)?(\#[-a-zA-Z\d_]*)?$/i;
     return urlRegex.test(value)
@@ -297,7 +313,7 @@ export default function App() {
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
-                                                                {item.filename}
+                                                                {convertUnicodeToNormal(item.filename)}
                                                             </li>
                                                         )
                                                     }
@@ -559,8 +575,8 @@ export default function App() {
               onConfirm={()=>{
                   window.chatBot.replyClearHistory(
                     resources[active].filename
-                  ).then(()=>{
-                      forceUpdateCache()
+                  ).then(async ()=>{
+                      await forceUpdateCache()
                       setClearHistoryModal(draft => {
                           draft.isOpen = false
                       })
