@@ -9,13 +9,17 @@ import {HttpsProxyAgent} from "https-proxy-agent";
 import { getMaxToken, getTokenCount } from '@/electron/embeddings';
 import { encodingForModel, TiktokenModel } from 'js-tiktoken';
 import path from 'path';
-import { getLanguageParser, splitCode } from '@/loaders';
-import { supportedLanguages } from '@/electron/ingest-data';
+import { getCommentSymbol, getLanguageParser, splitCode } from '@/loaders';
+import {
+  checkSupported as checkSupportedDocs,
+  checkSupportedLanguages,
+  supportedLanguages
+} from '@/electron/ingest-data';
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
 const ANSWER_TEMPLATE = `你是一位专家研究员。使用以下上下文来回答最后的问题.
 如果你不知道答案，就说你不知道。不要试图编造答案。
-如果问题与上下文或聊天记录无关，请礼貌地回答您只回答与上下文相关的问题
+如果问题与上下文或聊天记录无关，您只回答与上下文相关的问题
 
 <context>
   {context}
@@ -40,6 +44,19 @@ markdown格式的有效回答:
 
 const answerPrompt = ChatPromptTemplate.fromTemplate(ANSWER_TEMPLATE);
 const combinePrompt = ChatPromptTemplate.fromTemplate(COMBINE_TEMPLATE);
+
+const removeMetadataFromText = (text:string,source:string)=>{
+  let regex = null
+  if(checkSupportedDocs(source)){
+    regex = /@@metadata@@.*?@@metadata@@\n/g;
+  }
+  if(checkSupportedLanguages(source)){
+    const ext = path.extname(source).slice(1)
+    const commentSymbol = getCommentSymbol(ext)
+    regex = new RegExp(`${commentSymbol}@@metadata@@.*?@@metadata@@\n`,'g')
+  }
+  return regex ? text.replace(regex, '') : text
+}
 
 
 interface AnswerInvokeParams{
@@ -88,12 +105,15 @@ export class AnswerChain extends Runnable{
     const enc = encodingForModel(modelName as TiktokenModel)
     const maxToken = getMaxToken(modelName) - 200
     const {context,chat_history,question} = input
+    if(context.length === 0) return '没有检索到有效的上下文'
     const answers:string[] = []
     const answerChain = this.getAnswerChain()
     const combineChain = this.getCombineChain()
 
     for(const ctx of context){
-      const {pageContent,metadata} = ctx
+      const {metadata} = ctx
+      const pageContent = removeMetadataFromText(ctx.pageContent, metadata.source)
+
       const tokensCount = getTokenCount(enc, pageContent)
       const {source} = metadata
       if(tokensCount <= maxToken ) answers.push(

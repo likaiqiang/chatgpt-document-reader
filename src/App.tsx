@@ -7,7 +7,7 @@ import LoadingDots from '@/components/ui/LoadingDots';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import DataFor from '@/components/DataFor';
 import Whether, { Else, If } from '@/components/Whether';
-import useLocalStorage from '@/utils/useLocalStorage';
+import {useLocalStorage} from '@/utils/hooks';
 import cloneDeep from 'lodash.clonedeep';
 import { useLatest, useMemoizedFn } from 'ahooks/es/index';
 import { toast, Toaster } from 'react-hot-toast';
@@ -17,19 +17,38 @@ import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-import { Box, Button, FormControl, FormHelperText, Modal, TextField, Typography } from '@mui/material';
+import { Box, Button, Link, Modal, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
-import { FindInPage } from '@/components/electron-find'
-import { webContents } from "@electron/remote"
-const partKeyPrefix = '@___PART___'
+import Confirm from '@/Confirm';
 
+enum IngestDataType{
+    local = 'local',
+    remote = 'remote'
+}
 
-ValidatorForm.addValidationRule('isURL', (value) => {
-    // 定义一个正则表达式，用来验证URL格式
+function convertUnicodeToNormal(str:string) {
+    // 创建一个正则表达式，匹配Unicode转义序列的格式
+    const unicodeRegex = /\\u[0-9a-fA-F]{4}/g;
+    // 使用replace方法，将匹配的Unicode转义序列还原为普通字符
+    const result = str.replace(unicodeRegex, function (match) {
+        // 去掉转义序列的前缀
+        const hex = match.slice(2);
+        // 将十六进制数转换为十进制数
+        const codePoint = parseInt(hex, 16);
+        // 返回对应的字符
+        return String.fromCharCode(codePoint);
+    });
+    // 返回结果字符串
+    return result;
+}
+
+const isUrl = (value:string)=>{
     const urlRegex = /^(https?:\/\/)?((([a-z\d]([a-z\d-]*[a-z\d])*)\.)+[a-z]{2,}|((\d{1,3}\.){3}\d{1,3}))(?::\d{2,5})?(\/[-a-zA-Z\d%_.~+]*)*(\?[;&a-zA-Z\d%_.~+=-]*)?(\#[-a-zA-Z\d_]*)?$/i;
     return urlRegex.test(value)
-});
+}
+
+ValidatorForm.addValidationRule('isURL', isUrl);
 
 export default function App() {
     const [query, setQuery] = useState<string>('');
@@ -39,7 +58,7 @@ export default function App() {
 
 
     const [resources, setResources] = useImmer<Resource[]>([])
-    const [cache, setCache] = useLocalStorage(partKeyPrefix + 'chat-cache', {})
+    const [cache, setCache, forceUpdateCache] = useLocalStorage('chat-cache', {})
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
 
@@ -51,10 +70,23 @@ export default function App() {
         },
         proxy:''
     })
+    const [uploadModal, setUploadModal] = useImmer({
+        isOpen: false
+    })
+
+    const [urlModal, setUrlModal] = useImmer({
+        isOpen: false,
+        url:''
+    })
+    const [clearHistoryModal, setClearHistoryModal] = useImmer({
+        isOpen: false
+    })
+    const [deleteFileModal, setDeleteFileModal] = useImmer({
+        isOpen: false
+    })
 
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
-    const findInPageRef = useRef(null)
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -73,15 +105,17 @@ export default function App() {
         }
     })
     function getResources(){
-        return window.chatBot.getResources().then(res=>{
+        return window.chatBot.getResources().then(async res=>{
             const sortedRes = res.sort((a,b)=>{
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
             console.log('sortedRes',sortedRes);
             setResources(sortedRes)
             if(res.length){
+                cacheRef.current =  await forceUpdateCache()
                 initCacheByName(sortedRes[0].filename!)
                 setActive(0)
+                return window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
             }
         })
     }
@@ -105,27 +139,22 @@ export default function App() {
                 })
             })
         })
+        window.chatBot.onShowClearHistoryModal(()=>{
+            setClearHistoryModal(draft => {
+                draft.isOpen = true
+            })
+        })
+        window.chatBot.onShowDeleteFileModal(()=>{
+            setDeleteFileModal(draft => {
+                draft.isOpen = true
+            })
+        })
         getApiConfig().then()
         window.chatBot.requestGetProxy().then(proxy=>{
             setApiConfigModal(draft => {
                 draft.proxy = proxy
             })
         })
-        findInPageRef.current = new FindInPage({
-            findInPage: window.chatBot.findInPage,
-            stopFindInPage: window.chatBot.stopFindInPage,
-            on: window.chatBot.webContentsOn
-        })
-        const fListener = (event: KeyboardEvent)=>{
-            if (event.ctrlKey && event.key === "f") {
-                event.preventDefault();
-                findInPageRef.current.openFindWindow()
-            }
-        }
-        document.addEventListener('keydown',fListener)
-        return ()=>{
-            document.removeEventListener('keydown', fListener)
-        }
     }, []);
 
     // handle form submission
@@ -198,7 +227,39 @@ export default function App() {
         const name = resources[index].filename!
         initCacheByName(name)
         setActive(index)
+        window.chatBot.setRenderCurrentFile(name)
     })
+    const onLocalFileUpload = (type: IngestDataType = IngestDataType.local)=>{
+        let promise = null
+        setUploadModal(draft => {
+            draft.isOpen = false
+        })
+        setUploadLoading(true)
+        if(type === IngestDataType.local){
+            promise = window.chatBot.selectFile().then(files=>{
+                return window.chatBot.ingestData(files)
+            })
+        }
+        else{
+            promise = window.chatBot.ingestData([urlModal.url])
+        }
+        return promise.then(res=>{
+            setResources(draft => {
+                draft.push(res)
+            })
+            setActive(resources.length)
+            initCacheByName(res.filename!)
+            window.chatBot.setRenderCurrentFile(res.filename!)
+        }).catch((error)=>{
+            toast.error(error.toString())
+        }).finally(()=>{
+            setUploadLoading(false)
+        })
+    }
+    const onRemoteFileUpload = ()=>{
+        if(!urlModal.url.includes('https://github.com')) return toast('不支持的url')
+        return onLocalFileUpload(IngestDataType.remote)
+    }
     const onFileUpload = async () => {
 
         try{
@@ -209,21 +270,10 @@ export default function App() {
             })
             return Promise.reject()
         }
-
-        return window.chatBot.selectFile().then(files=>{
-            setUploadLoading(true)
-            return window.chatBot.ingestData(files)
-        }).then(res=>{
-            setResources(draft => {
-                draft.push(res)
-            })
-            setActive(resources.length)
-            initCacheByName(res.filename!)
-        }).catch((error)=>{
-            toast.error(error.toString())
-        }).finally(()=>{
-            setUploadLoading(false)
+        setUploadModal(draft => {
+            draft.isOpen = true
         })
+
     }
 
     const { messages, history } = cache[curResourceName] || { messages: [], history: [] };
@@ -258,13 +308,12 @@ export default function App() {
                                                 {
                                                     (item, index) => {
                                                         return (
-                                                            <li className="mr-2" onClick={() => {
-                                                                onTabClick(index)
-                                                            }}>
-                                                                <a
-                                                                    className={["inline-block", "p-4", "border-b-2", "rounded-t-lg", "hover:text-gray-600", "dark:hover:text-gray-300", active === index ? 'border-blue-600' : ''].join(' ')}>
-                                                                    {item.filename}
-                                                                </a>
+                                                            <li className={["mr-10", "mb-10",styles.tabItem,active === index ? styles.tabActive : ''].join(" ")}
+                                                                title={item.filename}
+                                                                onClick={() => {
+                                                                    onTabClick(index)
+                                                                }}>
+                                                                {convertUnicodeToNormal(item.filename)}
                                                             </li>
                                                         )
                                                     }
@@ -463,6 +512,100 @@ export default function App() {
                 }
             </Whether>
             <Modal
+              open={uploadModal.isOpen}
+              onClose={()=>{
+                  setUploadModal(draft=>{
+                      draft.isOpen = false
+                  })
+              }}
+            >
+                <Box sx={modalStyle}>
+                    <Link
+                      component="button"
+                      onClick={()=>{
+                          onLocalFileUpload()
+                      }}
+                      style={{marginBottom: '20px'}}
+                    >
+                        从文件上传
+                    </Link>
+                    <ValidatorForm onSubmit={e=>{
+                        e.preventDefault()
+                    }}>
+                        <Box>
+                            <TextField
+                              value={urlModal.url}
+                              label="从远程网页上传, 例如https://github.com/langchain-ai/langchainjs/blob/0.1.16/libs/langchain-openai/src/embeddings.ts"
+                              style={{width:'100%'}}
+                              size={"small"}
+                              onChange={e=> {
+                                  setUrlModal(draft => {
+                                      // @ts-ignore
+                                      draft.url = e.target.value
+                                  })
+                              }}
+                              onKeyDown={event=>{
+                                  if(event.key === 'Enter' || event.code === 'Enter'){
+                                      if(isUrl(urlModal.url)){
+                                          onRemoteFileUpload()
+                                      }
+                                      else {
+                                          toast('请输入正确的url')
+                                      }
+                                  }
+                              }}
+
+                            />
+                        </Box>
+                    </ValidatorForm>
+                </Box>
+            </Modal>
+            <Confirm
+              open={clearHistoryModal.isOpen}
+              onClose={()=>{
+                  setClearHistoryModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onCancel={()=>{
+                  setClearHistoryModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onConfirm={()=>{
+                  window.chatBot.replyClearHistory(
+                    resources[active].filename
+                  ).then(async ()=>{
+                      await forceUpdateCache()
+                      setClearHistoryModal(draft => {
+                          draft.isOpen = false
+                      })
+                  })
+              }}
+            />
+            <Confirm
+              open={deleteFileModal.isOpen}
+              onClose={()=>{
+                  setDeleteFileModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onCancel={()=>{
+                  setDeleteFileModal(draft => {
+                      draft.isOpen = false
+                  })
+              }}
+              onConfirm={()=>{
+                  window.chatBot.replyDeleteFile(resources[active].filename).then(()=>{
+                      return getResources().then(()=>{
+                          setDeleteFileModal(draft => {
+                              draft.isOpen = false
+                          })
+                      })
+                  })
+              }}
+            />
+            <Modal
               open={apiConfigModal.isOpen}
               onClose={()=>{
                   setApiConfigModal(draft => {
@@ -486,8 +629,8 @@ export default function App() {
                           name={'baseUrl'}
                           value={apiConfigModal.config.baseUrl}
                           validators={["required","isURL"]}
-                          errorMessages={["please enter baseurl","please enter the correct url"]}
-                          label="please enter baseurl"
+                          errorMessages={["请输入内容","请输入正确的url"]}
+                          label="请输入baseurl"
                           style={{width:'100%', marginBottom: '20px'}}
                           size={"small"}
                           onChange={e=> {

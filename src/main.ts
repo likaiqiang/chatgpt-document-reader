@@ -1,12 +1,27 @@
-import {app, BrowserWindow, dialog, ipcMain, Menu, shell} from 'electron'
+import {
+  app,
+  BrowserWindow,
+  BrowserView,
+  dialog,
+  ipcMain,
+  Menu,
+  shell,
+  globalShortcut,
+  RenderProcessGoneDetails,
+  Result,
+  screen
+} from 'electron';
 import electronSquirrelStartup from 'electron-squirrel-startup';
 import type {MenuItemConstructorOptions} from 'electron'
+import contextMenu from 'electron-context-menu'
+import cloneDeep from 'lodash.clonedeep';
+import {rimraf} from 'rimraf'
 
 import {watch} from 'fs'
 import {Channel} from "@/types/bridge";
-import {mainSend, fetchModels} from '@/utils/default'
+import { mainSend, fetchModels, mainOn } from '@/utils/default';
 
-import ingestData, { supportedDocuments } from './electron/ingest-data';
+import { checkSupportedLanguages, getRemoteCode, ingestData, supportedDocuments } from './electron/ingest-data';
 import fsPromise from "node:fs/promises";
 import path from 'path'
 import chat from "./electron/chat";
@@ -16,17 +31,20 @@ import {
   setApiConfig as setLocalApikey,
   setProxy as setLocalProxy,
   getApiConfig as getLocalApikey,
-  getProxy as getLocalProxy, getModel, setModal
+  getProxy as getLocalProxy,
+  getModel,
+  setModal,
+  store as electronStore
 } from './electron/storage';
 import {
   FindInPageParmas,
-  StopFindInPageParmas,
-  WebContentsOnListener,
-  WebContentsOnParams
+  StopFindInPageParmas
 } from '@/types/webContents';
 
+let mainWindow: BrowserWindow = null,
+    searchWindow: BrowserView = null
 
-let mainWindow: BrowserWindow = null
+let currentRenderFile = ''
 
 function setCustomMenu() {
   // 定义一个菜单模板，是一个数组，每个元素是一个菜单对象
@@ -76,19 +94,36 @@ function setCustomMenu() {
   // 使用Menu.buildFromTemplate方法，根据模板创建一个菜单对象
   const menu = Menu.buildFromTemplate(template)
   // 使用Menu.setApplicationMenu方法，将菜单对象设置为应用程序的菜单
-  Menu.setApplicationMenu(menu)
+  mainWindow.setMenu(menu)
+  // searchWindow.setMenu(null)
 }
 
 function hasRepeat(filename:string){
   const files = fs.readdirSync(outputDir)
   for(const file of files){
-    const path = outputDir + '/' + file
-    const stat = fs.statSync(path)
+    const filepath = path.join(outputDir, file)
+    const stat = fs.statSync(filepath)
     if(stat.isDirectory() && file === filename){
       return true
     }
   }
   return false
+}
+
+function convertChineseToUnicode(str:string) {
+  // 创建一个正则表达式，匹配中文字符的范围
+  const chineseRegex = /[\u4e00-\u9fa5]/g;
+  // 使用replace方法，将匹配的中文字符替换为Unicode转义序列
+  const result = str.replace(chineseRegex, function (match) {
+    // 获取中文字符的码点
+    const codePoint = match.codePointAt(0);
+    // 将码点转换为十六进制数，并补齐四位
+    const hex = codePoint.toString(16).padStart(4, "0");
+    // 返回Unicode转义序列
+    return "\\u" + hex;
+  });
+  // 返回结果字符串
+  return result;
 }
 
 function findSubdirs (dir:string) {
@@ -128,7 +163,7 @@ function findSubdirs (dir:string) {
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (electronSquirrelStartup) {
-  app.quit();
+  app.quit()
 }
 
 const createWindow = () => {
@@ -136,6 +171,7 @@ const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
     },
@@ -144,7 +180,77 @@ const createWindow = () => {
     shell.openExternal(url);
     return { action: 'deny' };
   });
+  // 当found-in-page匹配出结果
+  mainOn<Result>(mainWindow,'found-in-page', (e, result)=>{
+    console.log('found-in-page result',result);
+    mainSend(searchWindow, Channel.onFoundInPageResult, result)
+  })
 
+  mainWindow.once('ready-to-show',()=>{
+    mainWindow.show()
+  })
+  mainOn<RenderProcessGoneDetails>(mainWindow,'render-process-gone', function (event, detailed) {
+    //  logger.info("!crashed, reason: " + detailed.reason + ", exitCode = " + detailed.exitCode)
+    if (detailed.reason == "crashed"){
+      // relaunch app
+      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
+      app.exit(0)
+    }
+  })
+
+  searchWindow = new BrowserView({
+    webPreferences:{
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  })
+  searchWindow.setBounds({ x: 0, y: 0, width: 0, height: 0 })
+
+  mainWindow.setBrowserView(searchWindow)
+
+  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+    mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
+  } else {
+    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
+  }
+  if (SEARCH_WINDOW_VITE_DEV_SERVER_URL) {
+    searchWindow.webContents.loadURL(`${SEARCH_WINDOW_VITE_DEV_SERVER_URL}`);
+  } else {
+    searchWindow.webContents.loadFile(path.join(__dirname, `../renderer/${SEARCH_WINDOW_VITE_NAME}/index.html`));
+  }
+
+  contextMenu({
+    showSaveImageAs: true,
+    window: mainWindow,
+    showInspectElement: false,
+    // 设置为false，不显示Select All
+    showLookUpSelection: false,
+    showCopyImage: false,
+    showCopyImageAddress: false,
+    showServices: false,
+
+    append: ()=>{
+      return [
+        {
+          label: '清空历史记录',
+          visible: true,
+          click: ()=>{
+            mainSend(mainWindow, Channel.showClearHistoryModal)
+          }
+        },
+        {
+          label:'删除文件',
+          visible: true,
+          click: ()=>{
+            mainSend(mainWindow, Channel.showDeleteFileModal)
+          }
+        }
+      ]
+    }
+  });
+  ipcMain.handle(Channel.closeSearchWindow,()=>{
+    console.log('closeSearchWindow');
+    searchWindow.setBounds({x:0,y:0,width:0,height:0})
+  })
   ipcMain.handle(Channel.selectFile, async ()=>{
     const {filePaths} = await dialog.showOpenDialog({
       properties: ['openFile'],
@@ -156,12 +262,25 @@ const createWindow = () => {
   })
   ipcMain.handle(Channel.ingestdata, async (e,filePaths:string[])=>{
     if(filePaths.length){
-      const buffer = await fsPromise.readFile(filePaths[0])
-      const filename = filePaths[0].split(path.sep).pop()
-      if(hasRepeat(filename)){
-        return Promise.reject('filename repeat')
+      let filename = /^https?/.test(filePaths[0]) ? filePaths[0] : filePaths[0].split(path.sep).pop()
+
+      if(/^https?/.test(filePaths[0])){
+        const {code, ext, filename} = await getRemoteCode(filePaths[0])
+        if(hasRepeat(filename)){
+          return Promise.reject('filename repeat')
+        }
+        if(checkSupportedLanguages(ext)){
+          await ingestData({buffer: code, filename: filename!, filePath: filePaths[0]!})
+        }
       }
-      await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+      else{
+        const buffer = await fsPromise.readFile(filePaths[0])
+        filename = convertChineseToUnicode(filename)
+        if(hasRepeat(filename)){
+          return Promise.reject('filename repeat')
+        }
+        await ingestData({buffer, filename: filename!, filePath: filePaths[0]!})
+      }
       return {filename}
     }
     return Promise.reject(new Error('no file select'))
@@ -199,58 +318,83 @@ const createWindow = () => {
   ipcMain.handle(Channel.requestTestApi,(e,config)=>{
     return fetchModels(config)
   })
-  // ipcMain.handle(Channel.requestElectronFindParams,()=>{
-  //   return {
-  //     findInPage: mainWindow.webContents.findInPage,
-  //     stopFindInPage: mainWindow.webContents.stopFindInPage,
-  //     on: mainWindow.webContents.on
-  //   }
-  // })
+
   ipcMain.handle(Channel.findInPage,(e, params: FindInPageParmas)=>{
-    console.log('findInPage handle');
     return mainWindow.webContents.findInPage(params.text, params.options)
   })
   ipcMain.handle(Channel.stopFindInPage, (e, params: StopFindInPageParmas)=>{
-    console.log('stopFindInPage handle');
     return mainWindow.webContents.stopFindInPage(params.action)
   })
-  ipcMain.handle(Channel.webContentsOn,(e, params: WebContentsOnParams)=>{
-    console.log('webContentsOn handle');
-    return new Promise((resolve)=>{
-      const listener:WebContentsOnListener = (e,r)=>{
-        resolve(r)
-      }
-      mainWindow.webContents.on(params.event, listener)
-    })
+
+  ipcMain.handle(Channel.electronStoreSet, (_,key, value)=>{
+    console.log('electronStoreSet', electronStore);
+    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
+    return electronStore.set(key,value)
   })
-  // and load the index.html of the app.
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
-  } else {
-    mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
-  }
+  ipcMain.handle(Channel.electronStoreGet, (_,key)=>{
+    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
+    console.log('electronStoreGet',electronStore.get(key))
+    return electronStore.get(key) || {}
+  })
+  ipcMain.handle(Channel.setRenderCurrentFile, (_,file)=>{
+    currentRenderFile = file
+  })
+  ipcMain.handle(Channel.setSearchBoxSize, (_,{width,height})=>{
+    console.log('setSearchBoxSize',width, height);
+    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
+    const { scaleFactor } = display
+
+    const {x,y, width: mainWidth} = mainWindow.getBounds()
+
+    console.log(x, scaleFactor, mainWidth);
+
+    searchWindow.setBounds({
+      x:0,
+      y:0,
+      width: parseInt(width) * scaleFactor,
+      height: parseInt(height) * scaleFactor
+    })
+
+  })
+  ipcMain.handle(Channel.replyClearHistory,(e,{filename})=>{
+    const renderChatCache = (cloneDeep(electronStore.get('@___PART___chat-cache') || {})) as {[key:string]: object}
+    delete renderChatCache[filename]
+    electronStore.set('@___PART___chat-cache', renderChatCache)
+  })
+
+  ipcMain.handle(Channel.replyDeleteFile, (e, {filename})=>{
+    const filepath = path.join(outputDir, filename)
+    return rimraf(filepath)
+  })
+
   setCustomMenu()
   // Open the DevTools.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL){
-    mainWindow.webContents.openDevTools();
+    mainWindow.webContents.openDevTools()
   }
   watch(outputDir,()=>{
     mainSend(mainWindow, Channel.outputDirChange)
-  })
-  mainWindow.webContents.on('render-process-gone', function (event, detailed) {
-    //  logger.info("!crashed, reason: " + detailed.reason + ", exitCode = " + detailed.exitCode)
-    if (detailed.reason == "crashed"){
-      // relaunch app
-      app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
-      app.exit(0)
-    }
   })
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', ()=>{
+  createWindow()
+  // 注册事件，ctrl + f 唤起关键字查找控件
+  mainWindow.on('focus',()=>{
+    globalShortcut.register('CommandOrControl+F', function () {
+      if (searchWindow && searchWindow.webContents) {
+        mainSend(searchWindow, Channel.onFound)
+      }
+    })
+  })
+
+  mainWindow.on('blur', () => {
+    globalShortcut.unregisterAll()
+  })
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -259,7 +403,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+  globalShortcut.unregisterAll()
 });
+app.on('quit',()=>{
+  globalShortcut.unregisterAll()
+})
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the

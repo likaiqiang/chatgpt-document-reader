@@ -5,9 +5,6 @@ const config: ForgeConfig = {
   rebuildConfig: {
     onlyModules:[]
   },
-  packagerConfig:{
-    ignore: [/src\/deps/]
-  },
   makers:[
     {
       name: "@electron-forge/maker-dmg",
@@ -51,9 +48,13 @@ const config: ForgeConfig = {
       ],
       renderer: [
         {
+          name: 'search_window',
+          config: 'vite.renderer.search.config.ts'
+        },
+        {
           name: 'main_window',
           config: 'vite.renderer.config.ts',
-        },
+        }
       ],
     }),
   ]

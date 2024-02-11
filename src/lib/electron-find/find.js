@@ -1,5 +1,4 @@
 import EventEmitter from 'events'
-import { print } from './utils.js'
 
 const stopActions = ['clearSelection', 'keepSelection', 'activateSelection']
 const wcs = Symbol('webContents')
@@ -11,13 +10,13 @@ const initd = Symbol('initd')
 const preText = Symbol('preText')
 
 class Find extends EventEmitter {
-  constructor ({findInPage, stopFindInPage, on}, options = {}) {
+  constructor ({findInPage, stopFindInPage, onFoundInPageResult}, options = {}) {
     super()
     this[opts] = options
     this[wcs] = {
       findInPage,
       stopFindInPage,
-      on
+      onFoundInPageResult
     }
     this[requestId] = null
     this[activeMatch] = 0
@@ -58,7 +57,6 @@ class Find extends EventEmitter {
         matchCase
       }
     })
-    print(`[Find] startFind text=${text} forward=${forward} matchCase=${matchCase}`)
   }
   async findNext (forward, matchCase = false) {
     if (!this.isFinding()) throw new Error('Finding did not start yet !')
@@ -70,14 +68,12 @@ class Find extends EventEmitter {
         findNext: true
       }
     })
-    print(`[Find] findNext text=${this[preText]} forward=${forward} matchCase=${matchCase}`)
   }
  async stopFind (action) {
     stopActions.includes(action) ? '' : action = 'clearSelection'
     await this[wcs].stopFindInPage({
       action
     })
-    print(`[Find] stopFind action=${action}`)
   }
 }
 function isWebContents () {
@@ -86,13 +82,11 @@ function isWebContents () {
     typeof this[wcs].stopFindInPage === 'function')
 }
 async function bindFound () {
-  const r =  await this[wcs].on({
-    event: 'found-in-page'
+  this[wcs].onFoundInPageResult((_,r)=>{
+    onFoundInPage.call(this, r)
   })
-  onFoundInPage.call(this, r)
 }
 function onFoundInPage (result) {
-  print('[Find] onFoundInPage, ', result)
   if (this[requestId] !== result.requestId) return
   typeof result.activeMatchOrdinal === 'number' ? this[activeMatch] = result.activeMatchOrdinal : ''
   typeof result.matches === 'number' ? this[matches] = result.matches : ''

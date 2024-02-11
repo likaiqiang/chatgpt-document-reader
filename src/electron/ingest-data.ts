@@ -1,11 +1,10 @@
 import { FaissStore } from './faiss';
 import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import path from 'path';
 import { outputDir } from '@/config';
 import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
-
+import path from 'path'
 import { Document } from '@/types/document';
 import { getCodeDocs, getPdfDocs, getTextDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
@@ -22,14 +21,16 @@ export const supportedLanguages = [
     '.proto', //
     '.py',
     '.rst', //
-    '.ruby',
-    '.rust',
+    '.rb',
+    '.rs',
     '.scala',
     '.markdown',
     '.md',
     '.sol',
-    '.kotlin',
-    '.cs'
+    '.kt',
+    '.cs',
+    '.ts',
+    '.tsx'
 ]
 
 export const supportedDocuments = [
@@ -39,8 +40,21 @@ export const supportedDocuments = [
     '.zip'
 ];
 
+export const checkSupported = (path:string)=>{
+    return supportedDocuments.reduce((acc, ext) => {
+        return acc || path.endsWith(ext);
+    }, false);
+}
 
-async function getDocuments({ buffer, filename, filePath }: IngestParams): Promise<Document[]> {
+ export const checkSupportedLanguages = (path:string)=>{
+    return supportedLanguages.reduce((acc, ext)=>{
+        return acc || path.endsWith(ext)
+    },false)
+}
+
+
+async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & {ext?:string}): Promise<Document[]> {
+
     if (filePath.endsWith('.pdf')) {
         return getPdfDocs({ buffer, filename, filePath });
     }
@@ -50,9 +64,7 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
     if (filePath.endsWith('.zip')) {
         const tasks: Array<Promise<Document[]>> = [];
         const files = await new ZipLoader().parse(buffer as Buffer, path => {
-            return supportedDocuments.reduce((acc, ext) => {
-                return acc || path.endsWith(ext);
-            }, false);
+            return checkSupported(path)
         });
         for (const file of files) {
             const { path, content } = file;
@@ -66,11 +78,7 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
                     getTextDocs({ buffer: content, filename, filePath })
                 )
             }
-            else if(
-              supportedLanguages.reduce((acc, ext)=>{
-                  return acc || path.endsWith(ext)
-              },false)
-            ){
+            else if(checkSupportedLanguages(path)){
                 tasks.push(
                   getCodeDocs({ buffer: content, filename, filePath:path })
                 )
@@ -81,10 +89,38 @@ async function getDocuments({ buffer, filename, filePath }: IngestParams): Promi
             return docs.flat();
         });
     }
-    return getCodeDocs({ buffer: buffer.toString(), filename, filePath })
+    return getCodeDocs({ buffer: buffer.toString(), filename, filePath, ext })
 }
 
-export default async ({ buffer, filename, filePath }: IngestParams) => {
+async function handleGithubUrl(url:string) {
+    const proxy = getProxy() as string;
+    const response = await fetch(url,{
+        agent: proxy ? new HttpsProxyAgent(proxy) : undefined
+    });
+    const data = await response.json();
+
+    console.log('data',data);
+
+    if (data.payload?.blob?.rawLines) {
+        return {
+            code: data.payload.blob.rawLines.join('\n'),
+            ext: path.extname(url),
+            filename: `github_${data.payload.repo.ownerLogin}_${data.payload.repo.name}_${encodeURIComponent(data.payload.path)}`
+        }
+    }
+    return Promise.reject('无法处理这个URL')
+}
+
+export const getRemoteCode = async (url:string)=>{
+    const {code, ext, filename} = await handleGithubUrl(url)
+    return {
+        ext,
+        code,
+        filename
+    }
+}
+
+export const ingestData = async ({ buffer, filename, filePath }: IngestParams) => {
     const proxy = getProxy() as string;
     const config = getApiConfig();
     try {

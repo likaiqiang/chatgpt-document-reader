@@ -9,7 +9,14 @@ import { encodingForModel } from 'js-tiktoken';
 import type {TiktokenModel} from 'js-tiktoken'
 import { getTreeSitterWASMBindingPath } from '@/electron/tree-sitter';
 
-
+export const getCommentSymbol = (ext:string)=>{
+  let commentSymbol = '# '
+  if(['cpp','go','java','js','php','proto','py','rb','rs','scala','sol','kt','cs','ts','tsx'].includes(ext)){
+    commentSymbol = '//'
+  }
+  if(['rst','md','markdown'].includes(ext)) commentSymbol = '..'
+  return commentSymbol
+}
 
 export const getLanguageParser = async (language: string) =>{
   await Parser.init({
@@ -21,7 +28,11 @@ export const getLanguageParser = async (language: string) =>{
   if(language === 'md') language = 'markdown'
   if(language === 'sol') language = 'solidity'
   if(language === 'py') language = 'python'
-  if(language === '.cs') language = 'c_sharp'
+  if(language === 'cs') language = 'c_sharp'
+  if(language === 'ts') language = 'typescript'
+  if(language === 'rs') language = 'rust'
+  if(language === 'kt') language = 'kotlin'
+  if(language === 'rb') language = 'ruby'
   const Lang = await Parser.Language.load(
     getTreeSitterWASMBindingPath([`tree-sitter-${language}.wasm`])
   );
@@ -92,28 +103,49 @@ export const getTextDocs = async ({buffer, filePath}: IngestParams)=>{
     chunkSize: 1000,
     chunkOverlap: 200
   });
-  return await textSplitter.splitDocuments(rawDocsArray);
+  return (await textSplitter.splitDocuments(rawDocsArray)).map(doc=>{
+    const {pageContent, metadata} = doc
+    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
+    return {
+      pageContent: markedMetadata + '\n' + pageContent,
+      metadata
+    }
+  });
 }
 
 
 export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
   const rawDocsArray = await new PDFLoader().parse(buffer as Buffer, { source: filename });
+
   /* Split text into chunks */
   const textSplitter = new RecursiveCharacterTextSplitter({
     chunkSize: 1000,
     chunkOverlap: 200
   });
-  return await textSplitter.splitDocuments(rawDocsArray);
+  return (await textSplitter.splitDocuments(rawDocsArray)).map(doc=>{
+    const {pageContent, metadata} = doc
+    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
+    return {
+      pageContent: markedMetadata + '\n' + pageContent,
+      metadata
+    }
+  })
 }
-export const getCodeDocs = async ({buffer, filePath}: IngestParams)=>{
-  const ext = path.extname(filePath);
-  const Parser = await getLanguageParser(
-      ext.slice(1)
-  );
+
+export const getCodeDocs = async ({buffer, filePath, ext}: IngestParams & {ext?:string})=>{
+  if(ext && ext.startsWith('.')) ext = ext.slice(1)
+  if(!ext) ext = path.extname(filePath).slice(1)
+
+  const Parser = await getLanguageParser(ext);
   const chunks = splitCode(buffer as string, Parser);
   const docs: Document[] = chunks.map(chunk=>{
+    const commentSymbol = getCommentSymbol(ext)
+    const metadata = {
+      source: filePath
+    }
+    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
     return new Document({
-      pageContent: chunk,
+      pageContent: `${commentSymbol + markedMetadata}\n${chunk}`,
       metadata:{
         source: filePath
       }
