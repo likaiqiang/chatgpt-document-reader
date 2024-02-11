@@ -1,7 +1,7 @@
 {
   "name": "chatgpt-document-reader",
   "productName": "chatgpt-document-reader",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "一个electron应用，可以用chatgpt外接知识库",
   "main": ".vite/build/main.js",
   "scripts": {

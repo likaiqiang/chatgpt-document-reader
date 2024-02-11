@@ -163,8 +163,7 @@ function findSubdirs (dir:string) {
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (electronSquirrelStartup) {
-  app.quit();
-  globalShortcut.unregister('CommandOrControl+F')
+  app.quit()
 }
 
 const createWindow = () => {
@@ -187,19 +186,6 @@ const createWindow = () => {
     mainSend(searchWindow, Channel.onFoundInPageResult, result)
   })
 
-  // 注册事件，ctrl + f 唤起关键字查找控件
-  mainWindow.on('focus',()=>{
-    globalShortcut.register('CommandOrControl+F', function () {
-      if (searchWindow && searchWindow.webContents) {
-        // searchWindow.show()
-        mainSend(searchWindow, Channel.onFound)
-      }
-    })
-  })
-
-  mainWindow.on('blur', () => {
-    globalShortcut.unregisterAll()
-  })
   mainWindow.once('ready-to-show',()=>{
     mainWindow.show()
   })
@@ -348,7 +334,7 @@ const createWindow = () => {
   ipcMain.handle(Channel.electronStoreGet, (_,key)=>{
     key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
     console.log('electronStoreGet',electronStore.get(key))
-    return electronStore.get(key)
+    return electronStore.get(key) || {}
   })
   ipcMain.handle(Channel.setRenderCurrentFile, (_,file)=>{
     currentRenderFile = file
@@ -394,7 +380,21 @@ const createWindow = () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', createWindow);
+app.on('ready', ()=>{
+  createWindow()
+  // 注册事件，ctrl + f 唤起关键字查找控件
+  mainWindow.on('focus',()=>{
+    globalShortcut.register('CommandOrControl+F', function () {
+      if (searchWindow && searchWindow.webContents) {
+        mainSend(searchWindow, Channel.onFound)
+      }
+    })
+  })
+
+  mainWindow.on('blur', () => {
+    globalShortcut.unregisterAll()
+  })
+});
 
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
@@ -405,6 +405,9 @@ app.on('window-all-closed', () => {
   }
   globalShortcut.unregisterAll()
 });
+app.on('quit',()=>{
+  globalShortcut.unregisterAll()
+})
 
 app.on('activate', () => {
   // On OS X it's common to re-create a window in the app when the
