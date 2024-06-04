@@ -105,17 +105,16 @@ export const getTextDocs = async ({buffer, filePath}: IngestParams)=>{
   });
   return (await textSplitter.splitDocuments(rawDocsArray)).map(doc=>{
     const {pageContent, metadata} = doc
-    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
     return {
-      pageContent: markedMetadata + '\n' + pageContent,
+      pageContent,
       metadata
     }
   });
 }
 
 
-export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
-  const rawDocsArray = await new PDFLoader().parse(buffer as Buffer, { source: filename });
+export const getPdfDocs = async ({buffer, filePath}: IngestParams)=>{
+  const rawDocsArray = await new PDFLoader().parse(filePath);
 
   /* Split text into chunks */
   const textSplitter = new RecursiveCharacterTextSplitter({
@@ -124,9 +123,8 @@ export const getPdfDocs = async ({buffer, filename}: IngestParams)=>{
   });
   return (await textSplitter.splitDocuments(rawDocsArray)).map(doc=>{
     const {pageContent, metadata} = doc
-    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
     return {
-      pageContent: markedMetadata + '\n' + pageContent,
+      pageContent,
       metadata
     }
   })
@@ -139,13 +137,8 @@ export const getCodeDocs = async ({buffer, filePath, ext}: IngestParams & {ext?:
   const Parser = await getLanguageParser(ext);
   const chunks = splitCode(buffer as string, Parser);
   const docs: Document[] = chunks.map(chunk=>{
-    const commentSymbol = getCommentSymbol(ext)
-    const metadata = {
-      source: filePath
-    }
-    const markedMetadata = "@@metadata@@" + JSON.stringify(metadata) + "@@metadata@@";
     return new Document({
-      pageContent: `${commentSymbol + markedMetadata}\n${chunk}`,
+      pageContent: chunk,
       metadata:{
         source: filePath
       }

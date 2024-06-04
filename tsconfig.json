@@ -12,6 +12,7 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "jsx": "react",
+    "forceConsistentCasingInFileNames": true,
     "paths": {
       "@/*": ["./src/*"]
     }
