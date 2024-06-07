@@ -1,17 +1,27 @@
-from typing import Callable, List, TypedDict
-from argparse import ArgumentParser
 import json
+from typing import TypedDict, Sequence
+from argparse import ArgumentParser
 
-import numpy as np
 from llama_index.core.node_parser import (
     SemanticSplitterNodeParser
 )
-from llama_index.embeddings.openai import OpenAIEmbedding
+
+from llama_index.core.node_parser.node_utils import (
+    build_nodes_from_splits
+)
+
 from llama_index.core import SimpleDirectoryReader
 import jieba
 from llama_index.core.bridge.pydantic import Field
 import re
 
+from typing import Any, Dict, List, Optional
+
+from llama_index.core.schema import Document, BaseNode
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.readers.file import PDFReader
+
+from utils import build_node_chunks
 
 def remove_space_between_english_and_chinese(text):
     """
@@ -35,20 +45,6 @@ def remove_space_between_english_and_chinese(text):
     return result
 
 
-def calculate_threshold(slope_changes, factor):
-    """
-    根据给定的因子计算阈值。
-
-    :param slope_changes: 斜率变化量的数组
-    :param factor: 0到1之间的值，用于调节阈值的大小
-    :return: 计算出的阈值
-    """
-    mean_change = np.mean(slope_changes)
-    std_change = np.std(slope_changes)
-    threshold = mean_change + factor * std_change
-    return threshold
-
-
 def split_by_sentence_tokenizer(text: str) -> list[str]:
     sentences = []
     start = 0
@@ -59,53 +55,6 @@ def split_by_sentence_tokenizer(text: str) -> list[str]:
             start = end  # 更新下一个句子的起始位置
     return sentences
 
-def build_node_chunks(sentences: List[str], distances: List[float], threshold_factor: float)-> List[str]:
-    chunks = []
-    if len(sentences) > 0:
-        np_distances = np.array(distances)
-        # 计算每个点的斜率
-        slopes = np.diff(distances) / 1  # 这里假设每个点的间隔为1
-        # 计算斜率变化的绝对值
-        slope_changes_abs = np.abs(np.diff(slopes))
-        # 计算斜率变化的方向
-        slope_changes_sign = np.diff(slopes)
-        # 计算连续斜率变化之间的乘积，以确定斜率是否发生了方向变化
-        slope_product = slope_changes_sign[:-1] * slope_changes_sign[1:]
-
-        # 找出斜率方向变化的位置（乘积为负）
-        sign_changes = np.where(slope_product < 0)[0]
-
-        slope_change_threshold = calculate_threshold(slope_changes_abs, threshold_factor)
-
-        # 找出斜率变化显著且方向发生变化的索引
-        significant_slope_changes = sign_changes[
-            np.where(slope_changes_abs[sign_changes] > slope_change_threshold)[0]]
-
-        # 斜率变化显著且方向发生变化的索引可能是潜在的语义断点
-        potential_breakpoints = significant_slope_changes + 2  # 加2是因为np.diff减少了两个元素
-
-        start_index = 0
-
-        for index in potential_breakpoints:
-            group = sentences[start_index: index]
-            combined_text = "".join([d for d in group])
-            chunks.append(combined_text)
-
-            start_index = index
-
-        if start_index < len(sentences):
-            combined_text = "".join(
-                [d for d in sentences[start_index:]]
-            )
-            chunks.append(combined_text)
-
-    else:
-        # If, for some reason we didn't get any distances (i.e. very, very small documents) just
-        # treat the whole document as a single node
-        chunks = [" ".join([s for s in sentences])]
-
-    return chunks
-
 
 class SentenceCombination(TypedDict):
     sentence: str
@@ -114,7 +63,7 @@ class SentenceCombination(TypedDict):
     combined_sentence_embedding: List[float]
 
 
-class CustomSentenceSplitter(SemanticSplitterNodeParser):
+class PdfSentenceSplitter(SemanticSplitterNodeParser):
     threshold_factor: float = Field(
         default=0.5,
         ge=0,
@@ -126,6 +75,7 @@ class CustomSentenceSplitter(SemanticSplitterNodeParser):
 
     def __init__(self, threshold_factor: float = 0.5, **kwargs):
         super().__init__(**kwargs)
+        self.breakpoint_percentile_threshold = 0
         self.threshold_factor = threshold_factor
 
     def _build_node_chunks(
@@ -137,6 +87,45 @@ class CustomSentenceSplitter(SemanticSplitterNodeParser):
             self.threshold_factor
         )
 
+    def semantic_sentence_combination(self, texts: List[str]) -> List[str]:
+        sentences = self._build_sentence_groups(texts)
+
+        combined_sentence_embeddings = self.embed_model.get_text_embedding_batch(
+            [s["combined_sentence"] for s in sentences],
+            show_progress=False,
+        )
+
+        for i, embedding in enumerate(combined_sentence_embeddings):
+            sentences[i]["combined_sentence_embedding"] = embedding
+
+        distances = self._calculate_distances_between_sentence_groups(sentences)
+
+        chunks = self._build_node_chunks(sentences, distances)
+        return chunks
+
+    def build_semantic_nodes_from_documents(
+        self,
+        documents: Sequence[Document],
+        show_progress: bool = False,
+    ) -> List[BaseNode]:
+        """Build window nodes from documents."""
+        all_nodes: List[BaseNode] = []
+        for doc in documents:
+            text = doc.text
+            text_splits = self.sentence_splitter(text)
+
+            chunks = self.semantic_sentence_combination(text_splits)
+
+            nodes = build_nodes_from_splits(
+                chunks,
+                doc,
+                id_func=self.id_func,
+            )
+
+            all_nodes.extend(nodes)
+
+        return all_nodes
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -145,7 +134,14 @@ if __name__ == '__main__':
     parser.add_argument("--openai_api_base", default="https://api.openai.com/v1", help="openai api base url")
     args = parser.parse_args()
 
-    documents = SimpleDirectoryReader(input_files=[args.path]).load_data()
+    documents = SimpleDirectoryReader(
+        input_files=[args.path],
+        file_extractor={
+            ".pdf": PDFReader(return_full_document=False)
+        }
+    ).load_data()
+
+    print(documents[0:10])
 
     for document in documents:
         document.text = remove_space_between_english_and_chinese(document.text)
@@ -159,9 +155,8 @@ if __name__ == '__main__':
     )
 
     # 初始化语义分块器
-    splitter = CustomSentenceSplitter(
+    splitter = PdfSentenceSplitter(
         buffer_size=1,
-        breakpoint_percentile_threshold=95,
         embed_model=embed_model,
         sentence_splitter=split_by_sentence_tokenizer,
         threshold_factor=0.7
