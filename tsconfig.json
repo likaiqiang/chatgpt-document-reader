@@ -17,5 +17,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src","vite.renderer.config.ts"]
+  "include": ["src","vite.renderer.config.ts","generate_python_source.ts","install_python_package.ts"]
 }

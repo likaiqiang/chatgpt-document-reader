@@ -13,24 +13,15 @@ const embeddingModel = 'text-embedding-ada-002';
 
 
 export const supportedLanguages = [
-    '.cpp',
-    '.go',
-    '.java',
-    '.js',
-    '.php',
-    '.proto', //
     '.py',
-    '.rst', //
-    '.rb',
-    '.rs',
-    '.scala',
-    '.markdown',
-    '.md',
-    '.sol',
-    '.kt',
-    '.cs',
+    '.php',
+    '.js',
     '.ts',
-    '.tsx'
+    '.go',
+    '.cpp',
+    '.java',
+    '.rb',
+    '.cs'
 ]
 
 export const supportedDocuments = [
@@ -89,7 +80,7 @@ async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & 
             return docs.flat();
         });
     }
-    return getCodeDocs({ buffer: buffer.toString(), filename, filePath, ext })
+    return getCodeDocs({ buffer: buffer.toString(), filename, filePath })
 }
 
 async function handleGithubUrl(url:string) {

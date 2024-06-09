@@ -1,0 +1,15 @@
+jieba==0.42.1
+llama_index==0.10.43
+numpy==1.26.4
+tiktoken==0.7.0
+tree_sitter==0.22.3
+tree_sitter_c_sharp==0.21.2
+tree_sitter_cpp==0.22.2
+tree_sitter_go==0.21.0
+tree_sitter_java==0.21.0
+tree_sitter_javascript==0.21.3
+tree_sitter_php==0.22.5
+tree_sitter_python==0.21.0
+tree_sitter_ruby==0.21.0
+tree_sitter_typescript==0.21.1
+text2vec

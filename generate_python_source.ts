@@ -131,27 +131,7 @@ async function downloadAndExtractBuild(downloadUrl:string, extractPath:string) {
 
   console.log(`Build ${buildName} has been downloaded and extracted to ${extractPath}`);
 }
-async function installPythonPackage(packageName:string) {
-  console.log(`install ${packageName}`)
-  const pythonPath = path.join(process.cwd(),'src','assets','python_source','python')
-  const command = `${pythonPath} -m pip install ${packageName}`;
-  return new Promise((resolve, reject)=>{
-    exec(command, (error, stdout, stderr) => {
-      if (error) {
-        console.error(`执行出错: ${error}`);
-        return reject(error)
-      }
-      if (stdout) {
-        console.log(`标准输出: ${stdout}`);
-        return resolve(stdout)
-      }
-      if (stderr) {
-        console.error(`标准错误输出: ${stderr}`);
-        return reject(stderr)
-      }
-    });
-  })
-}
+
 
 
 const buildName = selectCPythonBuild()
@@ -159,7 +139,5 @@ downloadAndExtractBuild(
   `https://github.com/indygreg/python-build-standalone/releases/download/20240415/${buildName}`,
   path.join(process.cwd(),'src','assets','python_source')
 ).then(()=>{
-  return installPythonPackage('PyMuPDF')
-}).then(()=>{
   console.log('python install done')
 })
