@@ -1,17 +1,14 @@
 import json
 import os.path
-from typing import TypedDict, Sequence
+from pdfReader import Reader
+from typing import TypedDict
 from argparse import ArgumentParser
 
 from llama_index.core import SimpleDirectoryReader
 
-import re
-
-from typing import Any, Dict, List, Optional
+from typing import List
 
 from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.readers.file import PDFReader
-
 from utils import get_current_directory, split_by_sentence_tokenizer, BaseSentenceSplitter, remove_space_between_english_and_chinese
 
 
@@ -20,6 +17,7 @@ class SentenceCombination(TypedDict):
     index: int
     combined_sentence: str
     combined_sentence_embedding: List[float]
+
 
 
 
@@ -32,15 +30,18 @@ if __name__ == '__main__':
     documents = SimpleDirectoryReader(
         input_files=[args.path],
         file_extractor={
-            ".pdf": PDFReader(return_full_document=True)
+            ".pdf": Reader(return_full_document=True)
         }
     ).load_data()
-
+    processed_documents = []
     for document in documents:
-        document.text = remove_space_between_english_and_chinese(document.text)
+        if document.text.strip():
+            document.text = remove_space_between_english_and_chinese(document.text)
+            processed_documents.append(document)
 
     # 初始化嵌入模型
     embed_model = OpenAIEmbedding(
+        # api_key="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"
         api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
         api_base="https://www.gptapi.us/v1"
     )
@@ -50,9 +51,9 @@ if __name__ == '__main__':
         buffer_size=1,
         embed_model=embed_model,
         sentence_splitter=split_by_sentence_tokenizer,
-        threshold_factor=0.7
+        breakpoint_percentile_threshold=80
     )
-    nodes = splitter.get_nodes_from_documents(documents)
+    nodes = splitter.get_nodes_from_documents(processed_documents)
     result = [{"page_content": content, "metadata": node.metadata} for node in nodes if (content := node.get_content().strip())]
 
     with open(args.write_path, 'w', encoding='utf-8') as f:

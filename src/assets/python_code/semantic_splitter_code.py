@@ -55,7 +55,7 @@ if __name__ == '__main__':
         buffer_size=1,
         embed_model=embed_model,
         sentence_splitter=split_by_ast,
-        threshold_factor=0.8
+        breakpoint_percentile_threshold=80
     )
 
     nodes = splitter.get_nodes_from_documents(documents)

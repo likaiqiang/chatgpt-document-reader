@@ -25,8 +25,11 @@ if __name__ == '__main__':
         }
     ).load_data()
 
+    processed_documents = []
     for document in documents:
-        document.text = remove_space_between_english_and_chinese(document.text)
+        if document.text.strip():
+            document.text = remove_space_between_english_and_chinese(document.text)
+            processed_documents.append(document)
 
     # 初始化嵌入模型
     embed_model = OpenAIEmbedding(
@@ -37,9 +40,9 @@ if __name__ == '__main__':
         buffer_size=1,
         embed_model=embed_model,
         sentence_splitter=split_by_sentence_tokenizer,
-        threshold_factor=0.7
+        breakpoint_percentile_threshold=80
     )
-    nodes = splitter.get_nodes_from_documents(documents)
+    nodes = splitter.get_nodes_from_documents(processed_documents)
     result = [{"page_content": content, "metadata": node.metadata} for node in nodes if
               (content := node.get_content().strip())]
 

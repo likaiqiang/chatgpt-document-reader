@@ -1,9 +1,7 @@
 import re
-import tiktoken
 from fsspec import AbstractFileSystem
 from pathlib import Path
 from llama_index.core.bridge.pydantic import Field
-import jieba
 import numpy as np
 
 from llama_index.core.node_parser import (
@@ -38,14 +36,23 @@ import tiktoken
 
 
 def split_by_sentence_tokenizer(text: str, metadata: Optional[Dict]) -> list[str]:
-    sentences = []
-    start = 0
-    words = jieba.tokenize(text, mode='search')
-    for word, _, end in words:
-        if text[end - 1] in '。！？. ,':  # 如果词语的最后一个字符是结束标点符号
-            sentences.append(text[start:end])  # 提取当前句子
-            start = end  # 更新下一个句子的起始位置
-    return sentences
+    # 使用正则表达式拆分文本
+    sentences = re.split('(?<=[.。?？!！])\\s+', text)
+    merged_sentences = []
+    current_sentence = ''
+
+    for sentence in sentences:
+        if len(current_sentence + sentence) < 50:
+            current_sentence += sentence
+        else:
+            merged_sentences.append(current_sentence + sentence)
+            current_sentence = ''
+
+    # 确保最后一个句子也被添加
+    if current_sentence:
+        merged_sentences.append(current_sentence)
+
+    return merged_sentences
 
 
 def remove_space_between_english_and_chinese(text):
@@ -90,46 +97,32 @@ def calculate_threshold(slope_changes, factor):
     return threshold
 
 
-def build_node_chunks(sentences: List[str], distances: List[float], threshold_factor: float) -> List[str]:
+def build_node_chunks(sentences: List[str], distances: List[float], breakpoint_percentile_threshold) -> List[str]:
     chunks = []
-    if len(sentences) > 0:
-        np_distances = np.array(distances)
-        # 计算每个点的斜率
-        slopes = np.diff(distances) / 1  # 这里假设每个点的间隔为1
-        # 计算斜率变化的绝对值
-        slope_changes_abs = np.abs(np.diff(slopes))
-        # 计算斜率变化的方向
-        slope_changes_sign = np.diff(slopes)
-        # 计算连续斜率变化之间的乘积，以确定斜率是否发生了方向变化
-        slope_product = slope_changes_sign[:-1] * slope_changes_sign[1:]
+    if len(distances) > 0:
+        breakpoint_distance_threshold = np.percentile(
+            distances, breakpoint_percentile_threshold
+        )
 
-        # 找出斜率方向变化的位置（乘积为负）
-        sign_changes = np.where(slope_product < 0)[0]
+        indices_above_threshold = [
+            i for i, x in enumerate(distances) if x > breakpoint_distance_threshold
+        ]
 
-        slope_change_threshold = calculate_threshold(slope_changes_abs, threshold_factor)
-
-        # 找出斜率变化显著且方向发生变化的索引
-        significant_slope_changes = sign_changes[
-            np.where(slope_changes_abs[sign_changes] > slope_change_threshold)[0]]
-
-        # 斜率变化显著且方向发生变化的索引可能是潜在的语义断点
-        potential_breakpoints = significant_slope_changes + 2  # 加2是因为np.diff减少了两个元素
-
+        # Chunk sentences into semantic groups based on percentile breakpoints
         start_index = 0
 
-        for index in potential_breakpoints:
-            group = sentences[start_index: index]
+        for index in indices_above_threshold:
+            group = sentences[start_index: index + 1]
             combined_text = "".join([d for d in group])
             chunks.append(combined_text)
 
-            start_index = index
+            start_index = index + 1
 
         if start_index < len(sentences):
             combined_text = "".join(
                 [d for d in sentences[start_index:]]
             )
             chunks.append(combined_text)
-
     else:
         # If, for some reason we didn't get any distances (i.e. very, very small documents) just
         # treat the whole document as a single node
@@ -146,31 +139,18 @@ class SentenceCombination(TypedDict):
 
 
 class BaseSentenceSplitter(SemanticSplitterNodeParser):
-    threshold_factor: float = Field(
-        default=0.5,
-        ge=0,
-        le=1,
-        description="A factor between 0 and 1 that scales the significance threshold for identifying potential "
-                    "semantic breakpoints. A lower value results in a more sensitive breakpoint detection, "
-                    "while a higher value requires more significant changes in slope to identify a breakpoint."
-    )
 
     sentence_splitter: Callable[[str, Optional[Dict]], List[str]] = Field(
         description="The text splitter to use when splitting documents.",
         exclude=True,
     )
 
-    def __init__(self, threshold_factor: float = 0.5, sentence_splitter=split_by_sentence_tokenizer, **kwargs):
-        super().__init__(
-            buffer_size=kwargs.buffer_size,
-            embed_model=kwargs.embed_model,
-            breakpoint_percentile_threshold=0
-        )
-        self.threshold_factor = threshold_factor
-        self.sentence_splitter = sentence_splitter
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+        # self.sentence_splitter = sentence_splitter
 
     def _get_batch(self, texts: List[str]) -> List[List[str]]:
-        enc = tiktoken.encoding_for_model(self.model_name)
+        enc = tiktoken.encoding_for_model('text-embedding-ada-002')
         cur_chunk: List[str] = []
         cur_chunk_count = 0
         batches: List[List[str]] = []
@@ -194,7 +174,7 @@ class BaseSentenceSplitter(SemanticSplitterNodeParser):
         return build_node_chunks(
             [s['sentence'] for s in sentences],
             distances,
-            self.threshold_factor
+            self.breakpoint_percentile_threshold
         )
 
     def semantic_sentence_combination(self, texts: List[str]) -> List[str]:
@@ -203,8 +183,10 @@ class BaseSentenceSplitter(SemanticSplitterNodeParser):
         batches = self._get_batch([s["combined_sentence"] for s in sentences])
         combined_sentence_embeddings = []
         with ThreadPoolExecutor(max_workers=5) as executor:
-            embeddings = list(executor.map(lambda batch: self.embed_model._get_text_embeddings(texts), batches))
-            combined_sentence_embeddings.extend(embeddings)
+            embeddings = list(executor.map(lambda batch: self.embed_model.get_text_embedding_batch(batch), batches))
+            for batch in embeddings:
+                for embedding in batch:
+                    combined_sentence_embeddings.append(embedding)
 
         for i, embedding in enumerate(combined_sentence_embeddings):
             sentences[i]["combined_sentence_embedding"] = embedding
