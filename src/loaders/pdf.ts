@@ -8,7 +8,8 @@ const pythonPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd()
 const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','semantic_splitter.py') : filepath.join(__dirname,'python_code','semantic_splitter.py')
 
 class PDFLoader {
-    async parse(path:string): Promise<Document<Record<string, any>>[]>{
+    async parse(path:string): Promise<Document[]>{
+
         const now = Date.now()
         const jsonPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','result',`semantic_splitter_${now}.json`) : filepath.join(__dirname,'python_code','result',`semantic_splitter_${now}.json`)
         return PythonShell.run(scriptPath, {
@@ -27,8 +28,6 @@ class PDFLoader {
                     }
                 })
             })
-        }).catch(err=>{
-            console.log(err);
         })
     }
 }

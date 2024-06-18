@@ -40,19 +40,12 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
     });
 
 
-
-    // Rephrase the initial question into a dereferenced standalone question based on
-    // the chat history to allow effective vectorstore querying.
+    // @ts-ignore
     const standaloneQuestionChain = RunnableSequence.from([
         condenseQuestionPrompt,
         model,
         new StringOutputParser(),
     ]);
-
-    // Retrieve documents based on a query, then format them.
-    // @ts-ignore
-    // const retrievalChain = retriever.pipe(combineDocumentsFn);
-
 
     const answerWithRetrievalChain = RunnableSequence.from([
         {
@@ -70,7 +63,7 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
     // chat history and retrieved context documents.
     const conversationalRetrievalQAChain = RunnableSequence.from([
         {
-            question: standaloneQuestionChain,
+            question: (input)=> input.chat_history.length ? standaloneQuestionChain : input.question,
             chat_history: (input) => input.chat_history,
         },
         answerWithRetrievalChain,

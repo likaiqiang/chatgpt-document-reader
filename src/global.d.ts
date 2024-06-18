@@ -11,9 +11,9 @@ declare global {
         chatBot: typeof api
     }
     interface IngestParams{
-        buffer: Buffer | string,
-        filename: string,
-        filePath: string
+        buffer?: Buffer | string,
+        filename?: string,
+        filePath?: string[]
     }
     interface ApiConfig{
         apiKey:string,

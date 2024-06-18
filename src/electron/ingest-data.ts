@@ -5,9 +5,9 @@ import { outputDir } from '@/config';
 import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 import path from 'path'
-import { Document } from '@/types/document';
-import { getCodeDocs, getPdfDocs, getTextDocs } from '@/loaders';
+import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
+import {GitHub} from '@/electron/download'
 
 const embeddingModel = 'text-embedding-ada-002';
 
@@ -44,43 +44,25 @@ export const checkSupported = (path:string)=>{
 }
 
 
-async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & {ext?:string}): Promise<Document[]> {
-
-    if (filePath.endsWith('.pdf')) {
-        return getPdfDocs({ buffer, filename, filePath });
-    }
-    if(filePath.endsWith('.txt')){
-        return getTextDocs({ buffer: buffer.toString(), filename, filePath })
-    }
-    if (filePath.endsWith('.zip')) {
-        const tasks: Array<Promise<Document[]>> = [];
-        const files = await new ZipLoader().parse(buffer as Buffer, path => {
-            return checkSupported(path)
-        });
-        for (const file of files) {
-            const { path, content } = file;
-            if (path.endsWith('.pdf')) {
-                tasks.push(
-                    getPdfDocs({ buffer: Buffer.from(content), filename, filePath })
-                );
-            }
-            else if(path.endsWith('.txt')){
-                tasks.push(
-                    getTextDocs({ buffer: content, filename, filePath })
-                )
-            }
-            else if(checkSupportedLanguages(path)){
-                tasks.push(
-                  getCodeDocs({ buffer: content, filename, filePath:path })
-                )
-            }
-
+async function getDocuments({ filePath }: IngestParams) {
+    const doc = []
+    for(const fp of filePath){
+        if (fp.endsWith('.pdf')) {
+            doc.push(
+              ...await getPdfDocs(fp)
+            )
         }
-        return Promise.all(tasks).then(docs => {
-            return docs.flat();
-        });
+        if(fp.endsWith('.txt')){
+            doc.push(...await getTextDocs(fp))
+        }
+        if (fp.endsWith('.zip')) {
+            doc.push(...await getZipDocs(fp))
+        }
+        if(checkSupported(fp)){
+            doc.push(...await getCodeDocs(fp))
+        }
     }
-    return getCodeDocs({ buffer: buffer.toString(), filename, filePath })
+    return doc
 }
 
 async function handleGithubUrl(url:string) {
@@ -102,24 +84,28 @@ async function handleGithubUrl(url:string) {
     return Promise.reject('无法处理这个URL')
 }
 
-export const getRemoteCode = async (url:string)=>{
-    const {code, ext, filename} = await handleGithubUrl(url)
-    return {
-        ext,
-        code,
-        filename
+export const getRemoteFiles = async (url:string)=>{
+    if(url.startsWith('https://github.com')){
+        const proxy = getProxy() as string;
+        const dl = new GitHub({
+            url,
+            proxy: proxy,
+            downloadFileName: encodeURIComponent(new URL(url).pathname)
+        })
+        await dl.downloadZippedFiles()
+        return dl.downloadedFiles
     }
+    return Promise.reject('无法处理这个URL')
 }
 
-export const ingestData = async ({ buffer, filename, filePath }: IngestParams) => {
+export const ingestData = async ({ filename, filePath }: IngestParams) => {
     const proxy = getProxy() as string;
     const config = getApiConfig();
     try {
         const docs = await getDocuments({
-            buffer,
-            filename,
             filePath
         });
+        if(docs.length === 0) return Promise.reject('no supported docs')
         const vectorStore = await FaissStore.fromDocuments(docs,
             new Embeddings({
                     openAIApiKey: config.apiKey,
