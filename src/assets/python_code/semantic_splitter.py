@@ -54,7 +54,7 @@ if __name__ == '__main__':
         breakpoint_percentile_threshold=80
     )
     nodes = splitter.get_nodes_from_documents(processed_documents)
-    result = [{"page_content": content, "metadata": node.metadata} for node in nodes if (content := node.get_content().strip())]
+    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if (content := node.get_content().strip())]
 
     with open(args.write_path, 'w', encoding='utf-8') as f:
         json.dump(result, f, ensure_ascii=False, indent=4)
