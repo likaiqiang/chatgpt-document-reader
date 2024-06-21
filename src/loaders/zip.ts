@@ -1,6 +1,5 @@
 import fs from 'fs/promises'
 import jszip from 'jszip'
-import os from 'os'
 import filepath from 'path'
 import { Document } from '@/types/document';
 import {existsSync, mkdirSync, writeFileSync} from 'fs'
@@ -8,12 +7,12 @@ import PDFLoader from '@/loaders/pdf';
 import TextLoader from '@/loaders/text';
 import { checkSupportedLanguages } from '@/electron/ingest-data';
 import CodeLoader from '@/loaders/code';
+import { documentsOutputDir } from '@/config';
 
 class ZIPLoader{
-  public outputDir = filepath.join(os.tmpdir(),'.documents')
   constructor() {
-    if(!existsSync(this.outputDir)){
-      mkdirSync(this.outputDir,{recursive: true})
+    if(!existsSync(documentsOutputDir)){
+      mkdirSync(documentsOutputDir,{recursive: true})
     }
   }
   static promiseAllWithConcurrency<T>(task:(()=>Promise<T[]>)[] = [],option = {limit: 3}): Promise<T[]>{
@@ -70,7 +69,7 @@ class ZIPLoader{
       const file = zip.files[fileName];
       if (file.dir) {
         // 如果是文件夹，递归处理
-        const folderPath = filepath.join(ziploader.outputDir, fileName);
+        const folderPath = filepath.join(documentsOutputDir, fileName);
         if (!existsSync(folderPath)) {
           mkdirSync(folderPath, { recursive: true });
         }
@@ -81,7 +80,7 @@ class ZIPLoader{
         files.push(...subFilePaths);
       } else {
         // 如果是文件，提取到指定路径
-        const filePath = filepath.join(ziploader.outputDir, fileName);
+        const filePath = filepath.join(documentsOutputDir, fileName);
         file.async('nodebuffer').then((content) => {
           writeFileSync(filePath, content);
         });

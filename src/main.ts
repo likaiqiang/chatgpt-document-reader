@@ -17,7 +17,8 @@ import contextMenu from 'electron-context-menu';
 import cloneDeep from 'lodash.clonedeep';
 import { rimraf } from 'rimraf';
 
-import { watch } from 'fs';
+import { existsSync, watch } from 'fs';
+import os from 'os'
 import { Channel } from '@/types/bridge';
 import { mainSend, fetchModels, mainOn } from '@/utils/default';
 
@@ -29,7 +30,7 @@ import {
 import path from 'path';
 import chat from './electron/chat';
 import fs from 'fs';
-import { outputDir } from '@/config';
+import { documentsOutputDir, outputDir } from '@/config';
 import {
   setApiConfig as setLocalApikey,
   setProxy as setLocalProxy,
@@ -43,11 +44,14 @@ import {
   FindInPageParmas,
   StopFindInPageParmas
 } from '@/types/webContents';
+import {getCodeDot} from './cg'
 
 let mainWindow: BrowserWindow = null,
   searchWindow: BrowserView = null;
 
 let currentRenderFile = '';
+
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
 function setCustomMenu() {
   // 定义一个菜单模板，是一个数组，每个元素是一个菜单对象
@@ -241,7 +245,7 @@ const createWindow = () => {
           }
         },
         {
-          label: '删除文件',
+          label: '删除当前文档',
           visible: true,
           click: () => {
             mainSend(mainWindow, Channel.showDeleteFileModal);
@@ -322,7 +326,10 @@ const createWindow = () => {
   ipcMain.handle(Channel.requestTestApi, (e, config) => {
     return fetchModels(config);
   });
-
+  ipcMain.handle(Channel.requestCallGraph,(e, path)=>{
+    console.log('ipcMain.handle', path);
+    return getCodeDot(path)
+  })
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);
   });
@@ -342,6 +349,41 @@ const createWindow = () => {
   });
   ipcMain.handle(Channel.setRenderCurrentFile, (_, file) => {
     currentRenderFile = file;
+
+    interface File{
+      type: 'file' | 'dir',
+      filepath: string,
+      filename: string,
+      children?: File[]
+    }
+    function scan(currentPath: string) {
+      if(!existsSync(currentPath)){
+        return []
+      }
+      const items = fs.readdirSync(currentPath);
+      const result:File[] = [];
+      items.forEach((item) => {
+        const fullPath = path.join(currentPath, item);
+        const stats = fs.statSync(fullPath);
+
+        if (stats.isDirectory()) {
+          result.push({
+            type: 'dir',
+            filepath: fullPath,
+            filename: item,
+            children: scan(fullPath) // 递归扫描子目录
+          });
+        } else {
+          result.push({
+            type: 'file',
+            filepath: fullPath,
+            filename: item
+          });
+        }
+      });
+      return result;
+    }
+    return scan(path.join(documentsOutputDir, file))
   });
   ipcMain.handle(Channel.setSearchBoxSize, (_, { width, height }) => {
     console.log('setSearchBoxSize', width, height);

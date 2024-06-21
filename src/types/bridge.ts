@@ -17,6 +17,7 @@ export enum Channel {
     requestGetApiConfig = 'request_get_api_config',
     requestGetProxy = 'request_get_proxy',
     requestTestApi = 'request_test_api',
+    requestCallGraph = 'request_call_graph',
     findInPage = 'find_in_page',
     stopFindInPage = 'stop_find_in_page',
     electronStoreGet = 'electron_store_get',

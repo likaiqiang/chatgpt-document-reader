@@ -1,5 +1,4 @@
-// eslint-disable-next-line no-use-before-define
-import React, {useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import ReactMarkdown from 'react-markdown';
@@ -21,10 +20,21 @@ import { Box, Button, Link, Modal, TextField, Dialog, DialogTitle, DialogContent
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
 import Confirm from '@/Confirm';
+import { SimpleTreeView  } from '@mui/x-tree-view/SimpleTreeView';
+import { TreeItem } from '@mui/x-tree-view/TreeItem';
+import CodeViewModal, { CodeViewHandle } from '@/CodeView';
+import { useTreeViewApiRef } from '@mui/x-tree-view';
 
 enum IngestDataType{
     local = 'local',
     remote = 'remote'
+}
+
+interface File{
+    type: 'file' | 'dir',
+    filepath: string,
+    filename: string,
+    children?: File[]
 }
 
 function convertUnicodeToNormal(str:string) {
@@ -56,8 +66,8 @@ export default function App() {
     const [uploadLoading, setUploadLoading] = useState(false)
     const [active, setActive] = useState(0)
 
-
     const [resources, setResources] = useImmer<Resource[]>([])
+    const [files, setFiles] = useState<File[]>([])
     const [cache, setCache, forceUpdateCache] = useLocalStorage('chat-cache', {})
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
@@ -70,6 +80,7 @@ export default function App() {
         },
         proxy:''
     })
+
     const [uploadModal, setUploadModal] = useImmer({
         isOpen: false
     })
@@ -84,9 +95,11 @@ export default function App() {
     const [deleteFileModal, setDeleteFileModal] = useImmer({
         isOpen: false
     })
-
+    const codeViewRef = useRef<CodeViewHandle>()
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const apiRef = useTreeViewApiRef();
+
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -112,10 +125,11 @@ export default function App() {
             console.log('sortedRes',sortedRes);
             setResources(sortedRes)
             if(res.length){
-                cacheRef.current =  await forceUpdateCache()
+                cacheRef.current = await forceUpdateCache()
                 initCacheByName(sortedRes[0].filename!)
                 setActive(0)
-                return window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
+                const files = await window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
+                setFiles(files)
             }
         })
     }
@@ -227,7 +241,10 @@ export default function App() {
         const name = resources[index].filename!
         initCacheByName(name)
         setActive(index)
-        window.chatBot.setRenderCurrentFile(name)
+        window.chatBot.setRenderCurrentFile(name).then(files=>{
+            console.log('files',files);
+            setFiles(files)
+        })
     })
     const onLocalFileUpload = (type: IngestDataType = IngestDataType.local)=>{
         let promise = null
@@ -243,13 +260,14 @@ export default function App() {
         else{
             promise = window.chatBot.ingestData([urlModal.url])
         }
-        return promise.then(res=>{
+        return promise.then(async res=>{
             setResources(draft => {
                 draft.push(res)
             })
             setActive(resources.length)
             initCacheByName(res.filename!)
-            window.chatBot.setRenderCurrentFile(res.filename!)
+            const files = await window.chatBot.setRenderCurrentFile(res.filename!)
+            setFiles(files)
         }).catch((error)=>{
             toast.error(error.toString())
         }).finally(()=>{
@@ -257,7 +275,7 @@ export default function App() {
         })
     }
     const onRemoteFileUpload = ()=>{
-        if(!urlModal.url.includes('https://github.com')) return toast('不支持的url')
+        if(!urlModal.url.startsWith('https://github.com')) return toast('不支持的url')
         return onLocalFileUpload(IngestDataType.remote)
     }
     const onFileUpload = async () => {
@@ -289,6 +307,52 @@ export default function App() {
         boxShadow: 24,
         p: 4,
     };
+
+    const TreeCustomItem = useMemo(()=>{
+        return ({list = []}: {list: File[]})=>{
+            return (
+              <DataFor list={list}>
+                  {
+                      (item,index)=>{
+                          return (
+                            <Whether value={item.type === 'dir'}>
+                                <If>
+                                    <TreeItem
+                                      itemId={item.filepath}
+                                      label={item.filename}
+                                    >
+                                        <TreeCustomItem list={item.children || []}/>
+                                    </TreeItem>
+                                </If>
+                                <Else>
+                                    <TreeItem
+                                      onClick={()=>{
+                                          window.chatBot.requestCallGraph(item.filepath).then((res)=>{
+                                              const {code, dot, suffix} = res
+                                              codeViewRef.current.setIsOpen(true)
+                                              setTimeout(()=>{
+                                                  dot &&  codeViewRef.current.renderSvg(dot)
+                                                  const codeBlock = "\`\`\`" + code + "\n" + "\`\`\`"
+                                                  codeViewRef.current.setCode(codeBlock)
+                                                  console.log(res);
+                                              },0)
+
+                                              // codeViewRef.current.setIsOpen(true)
+                                          })
+                                      }}
+                                      itemId={item.filepath}
+                                      label={item.filename}
+                                    />
+                                </Else>
+                            </Whether>
+                          )
+                      }
+                  }
+              </DataFor>
+            )
+        }
+    },[])
+
 
     return (
         <>
@@ -425,6 +489,15 @@ export default function App() {
                                                 }
                                             }
                                         </DataFor>
+                                    </div>
+                                    <div className={styles.files}>
+                                        <Whether value={!!files.length}>
+                                            <SimpleTreeView
+                                              apiRef={apiRef}
+                                            >
+                                                <TreeCustomItem list={files}/>
+                                            </SimpleTreeView>
+                                        </Whether>
                                     </div>
                                 </div>
                                 <div className={styles.center}>
@@ -690,6 +763,12 @@ export default function App() {
                     </ValidatorForm>
                 </Box>
             </Modal>
+            {
+                ReactDOM.createPortal(
+                  <CodeViewModal ref={codeViewRef} />,
+                  document.body
+                )
+            }
         </>
     );
 }

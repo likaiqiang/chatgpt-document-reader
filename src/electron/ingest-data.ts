@@ -31,8 +31,8 @@ export const supportedDocuments = [
     '.zip'
 ];
 
-export const checkSupported = (path:string)=>{
-    return supportedDocuments.reduce((acc, ext) => {
+export const checkSupported = (path:string, suffixes:string[] = supportedDocuments)=>{
+    return suffixes.reduce((acc, ext) => {
         return acc || path.endsWith(ext);
     }, false);
 }

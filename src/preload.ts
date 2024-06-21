@@ -57,6 +57,9 @@ export const api = {
     requestTestApi(config: ApiConfig & {proxy: string}){
         return ipcRenderer.invoke(Channel.requestTestApi, config)
     },
+    requestCallGraph(path:string){
+        return ipcRenderer.invoke(Channel.requestCallGraph, path)
+    },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)
     },

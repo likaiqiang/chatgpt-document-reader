@@ -4,9 +4,12 @@ import * as tern from "tern";
 import type {Query} from 'tern'
 import {parse} from '@babel/parser'
 import type {ParseResult} from '@babel/parser'
+import generate from '@babel/generator';
 import fs from 'fs'
 import ts from 'typescript'
+import path from 'path'
 import * as t from '@babel/types';
+import { checkSupported } from '@/electron/ingest-data';
 const server = new tern.Server({});
 
 interface Vertex {
@@ -316,6 +319,7 @@ function generateDotJson(code: string): DotJson {
 function generateDotStr(dotJson: DotJson): string {
   const { node = {}, statements = [] } = dotJson;
   let str = 'digraph G {\nrankdir=LR;';
+  if(statements.length === 0) return ''
 
   if (Object.keys(node).length > 0) {
     str += Object.keys(node).reduce((acc, key) => {
@@ -355,24 +359,49 @@ function generateDotStr(dotJson: DotJson): string {
 
   return str + '\n}';
 }
+
+const getCodeBlock=(filepath:string, code: string)=>{
+  const suffix = path.extname(filepath)
+  const codeBlock = `
+    \`\`\`${suffix ? 'language='+suffix.slice(1) : ''}
+    ${code}
+    \`\`\`
+  `
+  return codeBlock
+}
 export const getCodeDot=(filepath: string)=>{
   const code = fs.readFileSync(filepath, 'utf-8')
-  const compiledCode = tsCompile({
-    source: code
-  })
-  const dotJson = generateDotJson(compiledCode.code)
-  const pathMapping:{[key: string]: any} = {}
-  for(const statement of dotJson.statements){
-    const {head, tail} = statement
-    for(const node of [head, tail]){
-      if(!pathMapping[node.id]){
-        pathMapping[node.id] = node.path
+  const suffix = path.extname(filepath)
+
+  if(checkSupported(filepath, ['.js','.ts'])){
+    const compiledCode = tsCompile({
+      source: code
+    })
+    const dotJson = generateDotJson(compiledCode.code)
+    const codeMapping:{[key: string]: any} = {}
+    for(const statement of dotJson.statements){
+      const {head, tail} = statement
+      for(const node of [head, tail]){
+        if(!codeMapping[node.id]){
+          codeMapping[node.id] = getCodeBlock(
+            filepath,
+            generate(node.path.node).code
+          )
+        }
       }
     }
+    const dot = generateDotStr(dotJson)
+    return {
+      code: getCodeBlock(filepath, code),
+      suffix,
+      dot,
+      codeMapping
+    }
   }
-  const dot = generateDotStr(dotJson)
   return {
-    dot,
-    pathMapping
+    code: getCodeBlock(filepath, code),
+    dot:'',
+    codeMapping: null,
+    suffix
   }
 }

@@ -4,6 +4,7 @@ import {fetch, ProxyAgent} from 'undici'
 import os from 'os';
 import filepath from 'path';
 import ZIPLoader from '@/loaders/zip';
+import { documentsOutputDir } from '@/config';
 
 interface GitHubInfo {
   author?: string,
@@ -29,7 +30,6 @@ export class GitHub {
   private dirPaths: string[] = [];
   private proxy:ProxyAgent
   downloadedFiles: string[]
-  public outputDir = filepath.join(os.tmpdir(),'.documents')
 
   constructor({url, downloadFileName,proxy}:Params) {
     this.url = url;
@@ -40,8 +40,8 @@ export class GitHub {
     this.proxy = proxy ? new ProxyAgent(proxy) : undefined
     this.info = this.getParsedInfo();
     this.downloadedFiles = []
-    if(!existsSync(this.outputDir)){
-      mkdirSync(this.outputDir,{recursive: true})
+    if(!existsSync(documentsOutputDir)){
+      mkdirSync(documentsOutputDir,{recursive: true})
     }
   }
   async downloadFile(url:string){
@@ -59,7 +59,7 @@ export class GitHub {
           if (!response.ok) {
             throw new Error(`请求失败: ${response.statusText}`);
           }
-          const localFilePath = filepath.join(this.outputDir, this.downloadFileName);
+          const localFilePath = filepath.join(documentsOutputDir, this.downloadFileName);
           const fileStream = createWriteStream(localFilePath);
           // response.body.pipe(fileStream);
           fileStream.on('finish', () => {
@@ -125,7 +125,7 @@ export class GitHub {
   }
 
   private async downloadFiles() {
-    const outputDir = filepath.join(this.outputDir, this.downloadFileName);
+    const outputDir = filepath.join(documentsOutputDir, this.downloadFileName);
     if (!existsSync(outputDir)) {
       mkdirSync(outputDir, { recursive: true });
     }
@@ -190,7 +190,7 @@ export class GitHub {
       }
       await this.downloadFile(downloadUrl);
       return ZIPLoader.unzip(
-        filepath.join(this.outputDir, this.downloadFileName)
+        filepath.join(documentsOutputDir, this.downloadFileName)
       ).then(files=>{
         this.downloadedFiles.push(...files)
       })
