@@ -33,6 +33,9 @@ import tree_sitter_ruby as tsruby
 import tree_sitter_c_sharp as tscs
 from tree_sitter import Language, Parser
 import tiktoken
+from llama_index.core import SimpleDirectoryReader
+from pdfReader import Reader
+from llama_index.embeddings.openai import OpenAIEmbedding
 
 
 def split_by_sentence_tokenizer(text: str, metadata: Optional[Dict]) -> list[str]:
@@ -139,13 +142,12 @@ class SentenceCombination(TypedDict):
 
 
 class BaseSentenceSplitter(SemanticSplitterNodeParser):
-
     sentence_splitter: Callable[[str, Optional[Dict]], List[str]] = Field(
         description="The text splitter to use when splitting documents.",
         exclude=True,
     )
 
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # self.sentence_splitter = sentence_splitter
 
@@ -236,7 +238,7 @@ class TXTReader(BaseReader):
             content = fp.read()
 
             # Create metadata dictionary
-            metadata = {"file_name": file.name}
+            metadata = {"file_name": file.name, 'source': str(file.resolve())}
             if extra_info is not None:
                 metadata.update(extra_info)
 
@@ -247,6 +249,10 @@ class TXTReader(BaseReader):
 
 
 class CODEReader(BaseReader):
+    @staticmethod
+    def is_supported(suffix: str) -> bool:
+        return suffix in ['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
+
     @staticmethod
     def get_parser(suffix: str):
         parser_dict = {
@@ -260,6 +266,8 @@ class CODEReader(BaseReader):
             '.rb': tsruby,
             '.cs': tscs
         }
+        if not suffix.startswith('.'):
+            suffix = '.' + suffix
         ts_lib = parser_dict[suffix]
         if ts_lib is None: return None
         LANGUAGE = Language(ts_lib.language())
@@ -300,7 +308,7 @@ class CODEReader(BaseReader):
             content = fp.read()
 
             # Create metadata dictionary
-            metadata = {"file_name": file.name, "suffix": file.suffix.lower()}
+            metadata = {"file_name": file.name, "suffix": file.suffix.lower(), 'source': str(file.resolve())}
             if extra_info is not None:
                 metadata.update(extra_info)
 
@@ -333,3 +341,133 @@ class CODEReader(BaseReader):
                     result.append(code)
 
         return result
+
+
+def get_pdf_document(path: str) -> Document:
+    input_files = None
+    input_dir = None
+    if Path(path).is_file():
+        input_files = [path]
+    if Path(path).is_dir():
+        input_dir = path
+
+    documents = SimpleDirectoryReader(
+        recursive=True,
+        input_files=input_files,
+        input_dir=input_dir,
+        file_extractor={
+            ".pdf": Reader(return_full_document=True)
+        }
+    ).load_data()
+    processed_documents = []
+    for document in documents:
+        if document.text.strip():
+            document.text = remove_space_between_english_and_chinese(document.text)
+            processed_documents.append(document)
+
+    # 初始化嵌入模型
+    embed_model = OpenAIEmbedding(
+        # api_key="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"
+        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
+        api_base="https://www.gptapi.us/v1"
+    )
+
+    # 初始化语义分块器
+    splitter = BaseSentenceSplitter(
+        buffer_size=1,
+        embed_model=embed_model,
+        sentence_splitter=split_by_sentence_tokenizer,
+        breakpoint_percentile_threshold=80
+    )
+    nodes = splitter.get_nodes_from_documents(processed_documents)
+    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if
+              (content := node.get_content().strip())]
+    return result
+
+
+def get_text_document(path: str) -> Document:
+    input_files = None
+    input_dir = None
+    if Path(path).is_file():
+        input_files = [path]
+    if Path(path).is_dir():
+        input_dir = path
+
+    documents = SimpleDirectoryReader(
+        input_files=input_files,
+        input_dir=input_dir,
+        file_extractor={
+            ".txt": TXTReader()
+        }
+    ).load_data()
+
+    processed_documents = []
+    for document in documents:
+        if document.text.strip():
+            document.text = remove_space_between_english_and_chinese(document.text)
+            processed_documents.append(document)
+
+    # 初始化嵌入模型
+    embed_model = OpenAIEmbedding(
+        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
+        api_base="https://www.gptapi.us/v1",
+    )
+    splitter = BaseSentenceSplitter(
+        buffer_size=1,
+        embed_model=embed_model,
+        sentence_splitter=split_by_sentence_tokenizer,
+        breakpoint_percentile_threshold=80
+    )
+    nodes = splitter.get_nodes_from_documents(processed_documents)
+    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if
+              (content := node.get_content().strip())]
+    return result
+
+
+def split_by_ast(text: str, metadata: Optional[Dict]):
+    suffix = metadata.get("suffix")
+    return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
+
+
+def get_code_document(path: str) -> Document:
+    input_files = None
+    input_dir = None
+    if Path(path).is_file():
+        input_files = [path]
+    if Path(path).is_dir():
+        input_dir = path
+
+    documents = SimpleDirectoryReader(
+        recursive=True,
+        input_files=input_files,
+        input_dir=input_dir,
+        file_extractor={
+            ".py": CODEReader(),
+            ".php": CODEReader(),
+            ".js": CODEReader(),
+            ".ts": CODEReader(),
+            ".go": CODEReader(),
+            ".cpp": CODEReader(),
+            ".java": CODEReader(),
+            ".rb": CODEReader(),
+            ".cs": CODEReader(),
+        }
+    ).load_data()
+
+    embed_model = OpenAIEmbedding(
+        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
+        api_base="https://www.gptapi.us/v1"
+    )
+
+    # 初始化语义分块器
+    splitter = BaseSentenceSplitter(
+        buffer_size=1,
+        embed_model=embed_model,
+        sentence_splitter=split_by_ast,
+        breakpoint_percentile_threshold=80
+    )
+
+    nodes = splitter.get_nodes_from_documents(documents)
+    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if
+              (content := node.get_content().strip())]
+    return result

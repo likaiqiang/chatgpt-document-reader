@@ -23,6 +23,7 @@ import { mainSend, fetchModels, mainOn } from '@/utils/default';
 import { Server } from "socket.io";
 
 import {
+  getRemoteDownloadedDir,
   getRemoteFiles,
   ingestData,
   supportedDocuments
@@ -282,8 +283,8 @@ const createWindow = () => {
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          const files = await getRemoteFiles(filePaths[0]);
-          await ingestData({ filename: filename, filePath: files });
+          const fileDir = await getRemoteDownloadedDir(filePaths[0]);
+          await ingestData({ filename: filename, filePath: [fileDir] });
         } else {
           filename = convertChineseToUnicode(filename);
           if (hasRepeat(filename)) {

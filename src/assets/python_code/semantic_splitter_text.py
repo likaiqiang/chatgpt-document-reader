@@ -1,50 +1,43 @@
+import sys
+
+import asyncio
 import json
-import os.path
-from llama_index.core import SimpleDirectoryReader
+import signal
 from argparse import ArgumentParser
 
-from llama_index.embeddings.openai import OpenAIEmbedding
+from utils import  get_text_document
+import socketio
+
+sio = socketio.AsyncClient()
 
 
-from utils import split_by_sentence_tokenizer, get_current_directory, remove_space_between_english_and_chinese, \
-    BaseSentenceSplitter, TXTReader
+def signal_handler(sig, frame):
+    print('Interrupt signal received, exiting...')
+    sys.exit(0)
 
 
-if __name__ == '__main__':
+signal.signal(signal.SIGTERM, signal_handler)
+
+
+@sio.event
+def connect():
     parser = ArgumentParser()
-    parser.add_argument("--write_path",
-                        default=f"{os.path.join(get_current_directory(), 'result', 'semantic_splitter_text.json')}",
-                        help="path to write result")
     parser.add_argument("--path", required=True, help="path to text")
     args = parser.parse_args()
 
-    documents = SimpleDirectoryReader(
-        input_files=[args.path],
-        file_extractor={
-            ".txt": TXTReader()
-        }
-    ).load_data()
+    result = get_text_document(args.path)
 
-    processed_documents = []
-    for document in documents:
-        if document.text.strip():
-            document.text = remove_space_between_english_and_chinese(document.text)
-            processed_documents.append(document)
+    def ack_callback(response):
+        print(response)
+        asyncio.create_task(sio.disconnect())
 
-    # 初始化嵌入模型
-    embed_model = OpenAIEmbedding(
-        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
-        api_base="https://www.gptapi.us/v1",
-    )
-    splitter = BaseSentenceSplitter(
-        buffer_size=1,
-        embed_model=embed_model,
-        sentence_splitter=split_by_sentence_tokenizer,
-        breakpoint_percentile_threshold=80
-    )
-    nodes = splitter.get_nodes_from_documents(processed_documents)
-    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if
-              (content := node.get_content().strip())]
+    sio.emit('split_text_result', json.dumps(result), callback=ack_callback)
 
-    with open(args.write_path, 'w', encoding='utf-8') as f:
-        json.dump(result, f, ensure_ascii=False)
+
+async def main():
+    await sio.connect('http://127.0.0.1:7765')
+    await sio.wait()
+
+
+if __name__ == '__main__':
+    asyncio.run(main())

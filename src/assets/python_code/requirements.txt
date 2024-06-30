@@ -15,4 +15,3 @@ tree_sitter_typescript==0.21.1
 text2vec
 python-socketio
 erniebot-agent
-python-socketio[client]

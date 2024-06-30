@@ -80,7 +80,6 @@ ${code}
     button.onclick = () => {
       // 在按钮点击时执行的操作
       console.log('按钮被点击了！');
-      debugger
       if (chatRef.current && !isFetchRef.current) {
         abortControllerRef.current = new AbortController()
         isFetchRef.current = true

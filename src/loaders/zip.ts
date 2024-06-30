@@ -3,11 +3,11 @@ import jszip from 'jszip'
 import filepath from 'path'
 import { Document } from '@/types/document';
 import {existsSync, mkdirSync, writeFileSync} from 'fs'
-import PDFLoader from '@/loaders/pdf';
-import TextLoader from '@/loaders/text';
-import { checkSupportedLanguages } from '@/electron/ingest-data';
-import CodeLoader from '@/loaders/code';
 import { documentsOutputDir } from '@/config';
+import { runPython } from '@/utils/shell';
+
+// semantic_splitter_zip.py
+const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','semantic_splitter_zip.py') : filepath.join(__dirname,'python_code','semantic_splitter_zip.py')
 
 class ZIPLoader{
   constructor() {
@@ -37,50 +37,40 @@ class ZIPLoader{
         })
     },Promise.resolve([]))
   }
-  async parse(path:string, filter?: (path:string)=>boolean): Promise<Document[]>{
-    if(typeof filter === 'undefined'){
-      filter = ()=> true
-    }
-    const files = (await ZIPLoader.unzip(path)).filter(filter)
-    const tasks:(()=>Promise<Document[]>)[] = []
-    for(const filePath of files){
-      if(filePath.endsWith('.pdf')){
-        tasks.push(()=>{
-          return new PDFLoader().parse(filePath)
+  async parse(path:string): Promise<Document[]>{
+    const foldername = encodeURIComponent(new URL(path).pathname)
+    await ZIPLoader.unzip(path, foldername)
+    return runPython<Document[]>({
+          scriptPath,
+          args: ["--path", path],
+          socketEvent:'split_zip_result'
+        }).then(messages=>{
+          return messages.map(message=>{
+            return new Document({
+              pageContent: message.pageContent,
+              metadata: message.metadata
+            })
+          })
         })
-      }
-      if(filePath.endsWith('.txt')){
-        tasks.push(()=>{
-          return new TextLoader().parse(path)
-        })
-      }
-      if(checkSupportedLanguages(filePath)){
-        tasks.push(()=>{
-          return new CodeLoader().parse(filePath)
-        })
-      }
-    }
-    return ZIPLoader.promiseAllWithConcurrency<Document>(tasks)
   }
-  static async extractAndScan(zip: jszip){
+  static async extractAndScan(zip: jszip, foldername:string){
     const files = [];
-    const ziploader = new ZIPLoader()
     for (const fileName of Object.keys(zip.files)) {
       const file = zip.files[fileName];
       if (file.dir) {
         // 如果是文件夹，递归处理
-        const folderPath = filepath.join(documentsOutputDir, fileName);
+        const folderPath = filepath.join(documentsOutputDir, foldername,fileName);
         if (!existsSync(folderPath)) {
           mkdirSync(folderPath, { recursive: true });
         }
         const subZipContent = await file.async('nodebuffer');
         const subZip = new jszip();
         await subZip.loadAsync(subZipContent);
-        const subFilePaths:string[] = await ZIPLoader.extractAndScan(subZip);
+        const subFilePaths:string[] = await ZIPLoader.extractAndScan(subZip, foldername);
         files.push(...subFilePaths);
       } else {
         // 如果是文件，提取到指定路径
-        const filePath = filepath.join(documentsOutputDir, fileName);
+        const filePath = filepath.join(documentsOutputDir, foldername,fileName);
         file.async('nodebuffer').then((content) => {
           writeFileSync(filePath, content);
         });
@@ -90,14 +80,14 @@ class ZIPLoader{
 
     return files;
   }
-  static async unzip(zipFilePath: string): Promise<string[]>{
+  static async unzip(zipFilePath: string, foldername:string): Promise<string[]>{
     return fs.readFile(zipFilePath)
     .then(data => {
       const zip = new jszip();
       return zip.loadAsync(data);
     })
     .then(contents => {
-      return ZIPLoader.extractAndScan(contents)
+      return ZIPLoader.extractAndScan(contents, foldername)
     })
     .catch(err => {
       throw err;

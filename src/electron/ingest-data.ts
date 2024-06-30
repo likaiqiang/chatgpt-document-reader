@@ -1,13 +1,13 @@
 import { FaissStore } from './faiss';
-import ZipLoader from '@/loaders/zip';
 import { HttpsProxyAgent } from 'https-proxy-agent';
-import { outputDir } from '@/config';
+import { documentsOutputDir, outputDir } from '@/config';
 import { getApiConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 import path from 'path'
 import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
 import {GitHub} from '@/electron/download'
+import ZIPLoader from '@/loaders/zip';
 
 const embeddingModel = 'text-embedding-ada-002';
 
@@ -45,43 +45,23 @@ export const checkSupported = (path:string, suffixes:string[] = supportedDocumen
 
 
 async function getDocuments({ filePath }: IngestParams) {
-    const doc = []
+    const tasks = []
+
     for(const fp of filePath){
         if (fp.endsWith('.pdf')) {
-            doc.push(
-              ...await getPdfDocs(fp)
-            )
+            tasks.push(()=> getPdfDocs(fp))
         }
         if(fp.endsWith('.txt')){
-            doc.push(...await getTextDocs(fp))
+            tasks.push(()=> getTextDocs(fp))
         }
         if (fp.endsWith('.zip')) {
-            doc.push(...await getZipDocs(fp))
+            tasks.push(()=> getZipDocs(fp))
         }
         if(checkSupported(fp)){
-            doc.push(...await getCodeDocs(fp))
+            tasks.push(()=> getCodeDocs(fp))
         }
     }
-    return doc
-}
-
-async function handleGithubUrl(url:string) {
-    const proxy = getProxy() as string;
-    const response = await fetch(url,{
-        agent: proxy ? new HttpsProxyAgent(proxy) : undefined
-    });
-    const data = await response.json();
-
-    console.log('data',data);
-
-    if (data.payload?.blob?.rawLines) {
-        return {
-            code: data.payload.blob.rawLines.join('\n'),
-            ext: path.extname(url),
-            filename: `github_${data.payload.repo.ownerLogin}_${data.payload.repo.name}_${encodeURIComponent(data.payload.path)}`
-        }
-    }
-    return Promise.reject('无法处理这个URL')
+    return ZIPLoader.promiseAllWithConcurrency(tasks)
 }
 
 export const getRemoteFiles = async (url:string)=>{
@@ -94,6 +74,21 @@ export const getRemoteFiles = async (url:string)=>{
         })
         await dl.downloadZippedFiles()
         return dl.downloadedFiles
+    }
+    return Promise.reject('无法处理这个URL')
+}
+
+export const getRemoteDownloadedDir = async (url:string)=>{
+    const downloadFileName = encodeURIComponent(new URL(url).pathname)
+    if(url.startsWith('https://github.com')){
+        const proxy = getProxy() as string;
+        const dl = new GitHub({
+            url,
+            proxy: proxy,
+            downloadFileName
+        })
+        await dl.downloadZippedFiles()
+        return path.join(documentsOutputDir, downloadFileName)
     }
     return Promise.reject('无法处理这个URL')
 }
