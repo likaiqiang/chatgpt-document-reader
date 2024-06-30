@@ -9,23 +9,30 @@ import fs from 'fs'
 import ts from 'typescript'
 import path from 'path'
 import * as t from '@babel/types';
-import { checkSupported } from '@/electron/ingest-data';
+import { extractFunctionsAndClasses } from '@/utils/code';
 const server = new tern.Server({});
+
+interface Position {
+  line: number;
+  column: number;
+  index?: number;
+}
+interface SourceLocation {
+  start: Position;
+  end: Position;
+  filename: string;
+  identifierName: string | undefined | null;
+}
 
 interface Vertex {
   id: string;
-  loc: {
-    start: number;
-    end: number;
-  };
+  loc: SourceLocation;
   name: string;
   path: NodePath;
+  start: number,
+  end: number
 }
 
-interface Location {
-  start: number;
-  end: number;
-}
 
 interface GetFunctionDefLocParams {
   code: string;
@@ -42,11 +49,13 @@ interface DotStatement {
     id: string;
     path: NodePath<t.Node>;
     attrs: { [key: string]: string };
+    loc: SourceLocation
   };
   tail: {
     id: string;
     path: NodePath<t.Node>;
     attrs: { [key: string]: string };
+    loc:SourceLocation,
   };
   attributes?: { [key: string]: string };
 }
@@ -107,13 +116,11 @@ function getVertexes(ast: ParseResult<t.File>): Vertex[] {
     FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
       const { id } = path.node;
       if (id) {
-        const { start, end } = id;
         vertexes.push({
-          id: `${id.name}-${start}-${end}`,
-          loc: {
-            start: start!,
-            end: end!
-          },
+          id: `${id.name}-${id.loc.start.line}-${id.loc.start.column}`,
+          loc: id.loc,
+          start: id.start,
+          end: id.end,
           name: generateNameByPath(path),
           path
         });
@@ -121,60 +128,52 @@ function getVertexes(ast: ParseResult<t.File>): Vertex[] {
     },
     VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
       const { id, init } = path.node;
-      const { start, end } = id;
       if (init && (t.isFunctionExpression(init) || t.isArrowFunctionExpression(init))) {
         vertexes.push({
-          id: `${(id as t.Identifier).name}-${start}-${end}`,
-          loc: {
-            start: start!,
-            end: end!
-          },
+          id: `${(id as t.Identifier).name}-${id.loc.start.line}-${id.loc.start.column}`,
+          loc: id.loc,
           name: generateNameByPath(path),
-          path
+          path,
+          start: id.start,
+          end: id.end
         });
       }
     },
     ObjectMethod(path: NodePath<t.ObjectMethod>) {
       const { key, kind } = path.node;
       if (kind !== 'get') {
-        const { start, end } = key;
         vertexes.push({
-          id: `${(key as t.Identifier).name}-${start}-${end}`,
-          loc: {
-            start: start!,
-            end: end!
-          },
+          id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
+          loc: key.loc,
           name: generateNameByPath(path),
-          path
+          path,
+          start: key.start,
+          end: key.end
         });
       }
     },
     ObjectProperty(path: NodePath<t.ObjectProperty>) {
       const { key, value } = path.node;
       if (value && (t.isFunctionExpression(value) || t.isArrowFunctionExpression(value))) {
-        const { start, end } = key;
         vertexes.push({
-          id: `${(key as t.Identifier).name}-${start}-${end}`,
-          loc: {
-            start: start!,
-            end: end!
-          },
+          id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
+          loc:key.loc,
           name: generateNameByPath(path),
-          path
+          path,
+          start: key.start,
+          end: key.end
         });
       }
     },
     ClassMethod(path: NodePath<t.ClassMethod>) {
       const { key } = path.node;
-      const { start, end } = key;
       vertexes.push({
-        id: `${(key as t.Identifier).name}-${start}-${end}`,
-        loc: {
-          start: start!,
-          end: end!
-        },
+        id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
+        loc: key.loc,
         name: generateNameByPath(path),
-        path
+        path,
+        start: key.start,
+        end: key.end
       });
     },
   });
@@ -201,11 +200,11 @@ function getFunctionDefLoc({ code, fileName = 'example.js', calleeEnd }: GetFunc
   return result;
 }
 
-function getParentFuncLoc(path: NodePath): Location {
+function getParentFuncLoc(path: NodePath): SourceLocation | null {
   const parentFunc = path.getFunctionParent();
 
   if (!parentFunc) {
-    return {start:-1, end: -1};
+    return null
   }
 
   if (t.isFunctionExpression(parentFunc.node) || t.isArrowFunctionExpression(parentFunc.node)) {
@@ -214,19 +213,13 @@ function getParentFuncLoc(path: NodePath): Location {
       if (t.isObjectProperty(container)) {
         const { key } = container;
         if (t.isIdentifier(key) || t.isLiteral(key)) {
-          return {
-            start: key.start!,
-            end: key.end!
-          };
+          return key.loc;
         }
       }
       if (t.isVariableDeclarator(container)) {
         const { id } = container;
         if (t.isIdentifier(id)) {
-          return {
-            start: id.start!,
-            end: id.end!
-          };
+          return id.loc;
         }
       }
     }
@@ -235,24 +228,18 @@ function getParentFuncLoc(path: NodePath): Location {
   if (t.isObjectMethod(parentFunc.node) || t.isClassMethod(parentFunc.node)) {
     const { key } = parentFunc.node;
     if (t.isIdentifier(key) || t.isLiteral(key)) {
-      return {
-        start: key.start!,
-        end: key.end!
-      };
+      return key.loc;
     }
   }
 
   if (t.isFunctionDeclaration(parentFunc.node)) {
     const { id } = parentFunc.node;
     if (t.isIdentifier(id)) {
-      return {
-        start: id.start!,
-        end: id.end!
-      };
+      return id.loc;
     }
   }
 
-  return {start: -1, end: -1};
+  return null;
 }
 
 function generateDotJson(code: string): DotJson {
@@ -279,19 +266,21 @@ function generateDotJson(code: string): DotJson {
 
       if (Object.keys(data).length) {
         const { start, end } = data;
-        const callVertex = funcDecVertexes.find(vertex => vertex.loc.start === start && vertex.loc.end === end);
+        const callVertex = funcDecVertexes.find(vertex => vertex.start === start && vertex.end === end);
         const parentFunc = p.getFunctionParent();
 
         if (parentFunc) {
-          const { start: parentFuncStart, end: parentFuncEnd } = getParentFuncLoc(p);
-          if (parentFuncStart && parentFuncEnd) {
-            const parentFuncVertex = funcDecVertexes.find(vertex => vertex.loc.start === parentFuncStart && vertex.loc.end === parentFuncEnd);
+          const parentLoc = getParentFuncLoc(p);
+          if(parentLoc){
+            const {column, line} = parentLoc.start
+            const parentFuncVertex = funcDecVertexes.find(vertex => vertex.loc.start.line === line && vertex.loc.start.column === column);
 
             if (callVertex && parentFuncVertex) {
               dotJson.statements.push({
                 head: {
                   id: parentFuncVertex.id,
                   path: parentFuncVertex.path,
+                  loc: parentFuncVertex.path.node.loc,
                   attrs: {
                     label: parentFuncVertex.name,
                     id: parentFuncVertex.id,
@@ -300,6 +289,7 @@ function generateDotJson(code: string): DotJson {
                 tail: {
                   id: callVertex.id,
                   path: callVertex.path,
+                  loc: callVertex.path.node.loc,
                   attrs: {
                     id: callVertex.id,
                     label: callVertex.name,
@@ -363,45 +353,48 @@ function generateDotStr(dotJson: DotJson): string {
 const getCodeBlock=(filepath:string, code: string)=>{
   const suffix = path.extname(filepath)
   const codeBlock = `
-    \`\`\`${suffix ? 'language='+suffix.slice(1) : ''}
+    \`\`\`${suffix ? suffix.slice(1) : ''}
     ${code}
     \`\`\`
   `
   return codeBlock
 }
-export const getCodeDot=(filepath: string)=>{
+export const getCodeDot= async (filepath: string)=>{
   const code = fs.readFileSync(filepath, 'utf-8')
-  const suffix = path.extname(filepath)
+  let suffix = path.extname(filepath)
 
-  if(checkSupported(filepath, ['.js','.ts'])){
+  if(suffix === '.ts') suffix = '.js'
+
+  let returnCode = code, dot = ''
+  const codeMapping: { [key: string]: any } = {}
+
+  if(suffix === '.js'){
     const compiledCode = tsCompile({
       source: code
     })
+    returnCode = compiledCode.code
     const dotJson = generateDotJson(compiledCode.code)
-    const codeMapping:{[key: string]: any} = {}
+
     for(const statement of dotJson.statements){
       const {head, tail} = statement
       for(const node of [head, tail]){
         if(!codeMapping[node.id]){
-          codeMapping[node.id] = getCodeBlock(
-            filepath,
-            generate(node.path.node).code
-          )
+          codeMapping[node.id] = {
+            code: generate(node.path.node).code,
+            loc: node.loc
+          }
         }
       }
     }
-    const dot = generateDotStr(dotJson)
-    return {
-      code: getCodeBlock(filepath, code),
-      suffix,
-      dot,
-      codeMapping
-    }
+    dot = generateDotStr(dotJson)
   }
+
+  const definitions = await extractFunctionsAndClasses(returnCode, suffix.slice(1))
   return {
-    code: getCodeBlock(filepath, code),
-    dot:'',
-    codeMapping: null,
-    suffix
+    code: returnCode,
+    dot,
+    codeMapping,
+    suffix,
+    definitions
   }
 }

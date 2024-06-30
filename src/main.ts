@@ -18,9 +18,9 @@ import cloneDeep from 'lodash.clonedeep';
 import { rimraf } from 'rimraf';
 
 import { existsSync, watch } from 'fs';
-import os from 'os'
 import { Channel } from '@/types/bridge';
 import { mainSend, fetchModels, mainOn } from '@/utils/default';
+import { Server } from "socket.io";
 
 import {
   getRemoteFiles,
@@ -44,12 +44,18 @@ import {
   FindInPageParmas,
   StopFindInPageParmas
 } from '@/types/webContents';
-import {getCodeDot} from './cg'
+import { getCodeDot } from './cg';
+import http from 'http'
+import LLM from '@/utils/llm'
 
 let mainWindow: BrowserWindow = null,
   searchWindow: BrowserView = null;
 
 let currentRenderFile = '';
+
+const server = http.createServer()
+
+const wss = new Server(server)
 
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
@@ -283,7 +289,7 @@ const createWindow = () => {
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          await ingestData({ filename: filename, filePath: filePaths! });
+          await ingestData({ filename: filename, filePath: filePaths });
         }
         return { filename };
       } else {
@@ -326,10 +332,13 @@ const createWindow = () => {
   ipcMain.handle(Channel.requestTestApi, (e, config) => {
     return fetchModels(config);
   });
-  ipcMain.handle(Channel.requestCallGraph,(e, path)=>{
-    console.log('ipcMain.handle', path);
-    return getCodeDot(path)
-  })
+  ipcMain.handle(Channel.requestCallGraph, (e, path) => {
+    return getCodeDot(path);
+  });
+  ipcMain.handle(Channel.requestllm, (e, params) => {
+    const { chatType, prompt,signalId } = params;
+    return new LLM({chatType}).chat(prompt,signalId)
+  });
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);
   });
@@ -350,18 +359,19 @@ const createWindow = () => {
   ipcMain.handle(Channel.setRenderCurrentFile, (_, file) => {
     currentRenderFile = file;
 
-    interface File{
+    interface File {
       type: 'file' | 'dir',
       filepath: string,
       filename: string,
       children?: File[]
     }
+
     function scan(currentPath: string) {
-      if(!existsSync(currentPath)){
-        return []
+      if (!existsSync(currentPath)) {
+        return [];
       }
       const items = fs.readdirSync(currentPath);
-      const result:File[] = [];
+      const result: File[] = [];
       items.forEach((item) => {
         const fullPath = path.join(currentPath, item);
         const stats = fs.statSync(fullPath);
@@ -383,7 +393,8 @@ const createWindow = () => {
       });
       return result;
     }
-    return scan(path.join(documentsOutputDir, file))
+
+    return scan(path.join(documentsOutputDir, file));
   });
   ipcMain.handle(Channel.setSearchBoxSize, (_, { width, height }) => {
     console.log('setSearchBoxSize', width, height);
@@ -427,19 +438,22 @@ const createWindow = () => {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  createWindow();
-  // 注册事件，ctrl + f 唤起关键字查找控件
-  mainWindow.on('focus', () => {
-    globalShortcut.register('CommandOrControl+F', function() {
-      if (searchWindow && searchWindow.webContents) {
-        mainSend(searchWindow, Channel.onFound);
-      }
+  server.listen(7765,'127.0.0.1',()=>{
+    global.wss = wss
+    createWindow();
+    // 注册事件，ctrl + f 唤起关键字查找控件
+    mainWindow.on('focus', () => {
+      globalShortcut.register('CommandOrControl+F', function() {
+        if (searchWindow && searchWindow.webContents) {
+          mainSend(searchWindow, Channel.onFound);
+        }
+      });
     });
-  });
 
-  mainWindow.on('blur', () => {
-    globalShortcut.unregisterAll();
-  });
+    mainWindow.on('blur', () => {
+      globalShortcut.unregisterAll();
+    });
+  })
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

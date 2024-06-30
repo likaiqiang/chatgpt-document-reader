@@ -3,6 +3,12 @@ import {Channel} from "@/types/bridge";
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
 import { FindInPageParmas, StopFindInPageParmas, WebContentsOnParams } from '@/types/webContents';
 
+interface RequestllmParams{
+    prompt: string,
+    chatType?: 'ernie' | 'gpt3',
+    signalId?: string
+}
+
 
 export const api = {
     /**
@@ -60,6 +66,9 @@ export const api = {
     requestCallGraph(path:string){
         return ipcRenderer.invoke(Channel.requestCallGraph, path)
     },
+    requestllm({prompt, chatType = 'ernie',signalId}:RequestllmParams){
+        return ipcRenderer.invoke(Channel.requestllm, {prompt, chatType, signalId})
+    },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)
     },
@@ -101,7 +110,8 @@ export const api = {
     },
     replyDeleteFile(filename:string){
         return ipcRenderer.invoke(Channel.replyDeleteFile, {filename})
-    }
+    },
+    sendSignalId: (signalId:string) => ipcRenderer.send(Channel.sendSignalId,signalId)
 }
 
 contextBridge.exposeInMainWorld('chatBot', api)

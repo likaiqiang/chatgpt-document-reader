@@ -3,12 +3,15 @@
 // whether you're running in development or production).
 
 import { api } from './preload'
+import { WebSocket } from "ws"
+import http from 'http';
 
 declare module '*.css';
 
+
 declare global {
     interface Window {
-        chatBot: typeof api
+        chatBot: typeof api,
     }
     interface IngestParams{
         buffer?: Buffer | string,
@@ -24,4 +27,6 @@ declare global {
 
     const SEARCH_WINDOW_VITE_DEV_SERVER_URL: string
     const SEARCH_WINDOW_VITE_NAME: string
+    var wss: WebSocket.Server<typeof WebSocket, typeof http.IncomingMessage>
+
 }

@@ -1,0 +1,81 @@
+.chatContainer {
+    border-radius: 10px;
+    box-shadow: 5px 5px 15px rgb(119 119 119 / 50%);
+    display: flex;
+    flex-direction: column-reverse;
+    box-sizing: border-box;
+    background-color: white;
+    flex: 1;
+    max-height: 40vh;
+}
+.chatContainer .middle{
+    overflow: auto;
+    height: 26vh;
+}
+.chatContainer .middle::-webkit-scrollbar {
+    display: none;
+}
+.chatContainer .top-bar{
+    background: #F9FBFF;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    box-sizing: border-box;
+}
+
+.chatContainer .talking-item{
+    display: flex;
+    margin-bottom: 20px;
+    padding: 8px 13px;
+    border-radius: 5px;
+}
+.chatContainer .talking-avatar{
+    margin-right: 10px;
+}
+.chatContainer .talking-item:first-child{
+    margin-top: 20px;
+}
+
+.chatContainer .talking-item.human{
+    justify-content: flex-end;
+    padding: 0;
+}
+.chatContainer .talking-item.ai{
+    background-color: white;
+    display: inline-flex;
+    align-items: center;
+}
+.chatContainer .talking-item .bubble{
+    box-sizing: border-box;
+    max-width: 100%;
+}
+.chatContainer .talking-item.human .bubble{
+    background-color: #07C160;
+    padding: 8px 13px;
+}
+.chatContainer .talking-item.ai .bubble{
+    flex: 1;
+}
+
+.chatContainer .textareaContainer{
+    display: flex;
+}
+.chatContainer .textareaContainer .cancel{
+    background-color: orange;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    color: #F9FBFF;
+}
+.chatContainer .textareaContainer textarea{
+    width: 100%;
+    padding: 10px 15px;
+    box-sizing: border-box;
+    resize: none;
+    max-height: 10vh;
+    outline: none;
+    background-color: white;
+    flex:1;
+}

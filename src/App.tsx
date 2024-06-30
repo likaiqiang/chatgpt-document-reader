@@ -328,13 +328,10 @@ export default function App() {
                                     <TreeItem
                                       onClick={()=>{
                                           window.chatBot.requestCallGraph(item.filepath).then((res)=>{
-                                              const {code, dot, suffix} = res
+                                              const {code, dot, codeMapping, definitions} = res
                                               codeViewRef.current.setIsOpen(true)
                                               setTimeout(()=>{
-                                                  dot &&  codeViewRef.current.renderSvg(dot)
-                                                  const codeBlock = "\`\`\`" + code + "\n" + "\`\`\`"
-                                                  codeViewRef.current.setCode(codeBlock)
-                                                  console.log(res);
+                                                  codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
                                               },0)
 
                                               // codeViewRef.current.setIsOpen(true)

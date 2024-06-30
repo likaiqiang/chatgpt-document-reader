@@ -29,5 +29,7 @@ export enum Channel {
     setSearchBoxSize = 'set_search_box_size',
     closeSearchWindow = 'close_search_window',
     replyClearHistory = 'reply_clear_history',
-    replyDeleteFile = 'reply_delete_file'
+    replyDeleteFile = 'reply_delete_file',
+    requestllm = 'requestllm',
+    sendSignalId = 'send_signal_id'
 }
