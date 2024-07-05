@@ -40,11 +40,12 @@ class ZIPLoader{
   async parse(path:string): Promise<Document[]>{
     const foldername = encodeURIComponent(new URL(path).pathname)
     await ZIPLoader.unzip(path, foldername)
-    return runPython<Document[]>({
+    return runPython<string>({
           scriptPath,
           args: ["--path", path],
           socketEvent:'split_zip_result'
-        }).then(messages=>{
+        }).then(json=>{
+          const messages = JSON.parse(json) as Document[]
           return messages.map(message=>{
             return new Document({
               pageContent: message.pageContent,
@@ -80,7 +81,10 @@ class ZIPLoader{
 
     return files;
   }
-  static async unzip(zipFilePath: string, foldername:string): Promise<string[]>{
+  static async unzip(zipFilePath: string, foldername?:string): Promise<string[]>{
+    if(!foldername){
+      foldername = zipFilePath
+    }
     return fs.readFile(zipFilePath)
     .then(data => {
       const zip = new jszip();

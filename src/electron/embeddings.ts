@@ -231,6 +231,19 @@ export function getTokenCount(enc: Tiktoken ,text: string) {
     return enc.encode(text).length;
 }
 
+export function splitTextToken(enc: Tiktoken ,text: string, maxToken: number) {
+    let currentTokenCount = 0, index = 0;
+    for(let i=0;i<text.length;i++){
+        const tokenCount = getTokenCount(enc, text[i]);
+        if(tokenCount + currentTokenCount <= maxToken){
+            currentTokenCount += tokenCount;
+            index = i
+        }
+        else break
+    }
+    return text.slice(0, index+1)
+}
+
 export function getMaxToken(modelName: string): number {
     const models: { [key: string]: number } = {
         'gpt-3.5-turbo-1106': 16385,
