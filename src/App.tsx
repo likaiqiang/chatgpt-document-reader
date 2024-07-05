@@ -16,7 +16,8 @@ import ReactLoading from 'react-loading';
 import ReactDOM from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-import { Box, Button, Link, Modal, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import closeIcon from '@/assets/images/close.jpg'
+import { Box, Button, Link, Modal, TextField, Checkbox } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
 import Confirm from '@/Confirm';
@@ -60,6 +61,24 @@ const isUrl = (value:string)=>{
 
 ValidatorForm.addValidationRule('isURL', isUrl);
 
+const supportedLanguages = [
+    '.py',
+    '.php',
+    '.js',
+    '.ts',
+    '.go',
+    '.cpp',
+    '.java',
+    '.rb',
+    '.cs'
+]
+
+const checkSupportedLanguages = (path:string)=>{
+    return supportedLanguages.reduce((acc, ext)=>{
+        return acc || path.endsWith(ext)
+    },false)
+}
+
 export default function App() {
     const [query, setQuery] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
@@ -76,7 +95,8 @@ export default function App() {
         isOpen:false,
         config: {
             baseUrl:'',
-            apiKey:''
+            apiKey:'',
+            ernie: true
         },
         proxy:''
     })
@@ -87,7 +107,8 @@ export default function App() {
 
     const [urlModal, setUrlModal] = useImmer({
         isOpen: false,
-        url:''
+        url:'',
+        checked: true
     })
     const [clearHistoryModal, setClearHistoryModal] = useImmer({
         isOpen: false
@@ -123,14 +144,15 @@ export default function App() {
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
             console.log('sortedRes',sortedRes);
-            setResources(sortedRes)
             if(res.length){
                 cacheRef.current = await forceUpdateCache()
-                initCacheByName(sortedRes[0].filename!)
                 setActive(0)
+                setResources(sortedRes)
+                initCacheByName(sortedRes[0].filename!)
                 const files = await window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
                 setFiles(files)
             }
+            return sortedRes
         })
     }
     function getApiConfig(){
@@ -143,9 +165,7 @@ export default function App() {
     useEffect(() => {
         getResources().then()
         textAreaRef.current?.focus();
-        window.chatBot.onOutputDirChange(()=>{
-            getResources().then()
-        })
+        window.chatBot.onWindowFocussed(getResources)
         window.chatBot.onApiConfigChange(()=>{
             getApiConfig().then(()=>{
                 setApiConfigModal(draft => {
@@ -254,19 +274,17 @@ export default function App() {
         setUploadLoading(true)
         if(type === IngestDataType.local){
             promise = window.chatBot.selectFile().then(files=>{
-                return window.chatBot.ingestData(files)
+                return window.chatBot.ingestData(files, urlModal.checked)
             })
         }
         else{
-            promise = window.chatBot.ingestData([urlModal.url])
+            promise = window.chatBot.ingestData([urlModal.url], urlModal.checked)
         }
-        return promise.then(async res=>{
-            setResources(draft => {
-                draft.push(res)
-            })
-            setActive(resources.length)
-            initCacheByName(res.filename!)
-            const files = await window.chatBot.setRenderCurrentFile(res.filename!)
+        return promise.then(async ()=>{
+            const res = await getResources()
+            setActive(res.length - 1)
+            initCacheByName(res[res.length - 1].filename!)
+            const files = await window.chatBot.setRenderCurrentFile(res[res.length - 1].filename!)
             setFiles(files)
         }).catch((error)=>{
             toast.error(error.toString())
@@ -333,8 +351,6 @@ export default function App() {
                                               setTimeout(()=>{
                                                   codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
                                               },0)
-
-                                              // codeViewRef.current.setIsOpen(true)
                                           })
                                       }}
                                       itemId={item.filepath}
@@ -374,7 +390,16 @@ export default function App() {
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
-                                                                {convertUnicodeToNormal(item.filename)}
+                                                                <span>{convertUnicodeToNormal(item.filename)}</span>
+                                                                <img
+                                                                  className={styles.tabCloseIcon}
+                                                                  src={closeIcon}
+                                                                  onClick={()=>{
+                                                                      setDeleteFileModal(draft => {
+                                                                          draft.isOpen = true
+                                                                      })
+                                                                  }}
+                                                                />
                                                             </li>
                                                         )
                                                     }
@@ -404,6 +429,19 @@ export default function App() {
                             <main className={styles.main}>
                                 <div className={styles.cloud}>
                                     <div ref={messageListRef} className={styles.messagelist}>
+                                        <img
+                                          src={closeIcon}
+                                          alt=''
+                                          className={styles.messagelistCloseIcon}
+                                          onClick={()=>{
+                                              setClearHistoryModal(draft => {
+                                                  draft.isOpen = true
+                                              })
+                                          }}
+                                          style={{
+                                              display: resources[active]?.embedding  ? 'block' : 'none',
+                                          }}
+                                        />
                                         <DataFor list={messages}>
                                             {
                                                 (message, index) => {
@@ -439,7 +477,7 @@ export default function App() {
                                                                 </Whether>
                                                                 <div className={styles.markdownanswer}>
                                                                     <ReactMarkdown>
-                                                                        {message.message}
+                                                                        {resources[active].embedding ? message.message :'没有embedding，不可以聊天'}
                                                                     </ReactMarkdown>
                                                                 </div>
                                                             </div>
@@ -468,7 +506,24 @@ export default function App() {
                                                                                                     <ReactMarkdown>
                                                                                                         {doc.pageContent}
                                                                                                     </ReactMarkdown>
-                                                                                                    <p className="mt-2">
+                                                                                                    <p
+                                                                                                      className="mt-2"
+                                                                                                      style={{cursor: (doc.metadata?.source && checkSupportedLanguages(doc.metadata.source)) ? 'pointer' : ''}}
+                                                                                                      onClick={()=>{
+                                                                                                          if(checkSupportedLanguages(doc.metadata.source)){
+                                                                                                              window.chatBot.requestCallGraph(doc.metadata.source).then((res)=>{
+                                                                                                                  const {code, dot, codeMapping, definitions} = res
+                                                                                                                  codeViewRef.current.setIsOpen(true)
+                                                                                                                  setTimeout(()=>{
+                                                                                                                      codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
+                                                                                                                  },0)
+                                                                                                              })
+                                                                                                          }
+                                                                                                          else{
+                                                                                                              console.log('not supported')
+                                                                                                          }
+                                                                                                      }}
+                                                                                                    >
                                                                                                         <b>Source:</b> {doc.metadata.source}
                                                                                                     </p>
                                                                                                 </AccordionContent>
@@ -501,7 +556,7 @@ export default function App() {
                                     <div className={styles.cloudform}>
                                         <form onSubmit={handleSubmit}>
                                             <TextareaAutosize
-                                                disabled={loading}
+                                                disabled={loading || resources[active]?.embedding === false}
                                                 onKeyDown={handleEnter}
                                                 ref={textAreaRef}
                                                 autoFocus={false}
@@ -512,7 +567,7 @@ export default function App() {
                                                 placeholder={
                                                     loading
                                                         ? 'Waiting for response...'
-                                                        : 'What is this legal case about?'
+                                                        : 'Enter your question here...'
                                                 }
                                                 value={query}
                                                 onChange={(e) => setQuery(e.target.value)}
@@ -520,7 +575,7 @@ export default function App() {
                                             />
                                             <button
                                                 type="submit"
-                                                disabled={loading}
+                                                disabled={loading || resources[active]?.embedding === false}
                                                 className={styles.generatebutton}
                                             >
                                                 <Whether value={loading}>
@@ -599,6 +654,16 @@ export default function App() {
                     >
                         从文件上传
                     </Link>
+                    <Checkbox
+                      checked={urlModal.checked}
+                      style={{verticalAlign: 0}}
+                      onChange={e=>{
+                          setUrlModal(draft => {
+                              draft.checked = e.target.checked
+                          })
+                      }}
+                    />
+                    <span style={{verticalAlign: '6px'}}>是否embedding</span>
                     <ValidatorForm onSubmit={e=>{
                         e.preventDefault()
                     }}>

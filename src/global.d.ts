@@ -16,11 +16,14 @@ declare global {
     interface IngestParams{
         buffer?: Buffer | string,
         filename?: string,
-        filePath?: string[]
+        filePath?: string,
+        embedding: boolean,
+        fileType: 'code' | 'resource'
     }
     interface ApiConfig{
         apiKey:string,
-        baseUrl:string
+        baseUrl:string,
+        ernie: boolean
     }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string

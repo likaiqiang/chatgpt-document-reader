@@ -140,23 +140,22 @@ function convertChineseToUnicode(str: string) {
   return result;
 }
 
-function findSubdirs(dir: string) {
+function scanResources() {
+  const documentFiles = fs.readdirSync(documentsOutputDir)
+  const outputFiles = fs.readdirSync(outputDir)
   // 定义一个空数组，用于存放符合条件的子目录
-  const subdirs: { filename: string, birthtime: Date }[] = [];
-
-  // 读取 dir 目录下的所有文件和文件夹，返回一个数组
-  const files = fs.readdirSync(dir);
+  const subdirs: { filename: string, birthtime: Date, embedding: boolean }[] = [];
 
   // 遍历数组中的每个元素
-  for (const file of files) {
+  for (const file of outputFiles) {
     // 拼接 dir 和 file，得到完整的路径
-    const path = dir + '/' + file;
+    const _path = path.join(outputDir, file)
 
-    const stat = fs.statSync(path);
+    const stat = fs.statSync(_path);
     // 判断 path 是否是一个文件夹，如果是，继续执行
     if (stat.isDirectory()) {
       // 读取 path 文件夹下的所有文件和文件夹，返回一个数组
-      const subfiles = fs.readdirSync(path);
+      const subfiles = fs.readdirSync(_path);
 
       // 判断 subfiles 数组是否非空，如果是，继续执行
       if (subfiles.length > 0) {
@@ -165,10 +164,21 @@ function findSubdirs(dir: string) {
           // 将 path 添加到 subdirs 数组中
           subdirs.push({
             filename: file,
-            birthtime: stat.birthtime
+            birthtime: stat.birthtime,
+            embedding: true
           });
         }
       }
+    }
+  }
+  for(const file of documentFiles) {
+
+    if(!outputFiles.includes(file)) {
+      subdirs.push({
+        filename: file,
+        birthtime: fs.statSync(path.join(documentsOutputDir, file)).birthtime,
+        embedding: false
+      })
     }
   }
   // 返回 subdirs 数组
@@ -244,20 +254,7 @@ const createWindow = () => {
 
     append: () => {
       return [
-        {
-          label: '清空历史记录',
-          visible: true,
-          click: () => {
-            mainSend(mainWindow, Channel.showClearHistoryModal);
-          }
-        },
-        {
-          label: '删除当前文档',
-          visible: true,
-          click: () => {
-            mainSend(mainWindow, Channel.showDeleteFileModal);
-          }
-        }
+
       ];
     }
   });
@@ -274,7 +271,8 @@ const createWindow = () => {
     });
     return filePaths;
   });
-  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[]) => {
+  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[], embedding:boolean) => {
+    console.log('embedding',embedding);
     try {
       if (filePaths.length) {
         let filename = /^https?/.test(filePaths[0]) ? encodeURIComponent(new URL(filePaths[0]).pathname) : filePaths[0].split(path.sep).pop();
@@ -284,13 +282,15 @@ const createWindow = () => {
             return Promise.reject('filename repeat');
           }
           const fileDir = await getRemoteDownloadedDir(filePaths[0]);
-          await ingestData({ filename: filename, filePath: [fileDir] });
+          if(embedding){
+            await ingestData({ filename: filename, filePath: fileDir, embedding, fileType: 'code' });
+          }
         } else {
           filename = convertChineseToUnicode(filename);
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          await ingestData({ filename: filename, filePath: filePaths });
+          await ingestData({ filename: filename, filePath: filePaths[0], embedding, fileType: 'resource' });
         }
         return { filename };
       } else {
@@ -305,7 +305,7 @@ const createWindow = () => {
     return chat({ question, history, filename });
   });
   ipcMain.handle(Channel.resources, () => {
-    return findSubdirs(outputDir);
+    return scanResources();
   });
 
   ipcMain.handle(Channel.checkProxy, () => {
@@ -422,7 +422,15 @@ const createWindow = () => {
 
   ipcMain.handle(Channel.replyDeleteFile, (e, { filename }) => {
     const filepath = path.join(outputDir, filename);
-    return rimraf(filepath);
+    const document = path.join(documentsOutputDir, filename);
+    const promise = []
+    if (existsSync(filepath)) {
+      promise.push(rimraf(filepath));
+    }
+    if (existsSync(document)) {
+      promise.push(rimraf(document));
+    }
+    return Promise.all(promise);
   });
 
   setCustomMenu();
@@ -433,6 +441,9 @@ const createWindow = () => {
   watch(outputDir, () => {
     mainSend(mainWindow, Channel.outputDirChange);
   });
+  watch(documentsOutputDir, () => {
+    mainSend(mainWindow, Channel.outputDirChange);
+  })
 };
 
 // This method will be called when Electron has finished
@@ -449,6 +460,7 @@ app.on('ready', () => {
           mainSend(searchWindow, Channel.onFound);
         }
       });
+      mainSend(mainWindow, Channel.onWindowFocussed)
     });
 
     mainWindow.on('blur', () => {

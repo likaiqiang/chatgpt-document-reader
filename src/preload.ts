@@ -21,8 +21,8 @@ export const api = {
     selectFile(){
         return ipcRenderer.invoke(Channel.selectFile)
     },
-    ingestData(files: string[]):Promise<Resource>{
-        return ipcRenderer.invoke(Channel.ingestdata, files)
+    ingestData(files: string[], embedding = true):Promise<Resource>{
+        return ipcRenderer.invoke(Channel.ingestdata, files, embedding)
     },
     chat(params: ChatParams): Promise<ChatResponse>{
         return ipcRenderer.invoke(Channel.chat, params)
@@ -41,6 +41,9 @@ export const api = {
     },
     onApiConfigChange(cb=()=>{}){
         ipcRenderer.on(Channel.apiConfigChange, cb)
+    },
+    onWindowFocussed(cb=()=>{}) {
+        ipcRenderer.on(Channel.onWindowFocussed, cb)
     },
     onRenderFileHistoryCleared(cb=()=>{}){
         ipcRenderer.on(Channel.renderFileHistoryCleared, cb)

@@ -7,7 +7,7 @@ import path from 'path'
 import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
 import {GitHub} from '@/electron/download'
-import ZIPLoader from '@/loaders/zip';
+import fs from 'fs/promises';
 
 const embeddingModel = 'text-embedding-ada-002';
 
@@ -44,24 +44,50 @@ export const checkSupported = (path:string, suffixes:string[] = supportedDocumen
 }
 
 
-async function getDocuments({ filePath }: IngestParams) {
-    const tasks = []
+async function getDocuments({ filePath: fp, fileType='resource' }: {filePath: string, fileType?: string}) {
+    const stat = await fs.stat(fp);
+    if (stat.isDirectory()) {
+        const files = await fs.readdir(fp);
 
-    for(const fp of filePath){
-        if (fp.endsWith('.pdf')) {
-            tasks.push(()=> getPdfDocs(fp))
+        let isPdfDir = false, isCodeDir = false, isTextDir=false
+
+        for(const file of files){
+            if(checkSupported(file, ['.pdf']) && isPdfDir === false){
+                isPdfDir = true
+            }
+            if(checkSupportedLanguages(file) && isCodeDir === false){
+                isCodeDir = true
+            }
+            if(checkSupported(file, ['.txt']) && isTextDir === false){
+                isTextDir = true
+            }
         }
-        if(fp.endsWith('.txt')){
-            tasks.push(()=> getTextDocs(fp))
+
+        const result = []
+        if (isPdfDir) {
+            result.push(...await getPdfDocs(fp))
         }
-        if (fp.endsWith('.zip')) {
-            tasks.push(()=> getZipDocs(fp))
+        if (isCodeDir) {
+            result.push(...await getCodeDocs(fp))
         }
-        if(checkSupported(fp)){
-            tasks.push(()=> getCodeDocs(fp))
+        if (isTextDir) {
+            result.push(...await getTextDocs(fp))
         }
+        return result
     }
-    return ZIPLoader.promiseAllWithConcurrency(tasks)
+    if (fp.endsWith('.pdf')) {
+        return getPdfDocs(fp)
+    }
+    if(fp.endsWith('.txt')){
+        return getTextDocs(fp)
+    }
+    if (fp.endsWith('.zip')) {
+        return getZipDocs(fp) // 待优化
+    }
+    if(checkSupported(fp)){
+        return getCodeDocs(fp)
+    }
+    return []
 }
 
 export const getRemoteFiles = async (url:string)=>{
@@ -93,13 +119,15 @@ export const getRemoteDownloadedDir = async (url:string)=>{
     return Promise.reject('无法处理这个URL')
 }
 
-export const ingestData = async ({ filename, filePath }: IngestParams) => {
+export const ingestData = async ({ filename, filePath,embedding, fileType }: IngestParams) => {
     const proxy = getProxy() as string;
     const config = getApiConfig();
     try {
         const docs = await getDocuments({
-            filePath
+            filePath,
+            fileType
         });
+        console.log('docs', docs);
         if(docs.length === 0) return Promise.reject('no supported docs')
         const vectorStore = await FaissStore.fromDocuments(docs,
             new Embeddings({

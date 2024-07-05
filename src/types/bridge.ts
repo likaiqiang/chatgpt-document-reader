@@ -8,6 +8,7 @@ export enum Channel {
     checkApiConfig = 'check_apikey',
     outputDirChange = 'output_dir_change',
     apiConfigChange = 'api_config_change',
+    onWindowFocussed = 'on_window_focussed',
     showClearHistoryModal = 'show_clear_history_modal',
     showDeleteFileModal = 'showDeleteFileModal',
     renderFileHistoryCleared = 'render_file_history_cleared',
