@@ -1,3 +1,5 @@
+import math
+
 import re
 from fsspec import AbstractFileSystem
 from pathlib import Path
@@ -36,6 +38,7 @@ import tiktoken
 from llama_index.core import SimpleDirectoryReader
 from pdfReader import Reader
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.core.utils import get_tqdm_iterable
 
 
 def split_by_sentence_tokenizer(text: str, metadata: Optional[Dict]) -> list[str]:
@@ -198,6 +201,29 @@ class BaseSentenceSplitter(SemanticSplitterNodeParser):
         chunks = self._build_node_chunks(sentences, distances)
         return chunks
 
+    def _parse_nodes(
+            self,
+            nodes: Sequence[BaseNode],
+            show_progress: bool = False,
+            **kwargs: Any,
+    ) -> List[BaseNode]:
+        """Parse document into nodes."""
+        all_nodes: List[BaseNode] = []
+        nodes_with_progress = get_tqdm_iterable(nodes, show_progress, "Parsing nodes")
+
+        def process_node(node):
+            return self.build_semantic_nodes_from_documents([node], show_progress)
+
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            # Use executor.map to process nodes concurrently
+            results = list(executor.map(process_node, nodes_with_progress))
+
+            # Flatten the results and extend all_nodes
+            for nodes in results:
+                all_nodes.extend(nodes)
+
+        return all_nodes
+
     def build_semantic_nodes_from_documents(
             self,
             documents: Sequence[Document],
@@ -255,23 +281,27 @@ class CODEReader(BaseReader):
 
     @staticmethod
     def get_parser(suffix: str):
+        if suffix is None:
+            return None
         parser_dict = {
-            '.py': tspython,
-            '.php': tsphp,
-            '.js': tsjavascript,
-            '.ts': tstypescript,
-            '.go': tsgo,
-            '.cpp': tscpp,
-            '.java': tsjava,
-            '.rb': tsruby,
-            '.cs': tscs
+            '.py': Language(tspython.language()),
+            '.php': Language(tsphp.language_php()),
+            '.js': Language(tsjavascript.language()),
+            '.ts': Language(tstypescript.language_typescript()),
+            '.go': Language(tsgo.language()),
+            '.cpp': Language(tscpp.language()),
+            '.java': Language(tsjava.language()),
+            '.rb': Language(tsruby.language()),
+            '.cs': Language(tscs.language())
         }
         if not suffix.startswith('.'):
             suffix = '.' + suffix
-        ts_lib = parser_dict[suffix]
-        if ts_lib is None: return None
-        LANGUAGE = Language(ts_lib.language())
-        return Parser(LANGUAGE)
+        language = parser_dict[suffix]
+        if language is None:
+            return None
+        parser = Parser()
+        parser.set_language(language)
+        return parser
 
     @staticmethod
     def extract_top_level_nodes(source_code, suffix):
@@ -343,7 +373,7 @@ class CODEReader(BaseReader):
         return result
 
 
-def get_pdf_document(path: str) -> Document:
+def get_pdf_document(path: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -352,13 +382,17 @@ def get_pdf_document(path: str) -> Document:
         input_dir = path
 
     documents = SimpleDirectoryReader(
+        exclude_hidden=False,
         recursive=True,
         input_files=input_files,
         input_dir=input_dir,
         file_extractor={
             ".pdf": Reader(return_full_document=True)
-        }
+        },
+        required_exts=['.pdf']
     ).load_data()
+    if len(documents) == 0:
+        return []
     processed_documents = []
     for document in documents:
         if document.text.strip():
@@ -385,7 +419,7 @@ def get_pdf_document(path: str) -> Document:
     return result
 
 
-def get_text_document(path: str) -> Document:
+def get_text_document(path: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -394,12 +428,16 @@ def get_text_document(path: str) -> Document:
         input_dir = path
 
     documents = SimpleDirectoryReader(
+        exclude_hidden=False,
         input_files=input_files,
         input_dir=input_dir,
         file_extractor={
             ".txt": TXTReader()
-        }
+        },
+        required_exts=['.txt']
     ).load_data()
+    if len(documents) == 0:
+        return []
 
     processed_documents = []
     for document in documents:
@@ -429,7 +467,7 @@ def split_by_ast(text: str, metadata: Optional[Dict]):
     return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
 
 
-def get_code_document(path: str) -> Document:
+def get_code_document(path: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -438,6 +476,7 @@ def get_code_document(path: str) -> Document:
         input_dir = path
 
     documents = SimpleDirectoryReader(
+        exclude_hidden=False,
         recursive=True,
         input_files=input_files,
         input_dir=input_dir,
@@ -451,9 +490,23 @@ def get_code_document(path: str) -> Document:
             ".java": CODEReader(),
             ".rb": CODEReader(),
             ".cs": CODEReader(),
-        }
+        },
+        required_exts=['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
     ).load_data()
 
+    if len(documents) == 0:
+        return []
+    enc = tiktoken.encoding_for_model('text-embedding-ada-002')
+    small_docs = []
+    large_docs = []
+    for doc in documents:
+        content = doc.get_content()
+        if len(enc.encode(content)) <= 8191:
+            small_docs.append(doc)
+        else:
+            large_docs.append(doc)
+    if len(large_docs) == 0:
+        return [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs]
     embed_model = OpenAIEmbedding(
         api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
         api_base="https://www.gptapi.us/v1"
@@ -467,7 +520,6 @@ def get_code_document(path: str) -> Document:
         breakpoint_percentile_threshold=80
     )
 
-    nodes = splitter.get_nodes_from_documents(documents)
-    result = [{"pageContent": content, "metadata": node.metadata} for node in nodes if
-              (content := node.get_content().strip())]
+    nodes = splitter.get_nodes_from_documents(large_docs)
+    result = [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs] + [{"pageContent": content, "metadata": node.metadata} for node in nodes if (content := node.get_content().strip())]
     return result

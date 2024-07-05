@@ -1,20 +1,14 @@
 import sys
-
 import json
-from pathlib import Path
-from pdfReader import Reader
-from typing import TypedDict
+from typing import TypedDict, List
 from argparse import ArgumentParser
-from llama_index.core import SimpleDirectoryReader
-from typing import List
-from llama_index.embeddings.openai import OpenAIEmbedding
-from utils import split_by_sentence_tokenizer, BaseSentenceSplitter, \
-    remove_space_between_english_and_chinese, get_pdf_document
+from utils import get_pdf_document
 import socketio
 import asyncio
 import signal
 
 sio = socketio.AsyncClient()
+
 
 def signal_handler(sig, frame):
     print('Interrupt signal received, exiting...')
@@ -31,21 +25,28 @@ class SentenceCombination(TypedDict):
     combined_sentence_embedding: List[float]
 
 
-@sio.event
-def connect():
-    parser = ArgumentParser()
-    parser.add_argument("--path", required=True, help="path to pdf")
-    args = parser.parse_args()
-    result = get_pdf_document(args.path)
-
+async def connect_handler():
+    # 处理连接时的逻辑
     def ack_callback(response):
         print(response)
         asyncio.create_task(sio.disconnect())
 
-    sio.emit('split_pdf_result', json.dumps(result), callback=ack_callback)
+    result = get_pdf_document(args.path)
+    await sio.emit('split_pdf_result', json.dumps(result), callback=ack_callback)
+
+
+@sio.event
+async def connect():
+    await connect_handler()
 
 
 async def main():
+    # 解析命令行参数
+    parser = ArgumentParser()
+    parser.add_argument("--path", required=True, help="path to pdf")
+    global args
+    args = parser.parse_args()
+
     await sio.connect('http://127.0.0.1:7765')
     await sio.wait()
 

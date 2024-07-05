@@ -20,14 +20,10 @@ def signal_handler(sig, frame):
 signal.signal(signal.SIGTERM, signal_handler)
 
 
-@sio.event
-def connect():
-    parser = ArgumentParser()
-    parser.add_argument("--path", required=True, help="path to text")
-    args = parser.parse_args()
-
+async def connect_handler():
     input_files = SimpleDirectoryReader(
         input_dir=args.path,
+        exclude_hidden=False
     ).input_files
 
     files = [str(file.resolve()) for file in input_files]
@@ -45,10 +41,20 @@ def connect():
         print(response)
         asyncio.create_task(sio.disconnect())
 
-    sio.emit('split_zip_result', json.dumps(result), callback=ack_callback)
+    await sio.emit('split_zip_result', json.dumps(result), callback=ack_callback)
+
+
+@sio.event
+async def connect():
+    await connect_handler()
 
 
 async def main():
+    parser = ArgumentParser()
+    parser.add_argument("--path", required=True, help="path to pdf")
+    global args
+    args = parser.parse_args()
+
     await sio.connect('http://127.0.0.1:7765')
     await sio.wait()
 
