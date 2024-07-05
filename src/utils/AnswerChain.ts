@@ -8,6 +8,7 @@ import fetch from 'node-fetch';
 import {HttpsProxyAgent} from "https-proxy-agent";
 import { getMaxToken, getTokenCount } from '@/electron/embeddings';
 import { encodingForModel, TiktokenModel } from 'js-tiktoken';
+import LLM,{ChatType} from '@/utils/llm';
 
 
 const ANSWER_TEMPLATE = `你是一位专家研究员。使用以下上下文来回答最后的问题.
@@ -56,11 +57,13 @@ export class AnswerChain extends Runnable{
     });
   }
   private getAnswerChain(){
-    // @ts-ignore
+    const config = getApiConfig()
+    const llm = new LLM({
+      chatType: config.ernie ? ChatType.ERNIE : ChatType.CHATGPT
+    })
     return RunnableSequence.from([
       answerPrompt,
-      this.getChatOpenAIModel(),
-      new StringOutputParser()
+      llm
     ])
   }
   async invoke(input:AnswerInvokeParams): Promise<any> {
@@ -71,12 +74,20 @@ export class AnswerChain extends Runnable{
     if(context.length === 0) return '没有检索到有效的上下文'
     const answerChain = this.getAnswerChain()
 
-    let currentTokenCount = 0, allContext= ''
-    for(const ctx of context){
-      const tokensCount = getTokenCount(enc, ctx.pageContent)
-      currentTokenCount += tokensCount
-      if(currentTokenCount < maxToken) allContext = allContext + '\n' + ctx.pageContent
-      else break
+    let allContext = ''
+    const config = getApiConfig()
+    if(config.ernie){
+      // It’s fake, let’s leave it like this for now
+      allContext = context.map(ctx => ctx.pageContent).join('\n').slice(0, 128000)
+    }
+    else{
+      let currentTokenCount = 0
+      for(const ctx of context){
+        const tokensCount = getTokenCount(enc, ctx.pageContent)
+        currentTokenCount += tokensCount
+        if(currentTokenCount < maxToken) allContext = allContext + '\n' + ctx.pageContent
+        else break
+      }
     }
 
     return answerChain.invoke({

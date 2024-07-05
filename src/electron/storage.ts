@@ -11,7 +11,7 @@ export const setProxy = (proxy:string)=>{
   store.set(partKeyPrefix + 'proxy', proxy)
 }
 export const getApiConfig = (): ApiConfig=>{
-  return (store.get(partKeyPrefix + 'apiConfig') || {apiKey:'',baseUrl:'https://api.openai.com/v1'}) as ApiConfig
+  return (store.get(partKeyPrefix + 'apiConfig') || {ernie: true,apiKey:'',baseUrl:'https://api.openai.com/v1'}) as ApiConfig
 }
 export const setApiConfig = (config: ApiConfig)=>{
   store.set(partKeyPrefix + 'apiConfig', config)

@@ -9,6 +9,9 @@ export const checkIncludes = (id:string)=>{
 }
 
 export default defineConfig({
+  optimizeDeps:{
+    exclude:['typescript']
+  },
   build:{
     sourcemap: false,
     minify:false,
@@ -40,6 +43,7 @@ export default defineConfig({
           dest: './'
         }
       ]
-    })
+    }),
+    // Inspect()
   ]
 });

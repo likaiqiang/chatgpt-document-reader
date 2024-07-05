@@ -7,6 +7,7 @@ import {HttpsProxyAgent} from "https-proxy-agent";
 import { getApiConfig, getModel, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
 import { AnswerChain } from '@/utils/AnswerChain';
+import LLM,{ChatType} from '@/utils/llm';
 const CONDENSE_TEMPLATE = `鉴于以下对话和后续问题，将后续问题改写为一个独立的问题。
 
 <chat_history>
@@ -26,25 +27,14 @@ export const makeChain = (retriever: VectorStoreRetriever) => {
         ChatPromptTemplate.fromTemplate(CONDENSE_TEMPLATE);
 
     const config = getApiConfig()
-
-    const model = new ChatOpenAI({
-        temperature: 0, // increase temperature to get more creative answers
-        modelName,
-        openAIApiKey: config.apiKey
-        //change this to gpt-4 if you have access
-    },{
-        httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
-        // @ts-ignore
-        fetch,
-        baseURL: config.baseUrl
+    const llm = new LLM({
+        chatType: config.ernie ? ChatType.ERNIE : ChatType.CHATGPT,
     });
-
 
     // @ts-ignore
     const standaloneQuestionChain = RunnableSequence.from([
         condenseQuestionPrompt,
-        model,
-        new StringOutputParser(),
+        llm,
     ]);
 
     const answerWithRetrievalChain = RunnableSequence.from([

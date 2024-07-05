@@ -17,6 +17,23 @@ interface PythonParams{
 export const runPython = async <T>({scriptPath, args, socketEvent, signalId}:PythonParams):Promise<T>=>{
   let _socket:Socket<DefaultEventsMap, DefaultEventsMap> = null
   return new Promise<T>((resolve, reject)=>{
+      const onKill = (e:any,id:string)=>{
+        if(id === signalId){
+          console.log('onKill');
+          shell.kill('SIGTERM')
+          ipcMain.removeHandler(signalId)
+        }
+        off()
+      }
+      const off = (err?:any)=>{
+        console.log('off', err);
+        if(_socket){
+          _socket?.off(socketEvent, onSocketEvent)
+          _socket = null
+        }
+        global.wss?.off('connection', onConnection)
+        reject((err ?? 'kill').toString())
+      }
       const shell = new PythonShell(scriptPath, {
             pythonPath,
             pythonOptions: ['-u'],
@@ -24,21 +41,11 @@ export const runPython = async <T>({scriptPath, args, socketEvent, signalId}:Pyt
         }).on('message', (message: string) => {
           console.log(message)
         }).on('stderr', (err: string) => {
-          reject(err)
+          console.log(err)
         }).on('error', (err: Error)=>{
-          reject(err)
+          off(err)
         })
 
-        const onKill = (e:any,id:string)=>{
-          if(id === signalId){
-            console.log('onKill');
-            shell.kill('SIGTERM')
-            _socket?.off(socketEvent, onSocketEvent)
-            global.wss?.off('connection', onConnection)
-            ipcMain.removeHandler(signalId)
-            reject('kill')
-          }
-        }
 
         if(signalId){
           ipcMain.once(Channel.sendSignalId, onKill)
@@ -46,6 +53,7 @@ export const runPython = async <T>({scriptPath, args, socketEvent, signalId}:Pyt
 
         const onSocketEvent = (content: T,callback: (s:string)=>void)=>{
           callback('Message received');
+          shell.kill('SIGTERM')
           resolve(content)
         }
         const onConnection = (socket:  Socket<DefaultEventsMap, DefaultEventsMap>)=>{
