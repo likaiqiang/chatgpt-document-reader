@@ -7,13 +7,13 @@ import fsPromise from 'node:fs/promises';
 import {HttpsProxyAgent} from "https-proxy-agent";
 import {outputDir} from '@/config'
 import { ChatParams } from '@/types/chat';
-import { getApiConfig, getProxy } from '@/electron/storage';
+import { getApiConfig, getEmbeddingConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch'
 
 
 export default async ({question, history, filename}:ChatParams) => {
     const proxy = getProxy() as string
-    const config = getApiConfig()
+    const config = getEmbeddingConfig()
     console.log('question', question);
     console.log('history', history);
 

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
+import '@/styles/animate.css';
 import ReactMarkdown from 'react-markdown';
 import LoadingDots from '@/components/ui/LoadingDots';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -13,7 +14,7 @@ import { toast, Toaster } from 'react-hot-toast';
 import { ChatResponse, Resource } from '@/types/chat';
 import { useImmer } from 'use-immer';
 import ReactLoading from 'react-loading';
-import ReactDOM from 'react-dom';
+import {createPortal} from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
 import closeIcon from '@/assets/images/close.jpg'
@@ -25,6 +26,14 @@ import { SimpleTreeView  } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import CodeViewModal, { CodeViewHandle } from '@/CodeView';
 import { useTreeViewApiRef } from '@mui/x-tree-view';
+import {
+    ChatConfigComponent,
+    ChatConfigHandler,
+    ProxyConfigComponent,
+    ProxyConfigHandler,
+    EmbeddingConfigHandler,
+    EmbeddingConfigComponent,
+} from '@/modal/index';
 
 enum IngestDataType{
     local = 'local',
@@ -91,16 +100,6 @@ export default function App() {
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
 
-    const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string}>({
-        isOpen:false,
-        config: {
-            baseUrl:'',
-            apiKey:'',
-            ernie: true
-        },
-        proxy:''
-    })
-
     const [uploadModal, setUploadModal] = useImmer({
         isOpen: false
     })
@@ -120,6 +119,9 @@ export default function App() {
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
     const apiRef = useTreeViewApiRef();
+    const chatConfigComponentRef = useRef<ChatConfigHandler>()
+    const proxyConfigComponentRef = useRef<ProxyConfigHandler>()
+    const embeddingConfigComponentRef = useRef<EmbeddingConfigHandler>()
 
 
     const initCacheByName = useMemoizedFn((name: string) => {
@@ -155,24 +157,12 @@ export default function App() {
             return sortedRes
         })
     }
-    function getApiConfig(){
-        return window.chatBot.requestGetApiConfig().then(config=>{
-            setApiConfigModal(draft => {
-                draft.config = config
-            })
-        })
-    }
+
     useEffect(() => {
         getResources().then()
         textAreaRef.current?.focus();
         window.chatBot.onWindowFocussed(getResources)
-        window.chatBot.onApiConfigChange(()=>{
-            getApiConfig().then(()=>{
-                setApiConfigModal(draft => {
-                    draft.isOpen = true
-                })
-            })
-        })
+
         window.chatBot.onShowClearHistoryModal(()=>{
             setClearHistoryModal(draft => {
                 draft.isOpen = true
@@ -183,12 +173,6 @@ export default function App() {
                 draft.isOpen = true
             })
         })
-        getApiConfig().then()
-        window.chatBot.requestGetProxy().then(proxy=>{
-            setApiConfigModal(draft => {
-                draft.proxy = proxy
-            })
-        })
     }, []);
 
     // handle form submission
@@ -196,11 +180,9 @@ export default function App() {
     const handleSubmit = useMemoizedFn(async (e) => {
         e.preventDefault();
         try{
-            await window.chatBot.checkApiConfig()
+            await window.chatBot.checkChatConfig()
         } catch {
-            setApiConfigModal(draft => {
-                draft.isOpen = true
-            })
+            chatConfigComponentRef.current.open()
             return Promise.reject()
         }
         if (resources.length === 0) {
@@ -299,11 +281,9 @@ export default function App() {
     const onFileUpload = async () => {
 
         try{
-            await window.chatBot.checkApiConfig()
+            await window.chatBot.checkEmbeddingConfig()
         } catch {
-            setApiConfigModal(draft => {
-                draft.isOpen = true
-            })
+            embeddingConfigComponentRef.current.open()
             return Promise.reject()
         }
         setUploadModal(draft => {
@@ -628,7 +608,7 @@ export default function App() {
             <Toaster />
             <Whether value={uploadLoading}>
                 {
-                    ReactDOM.createPortal(
+                    createPortal(
                       <div className={styles.loadingMask}>
                           <ReactLoading type={'bars'} color="#000" />
                       </div>,
@@ -740,93 +720,11 @@ export default function App() {
                   })
               }}
             />
-            <Modal
-              open={apiConfigModal.isOpen}
-              onClose={()=>{
-                  setApiConfigModal(draft => {
-                      draft.isOpen = false
-                  })
-              }}
-            >
-                <Box sx={modalStyle}>
-                    <ValidatorForm onSubmit={e=>{
-                        e.preventDefault()
-                        Promise.all([
-                            window.chatBot.replyApiConfig(apiConfigModal.config),
-                            window.chatBot.replyProxy(apiConfigModal.proxy)
-                        ]).then(()=>{
-                            setApiConfigModal(draft => {
-                                draft.isOpen = false
-                            })
-                        })
-                    }}>
-                        <TextValidator
-                          name={'baseUrl'}
-                          value={apiConfigModal.config.baseUrl}
-                          validators={["required","isURL"]}
-                          errorMessages={["请输入内容","请输入正确的url"]}
-                          label="请输入baseurl"
-                          style={{width:'100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.config.baseUrl = e.target.value
-                              })
-                          }}
-                        />
-                        <TextValidator
-                          name={'apiKey'}
-                          value={apiConfigModal.config.apiKey}
-                          label="please enter apikey"
-                          validators={["required"]}
-                          errorMessages={["please enter apikey"]}
-                          style={{width: '100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.config.apiKey = e.target.value
-                              })
-                          }}
-                        />
-                        <TextValidator
-                          name={'proxy'}
-                          value={apiConfigModal.proxy}
-                          label="proxy config eg: http://127.0.0.1:7890"
-                          style={{width: '100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.proxy = e.target.value
-                              })
-                          }}
-                        />
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <Button variant="contained" color="secondary" onClick={()=>{
-                                window.chatBot.requestTestApi({
-                                    ...apiConfigModal.config,
-                                    proxy: apiConfigModal.proxy
-                                }).then(()=>{
-                                    toast.success('api test success')
-                                }).catch((e)=>{
-                                    if(!e.toString().includes('AbortError')){
-                                        toast.error('api test failed')
-                                    }
-                                })
-                            }}>
-                                测试
-                            </Button>
-                            <Button type={'submit'} variant="contained" color="primary">
-                                确认
-                            </Button>
-                        </Box>
-                    </ValidatorForm>
-                </Box>
-            </Modal>
+            <ChatConfigComponent ref={chatConfigComponentRef}/>
+            <ProxyConfigComponent ref={proxyConfigComponentRef}/>
+            <EmbeddingConfigComponent ref={embeddingConfigComponentRef}/>
             {
-                ReactDOM.createPortal(
+                createPortal(
                   <CodeViewModal ref={codeViewRef} />,
                   document.body
                 )
