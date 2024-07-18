@@ -30,17 +30,23 @@ export const api = {
     getResources(): Promise<Resource[]>{
       return ipcRenderer.invoke(Channel.resources)
     },
-    checkproxy(proxy:string){
+    checkProxy(proxy:string){
         return ipcRenderer.invoke(Channel.checkProxy, proxy)
     },
-    checkApiConfig(){
-        return ipcRenderer.invoke(Channel.checkApiConfig)
+    checkChatConfig(){
+        return ipcRenderer.invoke(Channel.checkChatConfig)
+    },
+    checkEmbeddingConfig(){
+        return ipcRenderer.invoke(Channel.checkEmbeddingConfig)
     },
     onOutputDirChange(cb=()=>{}){
         ipcRenderer.on(Channel.outputDirChange,cb)
     },
-    onApiConfigChange(cb=()=>{}){
-        ipcRenderer.on(Channel.apiConfigChange, cb)
+    onChatConfigChange(cb=()=>{}){
+        ipcRenderer.on(Channel.chatConfigChange, cb)
+    },
+    onEmbeddingConfigChange(cb=()=>{}){
+        ipcRenderer.on(Channel.embeddingConfigChange, cb)
     },
     onWindowFocussed(cb=()=>{}) {
         ipcRenderer.on(Channel.onWindowFocussed, cb)
@@ -48,8 +54,11 @@ export const api = {
     onRenderFileHistoryCleared(cb=()=>{}){
         ipcRenderer.on(Channel.renderFileHistoryCleared, cb)
     },
-    replyApiConfig(config: ApiConfig){
-        return ipcRenderer.invoke(Channel.replyApiConfig, config)
+    replyChatConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.replyChatConfig, config)
+    },
+    replyEmbeddingConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.replyEmbeddingConfig, config)
     },
     onProxyChange(cb=()=>{}){
         ipcRenderer.on(Channel.proxyChange,cb)
@@ -57,14 +66,23 @@ export const api = {
     replyProxy(proxy:string){
         return ipcRenderer.invoke(Channel.replyProxy, proxy)
     },
-    requestGetApiConfig(){
-        return ipcRenderer.invoke(Channel.requestGetApiConfig)
+    requestGetChatConfig(){
+        return ipcRenderer.invoke(Channel.requestGetChatConfig)
+    },
+    requestGetEmbeddingConfig(){
+        return ipcRenderer.invoke(Channel.requestGetEmbeddingConfig)
     },
     requestGetProxy(){
         return ipcRenderer.invoke(Channel.requestGetProxy)
     },
-    requestTestApi(config: ApiConfig & {proxy: string}){
-        return ipcRenderer.invoke(Channel.requestTestApi, config)
+    requestGetModels(config: Partial<ApiConfig>): Promise<string[]>{
+        return ipcRenderer.invoke(Channel.requestGetModels, config)
+    },
+    requestTestChatConfig(config: ApiConfig & {proxy: string}){
+        return ipcRenderer.invoke(Channel.requestTestChatConfig, config)
+    },
+    requestTestEmbeddingConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.requestTestEmbeddingConfig, config)
     },
     requestCallGraph(path:string){
         return ipcRenderer.invoke(Channel.requestCallGraph, path)

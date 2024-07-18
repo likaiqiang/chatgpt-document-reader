@@ -17,6 +17,17 @@ export const setApiConfig = (config: ApiConfig)=>{
   store.set(partKeyPrefix + 'apiConfig', config)
 }
 
+export const getEmbeddingConfig = ():Partial<ApiConfig>=>{
+  let config = (store.get(partKeyPrefix + 'embeddingConfig') || {apiKey:'',baseUrl:''}) as Partial<ApiConfig>
+  if(!config.apiKey && !config.baseUrl){
+    config = getApiConfig()
+  }
+  return config
+}
+export const setEmbeddingConfig = (config:Partial<ApiConfig>)=>{
+  store.set(partKeyPrefix + 'embeddingConfig', config)
+}
+
 export const getModel = ()=>{
   return (store.get(partKeyPrefix + 'model') as string) || 'gpt-3.5-turbo-1106'
 }

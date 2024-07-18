@@ -373,7 +373,7 @@ class CODEReader(BaseReader):
         return result
 
 
-def get_pdf_document(path: str) -> List[Document]:
+def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -401,9 +401,8 @@ def get_pdf_document(path: str) -> List[Document]:
 
     # 初始化嵌入模型
     embed_model = OpenAIEmbedding(
-        # api_key="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"
-        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
-        api_base="https://www.gptapi.us/v1"
+        api_key=embedding_api_key,
+        api_base=embedding_api_base
     )
 
     # 初始化语义分块器
@@ -419,7 +418,7 @@ def get_pdf_document(path: str) -> List[Document]:
     return result
 
 
-def get_text_document(path: str) -> List[Document]:
+def get_text_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -447,8 +446,8 @@ def get_text_document(path: str) -> List[Document]:
 
     # 初始化嵌入模型
     embed_model = OpenAIEmbedding(
-        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
-        api_base="https://www.gptapi.us/v1",
+        api_key=embedding_api_key,
+        api_base=embedding_api_base,
     )
     splitter = BaseSentenceSplitter(
         buffer_size=1,
@@ -467,7 +466,7 @@ def split_by_ast(text: str, metadata: Optional[Dict]):
     return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
 
 
-def get_code_document(path: str) -> List[Document]:
+def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -508,8 +507,8 @@ def get_code_document(path: str) -> List[Document]:
     if len(large_docs) == 0:
         return [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs]
     embed_model = OpenAIEmbedding(
-        api_key="sk-bJLXDQCmLs6F7Ojy707cF29b67F94e4eAaBc55A0E3915b9f",
-        api_base="https://www.gptapi.us/v1"
+        api_key=embedding_api_key,
+        api_base=embedding_api_base
     )
 
     # 初始化语义分块器
@@ -521,5 +520,7 @@ def get_code_document(path: str) -> List[Document]:
     )
 
     nodes = splitter.get_nodes_from_documents(large_docs)
-    result = [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs] + [{"pageContent": content, "metadata": node.metadata} for node in nodes if (content := node.get_content().strip())]
+    result = [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs] + [
+        {"pageContent": content, "metadata": node.metadata} for node in nodes if
+        (content := node.get_content().strip())]
     return result

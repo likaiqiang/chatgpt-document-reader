@@ -28,7 +28,8 @@ class SentenceCombination(TypedDict):
 
 
 async def connect_handler():
-    result = get_code_document(args.path)
+    result = get_code_document(path=args.path, embedding_api_key=args.embedding_api_key,
+                               embedding_api_base=args.embedding_api_base)
 
     def ack_callback(response):
         print(response)
@@ -44,7 +45,9 @@ async def connect():
 
 async def main():
     parser = ArgumentParser()
-    parser.add_argument("--path", required=True, help="path to pdf")
+    parser.add_argument("--path", required=True, help="path to code")
+    parser.add_argument("--embedding_api_key", required=True, help="embedding api key")
+    parser.add_argument("--embedding_api_base", default="https://api.openai.com/v1", help="embedding api base")
     global args
     args = parser.parse_args()
 

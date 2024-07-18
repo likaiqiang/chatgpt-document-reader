@@ -1,4 +1,3 @@
-import os
 import asyncio
 from erniebot_agent.chat_models import ERNIEBot
 from erniebot_agent.memory import HumanMessage, SystemMessage
@@ -7,7 +6,6 @@ from argparse import ArgumentParser
 import signal
 import sys
 
-os.environ["EB_AGENT_ACCESS_TOKEN"] = "8c0c6d5d01c16888a6f9a37021dc438d12174e53"
 sio = socketio.AsyncClient()
 
 def signal_handler(sig, frame):
@@ -22,7 +20,7 @@ async def connect():
     parser = ArgumentParser()
     parser.add_argument("--prompt", required=True, help="prompt")
     args = parser.parse_args()
-    model = ERNIEBot(model="ernie-speed-128k")
+    model = ERNIEBot(model="ernie-speed-128k", access_token="8c0c6d5d01c16888a6f9a37021dc438d12174e53")
     human_message = HumanMessage(
         content=args.prompt
     )

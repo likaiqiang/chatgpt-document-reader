@@ -37,9 +37,9 @@ import {
   setProxy as setLocalProxy,
   getApiConfig as getLocalApikey,
   getProxy as getLocalProxy,
-  getModel,
-  setModal,
-  store as electronStore
+  store as electronStore,
+  getEmbeddingConfig as getLocalEmbeddingConfig,
+  setEmbeddingConfig as setLocalEmbeddingConfig,
 } from './electron/storage';
 import {
   FindInPageParmas,
@@ -69,32 +69,44 @@ function setCustomMenu() {
       // 菜单的子菜单，是一个数组，每个元素是一个菜单项对象
       submenu: [
         {
-          label: 'api配置',
+          label: 'chat配置',
           click() {
-            mainSend(mainWindow, Channel.apiConfigChange);
+            mainSend(mainWindow, Channel.chatConfigChange);
           }
         },
         {
-          label: '选择模型',
-          submenu: [
-            {
-              label: 'gpt-4-1106-preview'.toUpperCase(),
-              type: 'radio',
-              checked: getModel() === 'gpt-4-1106-preview',
-              click() {
-                setModal('gpt-4-1106-preview');
-              }
-            },
-            {
-              label: 'gpt-3.5-turbo-1106'.toUpperCase(),
-              type: 'radio',
-              checked: getModel() === 'gpt-3.5-turbo-1106',
-              click() {
-                setModal('gpt-3.5-turbo-1106');
-              }
-            }
-          ]
+          label: 'embedding设置',
+          click() {
+            mainSend(mainWindow, Channel.embeddingConfigChange);
+          }
         },
+        {
+          label: '代理设置',
+          click() {
+            mainSend(mainWindow, Channel.proxyChange);
+          }
+        },
+        // {
+        //   label: '选择模型',
+        //   submenu: [
+        //     {
+        //       label: 'gpt-4-1106-preview'.toUpperCase(),
+        //       type: 'radio',
+        //       checked: getModel() === 'gpt-4-1106-preview',
+        //       click() {
+        //         setModal('gpt-4-1106-preview');
+        //       }
+        //     },
+        //     {
+        //       label: 'gpt-3.5-turbo-1106'.toUpperCase(),
+        //       type: 'radio',
+        //       checked: getModel() === 'gpt-3.5-turbo-1106',
+        //       click() {
+        //         setModal('gpt-3.5-turbo-1106');
+        //       }
+        //     }
+        //   ]
+        // },
         {
           label: '打开向量缓存目录',
           click() {
@@ -313,25 +325,43 @@ const createWindow = () => {
     if (proxy) return Promise.resolve();
     return Promise.reject('no proxy');
   });
-  ipcMain.handle(Channel.checkApiConfig, () => {
+  ipcMain.handle(Channel.checkChatConfig, () => {
     const config = getLocalApikey();
     if (config.baseUrl && config.apiKey) return Promise.resolve();
     return Promise.reject('no api config');
   });
-  ipcMain.handle(Channel.replyApiConfig, (e, config) => {
+  ipcMain.handle(Channel.checkEmbeddingConfig, () => {
+    const config = getLocalEmbeddingConfig();
+    if (config.baseUrl && config.apiKey) return Promise.resolve();
+    return Promise.reject('no embedding config');
+  });
+  ipcMain.handle(Channel.replyChatConfig, (e, config) => {
     setLocalApikey(config);
+  });
+  ipcMain.handle(Channel.requestGetChatConfig, () => {
+    return getLocalApikey();
   });
   ipcMain.handle(Channel.replyProxy, (e, proxy) => {
     setLocalProxy(proxy);
   });
-  ipcMain.handle(Channel.requestGetApiConfig, () => {
-    return getLocalApikey();
-  });
   ipcMain.handle(Channel.requestGetProxy, () => {
     return getLocalProxy();
   });
-  ipcMain.handle(Channel.requestTestApi, (e, config) => {
+  ipcMain.handle(Channel.requestTestChatConfig, (e, config) => {
     return fetchModels(config);
+  });
+  ipcMain.handle(Channel.requestTestEmbeddingConfig, (e, config) => {
+    return fetchModels(config);
+  });
+  ipcMain.handle(Channel.requestGetModels, (e, config) => {
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return fetchModels(config).then((result: {data: any[]}) => result.data);
+  })
+  ipcMain.handle(Channel.requestGetEmbeddingConfig, (e, path) => {
+    return getLocalEmbeddingConfig();
+  });
+  ipcMain.handle(Channel.replyEmbeddingConfig, (e, config) => {
+    setLocalEmbeddingConfig(config);
   });
   ipcMain.handle(Channel.requestCallGraph, (e, path) => {
     return getCodeDot(path);
