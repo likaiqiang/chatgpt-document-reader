@@ -39,6 +39,7 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
     proxy:''
   })
   const [modelLoading, setModelLoading] = useState(false)
+  const [model, setModel] = useState('')
   async function getChatConfig(){
     return window.chatBot.requestGetChatConfig().then(config=>{
       setApiConfigModal(draft => {
@@ -84,6 +85,7 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
   useEffect(() => {
     if(apiConfigModal.isOpen){
       getChatConfig().then(getModels)
+      window.chatBot.requestGetModel().then(setModel)
     }
   }, [apiConfigModal.isOpen]);
   useImperativeHandle(ref, ()=>{
@@ -135,11 +137,11 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
               label="选择模型"
               size={"small"}
               style={{marginBottom: '20px'}}
-              onChange={()=>{
-
+              onChange={(e)=>{
+                window.chatBot.replyModel((e.target as HTMLSelectElement).value)
               }}
               name="model"
-              value={apiConfigModal.models.length ? apiConfigModal.models[0].id : ''}
+              value={model || ''}
               validators={!apiConfigModal.config.ernie ? ['required']: undefined}
               errorMessages={!apiConfigModal.config.ernie ? ['请选择模型']:undefined}
               disabled={disabled}

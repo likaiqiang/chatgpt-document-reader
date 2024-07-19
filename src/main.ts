@@ -40,6 +40,8 @@ import {
   store as electronStore,
   getEmbeddingConfig as getLocalEmbeddingConfig,
   setEmbeddingConfig as setLocalEmbeddingConfig,
+  getModel as getLocalModel,
+  setModal as setLocalModel
 } from './electron/storage';
 import {
   FindInPageParmas,
@@ -86,27 +88,6 @@ function setCustomMenu() {
             mainSend(mainWindow, Channel.proxyChange);
           }
         },
-        // {
-        //   label: '选择模型',
-        //   submenu: [
-        //     {
-        //       label: 'gpt-4-1106-preview'.toUpperCase(),
-        //       type: 'radio',
-        //       checked: getModel() === 'gpt-4-1106-preview',
-        //       click() {
-        //         setModal('gpt-4-1106-preview');
-        //       }
-        //     },
-        //     {
-        //       label: 'gpt-3.5-turbo-1106'.toUpperCase(),
-        //       type: 'radio',
-        //       checked: getModel() === 'gpt-3.5-turbo-1106',
-        //       click() {
-        //         setModal('gpt-3.5-turbo-1106');
-        //       }
-        //     }
-        //   ]
-        // },
         {
           label: '打开向量缓存目录',
           click() {
@@ -357,6 +338,12 @@ const createWindow = () => {
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
     return fetchModels(config).then((result: {data: any[]}) => result.data);
   })
+  ipcMain.handle(Channel.requestGetModel, () => {
+    return getLocalModel();
+  });
+  ipcMain.handle(Channel.replyModel, (e, model) => {
+    setLocalModel(model);
+  });
   ipcMain.handle(Channel.requestGetEmbeddingConfig, (e, path) => {
     return getLocalEmbeddingConfig();
   });

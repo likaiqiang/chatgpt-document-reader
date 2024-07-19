@@ -22,6 +22,8 @@ export enum Channel {
     replyEmbeddingConfig = 'reply_embedding_config',
     requestGetProxy = 'request_get_proxy',
     requestGetModels = 'request_get_modals',
+    requestGetModel = 'request_get_model',
+    replyModel = 'reply_model',
     requestTestChatConfig = 'request_test_chat_config',
     requestTestEmbeddingConfig = 'request_test_embedding_config',
     requestCallGraph = 'request_call_graph',

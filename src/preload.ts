@@ -78,6 +78,12 @@ export const api = {
     requestGetModels(config: Partial<ApiConfig>): Promise<any[]>{
         return ipcRenderer.invoke(Channel.requestGetModels, config)
     },
+    requestGetModel(): Promise<string>{
+        return ipcRenderer.invoke(Channel.requestGetModel)
+    },
+    replyModel(model:string){
+        return ipcRenderer.invoke(Channel.replyModel, model)
+    },
     requestTestChatConfig(config: ApiConfig & {proxy: string}){
         return ipcRenderer.invoke(Channel.requestTestChatConfig, config)
     },
