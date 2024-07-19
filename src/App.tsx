@@ -370,7 +370,7 @@ export default function App() {
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
-                                                                <span>{convertUnicodeToNormal(item.filename)}</span>
+                                                                <span title={decodeURIComponent(convertUnicodeToNormal(item.filename))}>{decodeURIComponent(convertUnicodeToNormal(item.filename))}</span>
                                                                 <img
                                                                   className={styles.tabCloseIcon}
                                                                   src={closeIcon}
