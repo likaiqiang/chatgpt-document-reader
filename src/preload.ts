@@ -75,7 +75,7 @@ export const api = {
     requestGetProxy(){
         return ipcRenderer.invoke(Channel.requestGetProxy)
     },
-    requestGetModels(config: Partial<ApiConfig>): Promise<string[]>{
+    requestGetModels(config: Partial<ApiConfig>): Promise<any[]>{
         return ipcRenderer.invoke(Channel.requestGetModels, config)
     },
     requestTestChatConfig(config: ApiConfig & {proxy: string}){
