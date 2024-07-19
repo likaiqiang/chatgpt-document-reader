@@ -41,21 +41,6 @@ export class AnswerChain extends Runnable{
   private getModelName(){
     return getModel()
   }
-  private getChatOpenAIModel(){
-    const config = getApiConfig()
-    const proxy = getProxy() as string;
-    return new ChatOpenAI({
-      temperature: 0, // increase temperature to get more creative answers
-      modelName: this.getModelName(),
-      openAIApiKey: config.apiKey
-      //change this to gpt-4 if you have access
-    },{
-      httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
-      // @ts-ignore
-      fetch,
-      baseURL: config.baseUrl
-    });
-  }
   private getAnswerChain(){
     const config = getApiConfig()
     const llm = new LLM({

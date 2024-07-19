@@ -171,18 +171,22 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
             }}
           />
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <Button variant="contained" color="secondary" onClick={()=>{
-              window.chatBot.requestTestChatConfig({
-                ...apiConfigModal.config,
-                proxy: apiConfigModal.proxy
-              }).then(()=>{
-                toast.success('api test success')
-              }).catch((e)=>{
-                if(!e.toString().includes('AbortError')){
-                  toast.error('api test failed')
-                }
-              })
-            }}>
+            <Button
+              variant="contained"
+              color="secondary"
+              disabled={apiConfigModal.config.ernie}
+              onClick={()=>{
+                window.chatBot.requestTestChatConfig({
+                  ...apiConfigModal.config,
+                  proxy: apiConfigModal.proxy
+                }).then(()=>{
+                  toast.success('api test success')
+                }).catch((e)=>{
+                  if(!e.toString().includes('AbortError')){
+                    toast.error('api test failed')
+                  }
+                })
+              }}>
               测试
             </Button>
             <Button type={'submit'} variant="contained" color="primary">
