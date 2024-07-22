@@ -25,6 +25,10 @@ declare global {
         baseUrl:string,
         ernie: boolean
     }
+    interface EmbeddingConfig{
+        baseUrl: string,
+        apiKey: string
+    }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string
 

@@ -24,15 +24,14 @@ export interface EmbeddingConfigProps{
 
 }
 
+
 const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingConfigHandler>)=>{
-  const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string}>({
+  const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: EmbeddingConfig}>({
     isOpen:false,
     config: {
       baseUrl:'',
-      apiKey:'',
-      ernie: true
-    },
-    proxy:''
+      apiKey:''
+    }
   })
   function getEmbeddingConfig(){
     return window.chatBot.requestGetEmbeddingConfig().then(config=>{
@@ -88,7 +87,7 @@ const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingCo
             value={apiConfigModal.config.baseUrl}
             validators={["required","isURL"]}
             errorMessages={["请输入内容","请输入正确的url"]}
-            label="请输入baseurl"
+            label="请输入openai baseurl"
             style={{width:'100%', marginBottom: '20px'}}
             size={"small"}
             onChange={e=> {

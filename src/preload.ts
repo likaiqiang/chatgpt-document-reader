@@ -57,7 +57,7 @@ export const api = {
     replyChatConfig(config: ApiConfig){
         return ipcRenderer.invoke(Channel.replyChatConfig, config)
     },
-    replyEmbeddingConfig(config: ApiConfig){
+    replyEmbeddingConfig(config: EmbeddingConfig){
         return ipcRenderer.invoke(Channel.replyEmbeddingConfig, config)
     },
     onProxyChange(cb=()=>{}){
@@ -87,7 +87,7 @@ export const api = {
     requestTestChatConfig(config: ApiConfig & {proxy: string}){
         return ipcRenderer.invoke(Channel.requestTestChatConfig, config)
     },
-    requestTestEmbeddingConfig(config: ApiConfig){
+    requestTestEmbeddingConfig(config: EmbeddingConfig){
         return ipcRenderer.invoke(Channel.requestTestEmbeddingConfig, config)
     },
     requestCallGraph(path:string){

@@ -161,7 +161,7 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
             value={apiConfigModal.config.baseUrl}
             validators={!apiConfigModal.config.ernie ? ["required","isURL"]: undefined}
             errorMessages={!apiConfigModal.config.ernie ?["请输入内容","请输入正确的url"]:undefined}
-            label="请输入baseurl"
+            label="请输入openai baseurl"
             style={{width:'100%', marginBottom: '20px'}}
             size={"small"}
             disabled={disabled}
