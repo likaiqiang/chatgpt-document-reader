@@ -74,21 +74,25 @@ const ProxyConfig = (props: ProxyConfigProps, ref: React.Ref<ProxyConfigHandler>
       }}
     >
       <Box sx={modalStyle}>
-        <ValidatorForm onSubmit={e=>{
+        <ValidatorForm onSubmit={e => {
           e.preventDefault()
-          window.chatBot.replyProxy(apiConfigModal.proxy).then(()=>{
+          window.chatBot.replyProxy(apiConfigModal.proxy).then(() => {
             setApiConfigModal(draft => {
               draft.isOpen = false
             })
           })
         }}>
+          <div style={{ marginBottom: '20px', fontSize: '12px', color: 'rgba(0,0,0,.4)' }}>
+            <span style={{ color: 'red', marginRight: '10px' }}>*</span>
+            请输入proxy config
+          </div>
           <TextValidator
             name={'proxy'}
             value={apiConfigModal.proxy}
             label="proxy config eg: http://127.0.0.1:7890"
-            style={{width: '100%', marginBottom: '20px'}}
+            style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
-            onChange={e=> {
+            onChange={e => {
               setApiConfigModal(draft => {
                 draft.proxy = (e.target as HTMLInputElement).value
               })

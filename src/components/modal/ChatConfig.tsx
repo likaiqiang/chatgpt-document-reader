@@ -76,16 +76,18 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
         })
       })
     })
-    getModels().then().catch(()=>{
-      setApiConfigModal(draft => {
-        draft.models = []
-      })
-    })
+
   }, []);
   useEffect(() => {
     if(apiConfigModal.isOpen){
-      getChatConfig().then(getModels)
-      window.chatBot.requestGetModel().then(setModel)
+      getChatConfig().then()
+      if(!apiConfigModal.config.ernie){
+        getModels().then().catch(()=>{
+          setApiConfigModal(draft => {
+            draft.models = []
+          })
+        })
+      }
     }
   }, [apiConfigModal.isOpen]);
   useImperativeHandle(ref, ()=>{
@@ -109,63 +111,67 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
       <Box sx={modalStyle}>
         <ValidatorForm
           ref={validatorFormRef}
-          onSubmit={e=>{
+          onSubmit={e => {
             e.preventDefault()
-            window.chatBot.replyChatConfig(apiConfigModal.config).then(()=>{
+            window.chatBot.replyChatConfig(apiConfigModal.config).then(() => {
               setApiConfigModal(draft => {
                 draft.isOpen = false
               })
             })
           }}>
-          <div style={{marginBottom:'20px'}}>
+          <div style={{ marginBottom: '20px', fontSize: '12px', color: 'rgba(0,0,0,.4)' }}>
+            <span style={{ color: 'red', marginRight: '10px' }}>*</span>
+            请输入chat config
+          </div>
+          <div style={{ marginBottom: '20px' }}>
             ernie
             <Checkbox
               checked={apiConfigModal.config.ernie}
-              onChange={()=>{
+              onChange={() => {
                 const value = !apiConfigModal.config.ernie
                 setApiConfigModal(draft => {
                   draft.config.ernie = value
                 })
-                if(value){
+                if (value) {
                   validatorFormRef.current?.resetValidations()
                 }
               }}
             />
           </div>
-          <div style={{display:'flex',alignItems:'center'}}>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
             <SelectValidator
               label="选择模型"
               size={"small"}
-              style={{marginBottom: '20px'}}
-              onChange={(e)=>{
+              style={{ marginBottom: '20px' }}
+              onChange={(e) => {
                 window.chatBot.replyModel((e.target as HTMLSelectElement).value)
               }}
               name="model"
               value={model || ''}
-              validators={!apiConfigModal.config.ernie ? ['required']: undefined}
-              errorMessages={!apiConfigModal.config.ernie ? ['请选择模型']:undefined}
+              validators={!apiConfigModal.config.ernie ? ['required'] : undefined}
+              errorMessages={!apiConfigModal.config.ernie ? ['请选择模型'] : undefined}
               disabled={disabled}
             >
               {
-                apiConfigModal.models.map(model=>{
+                apiConfigModal.models.map(model => {
                   return <MenuItem key={model.id} value={model.id}>{model.id}</MenuItem>
                 })
               }
             </SelectValidator>
-            <LoopIcon  className={modelLoading ? 'spin' :''} onClick={()=>{
+            <LoopIcon className={modelLoading ? 'spin' : ''} onClick={() => {
               getModels().then()
-            }}/>
+            }} />
           </div>
           <TextValidator
             name={'baseUrl'}
             value={apiConfigModal.config.baseUrl}
-            validators={!apiConfigModal.config.ernie ? ["required","isURL"]: undefined}
-            errorMessages={!apiConfigModal.config.ernie ?["请输入内容","请输入正确的url"]:undefined}
+            validators={!apiConfigModal.config.ernie ? ["required", "isURL"] : undefined}
+            errorMessages={!apiConfigModal.config.ernie ? ["请输入内容", "请输入正确的url"] : undefined}
             label="请输入openai baseurl"
-            style={{width:'100%', marginBottom: '20px'}}
+            style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
             disabled={disabled}
-            onChange={e=> {
+            onChange={e => {
               setApiConfigModal(draft => {
                 draft.config.baseUrl = (e.target as HTMLInputElement).value
               })
@@ -176,11 +182,11 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
             value={apiConfigModal.config.apiKey}
             label="please enter apikey"
             validators={!apiConfigModal.config.ernie ? ["required"] : undefined}
-            errorMessages={!apiConfigModal.config.ernie ?["please enter apikey"]:undefined}
-            style={{width: '100%', marginBottom: '20px'}}
+            errorMessages={!apiConfigModal.config.ernie ? ["please enter apikey"] : undefined}
+            style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
             disabled={disabled}
-            onChange={e=> {
+            onChange={e => {
               setApiConfigModal(draft => {
                 draft.config.apiKey = (e.target as HTMLInputElement).value
               })
@@ -191,14 +197,14 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
               variant="contained"
               color="secondary"
               disabled={disabled}
-              onClick={()=>{
+              onClick={() => {
                 window.chatBot.requestTestChatConfig({
                   ...apiConfigModal.config,
                   proxy: apiConfigModal.proxy
-                }).then(()=>{
+                }).then(() => {
                   toast.success('api test success')
-                }).catch((e)=>{
-                  if(!e.toString().includes('AbortError')){
+                }).catch((e) => {
+                  if (!e.toString().includes('AbortError')) {
                     toast.error('api test failed')
                   }
                 })
