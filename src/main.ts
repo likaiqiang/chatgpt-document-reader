@@ -354,8 +354,8 @@ const createWindow = () => {
     return getCodeDot(path);
   });
   ipcMain.handle(Channel.requestllm, (e, params) => {
-    const { chatType, prompt,signalId } = params;
-    return new LLM({chatType}).chat(prompt,signalId)
+    const { chatType, messages,signalId } = params;
+    return new LLM({chatType}).chat(messages,signalId)
   });
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);

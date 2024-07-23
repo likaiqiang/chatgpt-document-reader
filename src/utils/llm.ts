@@ -24,13 +24,15 @@ export default class LLM extends Runnable{
     super()
     this.chatType = chatType
   }
-  async chat(prompt: string, signalId?:string){
+  async chat(messages: {content: string, role:'assistant' | 'user'}[] | string, signalId?:string){
     console.log('signalId', signalId);
-
+    if(typeof messages === 'string'){
+      messages = [{content: messages, role:'user'}]
+    }
     if(this.chatType === ChatType.ERNIE){
       return runPython<string>({
         scriptPath,
-        args: ["--prompt", prompt],
+        args: ["--messages", JSON.stringify(messages)],
         socketEvent:'llm_response',
         signalId
       })
@@ -43,7 +45,6 @@ export default class LLM extends Runnable{
         temperature: 0, // increase temperature to get more creative answers
         modelName,
         openAIApiKey: config.apiKey
-        //change this to gpt-4 if you have access
       },{
         httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
         // @ts-ignore
@@ -55,7 +56,7 @@ export default class LLM extends Runnable{
         model,
         new StringOutputParser(),
       ])
-      return runnable.invoke(prompt)
+      return runnable.invoke(JSON.stringify(messages))
     }
   }
   invoke(input: string): Promise<string> {

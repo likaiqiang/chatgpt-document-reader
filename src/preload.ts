@@ -3,8 +3,13 @@ import {Channel} from "@/types/bridge";
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
 import { FindInPageParmas, StopFindInPageParmas, WebContentsOnParams } from '@/types/webContents';
 
+interface Message{
+    content: string,
+    role:'assistant' | 'user'
+}
+
 interface RequestllmParams{
-    prompt: string,
+    messages: Message[],
     chatType?: 'ernie' | 'gpt3',
     signalId?: string
 }
@@ -93,8 +98,8 @@ export const api = {
     requestCallGraph(path:string){
         return ipcRenderer.invoke(Channel.requestCallGraph, path)
     },
-    requestllm({prompt, chatType = 'ernie',signalId}:RequestllmParams){
-        return ipcRenderer.invoke(Channel.requestllm, {prompt, chatType, signalId})
+    requestllm({messages, chatType = 'ernie',signalId}:RequestllmParams){
+        return ipcRenderer.invoke(Channel.requestllm, {messages, chatType, signalId})
     },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)
