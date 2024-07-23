@@ -65,9 +65,9 @@ export class Messages extends React.Component<MessagesProps>{
                     </svg>
                   </div>
                 </Whether>
-                <div className={`bubble`} key={ret.msg}>
+                <div className={`bubble`} key={ret.content}>
                   <ReactMarkdown
-                    children={ret.msg}
+                    children={ret.content}
                     components={{
                       code({node, inline, className, children, ...props}) {
                         const match = /language-(\w+)/.exec(className || '')
@@ -141,7 +141,8 @@ const Chat = (props:{},ref: RefObject<ChatHandle>)=>{
     setHumanMsgs([
       ...humanMsgs,
       {
-        msg: message,
+        content: message,
+        role:'user',
         timestamp: Date.now()
       }
     ])
@@ -155,11 +156,16 @@ const Chat = (props:{},ref: RefObject<ChatHandle>)=>{
         window.chatBot.sendSignalId(signalIdRef.current)
       })
     }
-    return window.chatBot.requestllm({prompt: message, signalId: signalIdRef.current }).then(content=>{
+    const messages = [...humanMsgs, ...aiMsgs].sort((a, b) => a.timestamp - b.timestamp).concat({role:'user', content: message}).slice(-10)
+    return window.chatBot.requestllm({
+      messages,
+      signalId: signalIdRef.current
+    }).then(content=>{
       setAiMsgs([
         ...aiMsgs,
         {
-          msg: content,
+          content,
+          role:'assistant',
           timestamp: Date.now()
         }
       ])
