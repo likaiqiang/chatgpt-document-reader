@@ -33,7 +33,7 @@ import {
     ProxyConfigHandler,
     EmbeddingConfigHandler,
     EmbeddingConfigComponent,
-} from '@/modal/index';
+} from '@/components/modal/index';
 
 enum IngestDataType{
     local = 'local',
