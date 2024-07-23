@@ -4018,11 +4018,6 @@ destroy@1.2.0:
   resolved "https://r.cnpmjs.org/destroy/-/destroy-1.2.0.tgz"
   integrity sha512-2sJGJTaXIIaR1w4iJSNoN0hnMY7Gpc/n8D4qSCJw8QqFWXf7cuAgnEHxBpweaVcPevC2l3KpjYCx3NypQQgaJg==
 
-detect-libc@^1.0.3:
-  version "1.0.3"
-  resolved "https://r2.cnpmjs.org/detect-libc/-/detect-libc-1.0.3.tgz"
-  integrity sha512-pGjwhsmsp4kL2RTz08wcOlGN83otlqHeD/Z5T8GXZB+/YcpQ/dgo+lbU8ZsGxV0HIvqqxo9l7mqYwyYMD9bKDg==
-
 detect-libc@^2.0.0, detect-libc@^2.0.1, detect-libc@^2.0.2:
   version "2.0.2"
   resolved "https://r.cnpmjs.org/detect-libc/-/detect-libc-2.0.2.tgz"
@@ -7979,7 +7974,7 @@ mz@^2.7.0:
     object-assign "^4.0.1"
     thenify-all "^1.0.0"
 
-nan@^2.14.0, nan@^2.14.1, nan@^2.15.0, nan@^2.17.0, nan@^2.18.0:
+nan@^2.17.0:
   version "2.18.0"
   resolved "https://r.cnpmjs.org/nan/-/nan-2.18.0.tgz"
   integrity sha512-W7tfG7vMOGtD30sHoZSSc/JVYiyDPEyQVso/Zz+/uQd0B0L46gtC+pHha5FFMRpil6fm/AoEcRWyOVi4+E/f8w==
@@ -8029,13 +8024,6 @@ nice-try@^1.0.4:
   resolved "https://r2.cnpmjs.org/nice-try/-/nice-try-1.0.5.tgz"
   integrity sha512-1nh45deeb5olNY7eX82BkPO7SSxR5SSYJiPTrTdFUVYwAl8CKMA5N9PjTYkHiRjisVcxcQ1HXdLhx2qxxJzLNQ==
 
-node-abi@^2.7.0:
-  version "2.30.1"
-  resolved "https://r2.cnpmjs.org/node-abi/-/node-abi-2.30.1.tgz"
-  integrity sha512-/2D0wOQPgaUWzVSVgRMx+trKJRC2UG4SUc4oCJoXx9Uxjtp0Vy3/kt7zcbxHF8+Z/pK3UloLWzBISg72brfy1w==
-  dependencies:
-    semver "^5.4.1"
-
 node-abi@^3.3.0, node-abi@^3.45.0, node-abi@^3.47.0:
   version "3.51.0"
   resolved "https://r.cnpmjs.org/node-abi/-/node-abi-3.51.0.tgz"
@@ -8047,11 +8035,6 @@ node-addon-api@^6.0.0:
   version "6.1.0"
   resolved "https://r.cnpmjs.org/node-addon-api/-/node-addon-api-6.1.0.tgz"
   integrity sha512-+eawOlIgy680F0kBzPUNFhMZGtJ1YmqM6l4+Crf4IkImjYrO/mqPwRMh352g23uIaQKFItcQ64I7KMaJxHgAVA==
-
-node-addon-api@^8.0.0:
-  version "8.0.0"
-  resolved "https://registry.npmjs.org/node-addon-api/-/node-addon-api-8.0.0.tgz#5453b7ad59dd040d12e0f1a97a6fa1c765c5c9d2"
-  integrity sha512-ipO7rsHEBqa9STO5C5T10fj732ml+5kLN1cAG8/jdHd56ldQeGj3Q7+scUS+VHK/qy1zLEwC4wMK5+yM0btPvw==
 
 node-api-headers@^0.0.2:
   version "0.0.2"
@@ -8082,7 +8065,7 @@ node-fetch@^2.6.7:
   dependencies:
     whatwg-url "^5.0.0"
 
-node-gyp-build@^4.3.0, node-gyp-build@^4.8.0:
+node-gyp-build@^4.3.0:
   version "4.8.1"
   resolved "https://registry.npmjs.org/node-gyp-build/-/node-gyp-build-4.8.1.tgz#976d3ad905e71b76086f4f0b0d3637fe79b6cda5"
   integrity sha512-OSs33Z9yWr148JZcbZd5WiAXhh/n9z8TxQcdMhIOlpN9AhWpLfvVFO73+m77bBABQMaY9XSvIa+qk0jlI7Gcaw==
@@ -8226,7 +8209,7 @@ npm-which@^3.0.1:
     are-we-there-yet "~1.1.2"
     gauge "~1.2.5"
 
-"npmlog@0 || 1 || 2 || 3 || 4", npmlog@^4.0.1:
+"npmlog@0 || 1 || 2 || 3 || 4":
   version "4.1.2"
   resolved "https://r2.cnpmjs.org/npmlog/-/npmlog-4.1.2.tgz"
   integrity sha512-2uUqazuKlTaSI/dC8AzicUck7+IrEaOnN/e0jd3Xtt1KcGpwx30v50mL7oPyr/h9bL3E4aZccVwpwP+5W9Vjkg==
@@ -8981,27 +8964,6 @@ postcss@^8.4.23, postcss@^8.4.27:
     nanoid "^3.3.6"
     picocolors "^1.0.0"
     source-map-js "^1.0.2"
-
-prebuild-install@^5.0.0:
-  version "5.3.6"
-  resolved "https://r2.cnpmjs.org/prebuild-install/-/prebuild-install-5.3.6.tgz"
-  integrity sha512-s8Aai8++QQGi4sSbs/M1Qku62PFK49Jm1CbgXklGz4nmHveDq0wzJkg7Na5QbnO1uNH8K7iqx2EQ/mV0MZEmOg==
-  dependencies:
-    detect-libc "^1.0.3"
-    expand-template "^2.0.3"
-    github-from-package "0.0.0"
-    minimist "^1.2.3"
-    mkdirp-classic "^0.5.3"
-    napi-build-utils "^1.0.1"
-    node-abi "^2.7.0"
-    noop-logger "^0.1.1"
-    npmlog "^4.0.1"
-    pump "^3.0.0"
-    rc "^1.2.7"
-    simple-get "^3.0.3"
-    tar-fs "^2.0.0"
-    tunnel-agent "^0.6.0"
-    which-pm-runs "^1.0.0"
 
 prebuild-install@^7.1.1:
   version "7.1.1"
@@ -9866,7 +9828,7 @@ semver-compare@^1.0.0:
   resolved "https://r2.cnpmjs.org/semver-compare/-/semver-compare-1.0.0.tgz"
   integrity sha512-YM3/ITh2MJ5MtzaM429anh+x2jiLVjqILF4m4oyQB18W7Ggea7BfqdH/wGMK7dDiMghv/6WG7znWMwUDzJiXow==
 
-"semver@2 || 3 || 4 || 5", "semver@2.x || 3.x || 4 || 5", semver@^5.4.1, semver@^5.5.0, semver@^5.6.0:
+"semver@2 || 3 || 4 || 5", "semver@2.x || 3.x || 4 || 5", semver@^5.5.0, semver@^5.6.0:
   version "5.7.2"
   resolved "https://r.cnpmjs.org/semver/-/semver-5.7.2.tgz"
   integrity sha512-cBznnQ9KjJqU67B52RMC65CMarK2600WFnbkcaiwWq3xy/5haFJlshgnpjovMVJ+Hff49d8GEn0b87C5pDQ10g==
@@ -10775,125 +10737,6 @@ tr46@~0.0.3:
   resolved "https://r2.cnpmjs.org/tr46/-/tr46-0.0.3.tgz"
   integrity sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==
 
-tree-sitter-c-sharp@^0.20.0:
-  version "0.20.0"
-  resolved "https://registry.npmjs.org/tree-sitter-c-sharp/-/tree-sitter-c-sharp-0.20.0.tgz"
-  integrity sha512-HOR6fQtghA7hp/LC6fQzzCyRv8TINh/hqYUULYHOYmwsCV73j4PHLYg1536qv/vff1KaRd7Qx3Fs3VLzx1/WIQ==
-  dependencies:
-    nan "^2.14.0"
-
-tree-sitter-cli@^0.20.8:
-  version "0.20.8"
-  resolved "https://registry.npmjs.org/tree-sitter-cli/-/tree-sitter-cli-0.20.8.tgz"
-  integrity sha512-XjTcS3wdTy/2cc/ptMLc/WRyOLECRYcMTrSWyhZnj1oGSOWbHLTklgsgRICU3cPfb0vy+oZCC33M43u6R1HSCA==
-
-tree-sitter-cpp@^0.20.3:
-  version "0.20.3"
-  resolved "https://r.cnpmjs.org/tree-sitter-cpp/-/tree-sitter-cpp-0.20.3.tgz"
-  integrity sha512-rFyCvWdR1EtsmcOTeiyfPbHicJwcvO3WMavmjsL+Fo+ZqgbUphPVogYExfg4FEPZ+JbPKT0DZY14XRFPzf8/pQ==
-  dependencies:
-    nan "^2.17.0"
-
-tree-sitter-go@^0.20.0:
-  version "0.20.0"
-  resolved "https://r.cnpmjs.org/tree-sitter-go/-/tree-sitter-go-0.20.0.tgz"
-  integrity sha512-5OBBND9ykffXZnaKrVpk8RnSaZJ26Si8yCfJKPSkEypWrywqCmZOZ74NveqMY0ogmHK2X8mFFuIL5jUnxOKyYw==
-  dependencies:
-    nan "^2.14.0"
-
-tree-sitter-html@^0.20.0:
-  version "0.20.0"
-  resolved "https://r.cnpmjs.org/tree-sitter-html/-/tree-sitter-html-0.20.0.tgz"
-  integrity sha512-KoK3BR1o5KWeYFGax1Dy8j+NHHhdgD64pjFU/JgnBrZjmdp4CfJg2HJiWnmB8OmFYQeb30Mm+lDVps2dNFJMdw==
-  dependencies:
-    nan "^2.18.0"
-
-tree-sitter-java@^0.20.2:
-  version "0.20.2"
-  resolved "https://r.cnpmjs.org/tree-sitter-java/-/tree-sitter-java-0.20.2.tgz"
-  integrity sha512-jc6RCnM+JE2ns1AkpErOp2Dp1jOADPbljsrWup0Vj2qTmG8KGYMSTD7HcrVRyZUC6pRLFySPMOh8x7Dn12aynw==
-  dependencies:
-    nan "^2.14.1"
-
-tree-sitter-javascript@^0.20.1:
-  version "0.20.1"
-  resolved "https://r.cnpmjs.org/tree-sitter-javascript/-/tree-sitter-javascript-0.20.1.tgz"
-  integrity sha512-2LNRAw6vd6NDGf5DvAZTaIJDv0j7519bbDsQQ9jnT7uC91efvbn2BxOagNs7u41LSbmsuScjkM8VeN0mnya1iw==
-  dependencies:
-    nan "^2.17.0"
-
-tree-sitter-kotlin@^0.3.1:
-  version "0.3.1"
-  resolved "https://r.cnpmjs.org/tree-sitter-kotlin/-/tree-sitter-kotlin-0.3.1.tgz"
-  integrity sha512-mSm1H7FBwJ3D8gtYdQ6ptSY6spIo7UvHWx8zdmrWthn+g8lcMKJ9LD3N4xVnbBmisdVtU/8g0oFpkuAWFsxAMA==
-  dependencies:
-    nan "^2.17.0"
-
-tree-sitter-markdown@^0.7.1:
-  version "0.7.1"
-  resolved "https://r2.cnpmjs.org/tree-sitter-markdown/-/tree-sitter-markdown-0.7.1.tgz"
-  integrity sha512-hB3sEm1JtfoRUzGvknL9RQrS/LJvbrdI9WfGbU8gE6xMjbbAKHfHrNzh4Oo9JxksfUf6UEMxy91acRajEIOnGQ==
-  dependencies:
-    nan "^2.14.0"
-
-tree-sitter-php@^0.20.0:
-  version "0.20.0"
-  resolved "https://r.cnpmjs.org/tree-sitter-php/-/tree-sitter-php-0.20.0.tgz"
-  integrity sha512-di7d1jjAu05Hj9AufXlUQzTHGaThemU2HV9MjE17HnbW8TfuwNzH0Q0BQuJLrIJipjK9bhqhNe1fS9wtkyUkYg==
-  dependencies:
-    nan "^2.18.0"
-
-tree-sitter-python@^0.20.4:
-  version "0.20.4"
-  resolved "https://r.cnpmjs.org/tree-sitter-python/-/tree-sitter-python-0.20.4.tgz"
-  integrity sha512-F+94q/t9+4J5yaQnmfAqEf4OZFjuhuyniRtb9P2jPaBwHrbyJL44RKFALovZxhF0syLFKpTQ7ODywyiGeB1YMg==
-  dependencies:
-    nan "^2.17.0"
-
-tree-sitter-ruby@^0.19.0:
-  version "0.19.0"
-  resolved "https://r2.cnpmjs.org/tree-sitter-ruby/-/tree-sitter-ruby-0.19.0.tgz"
-  integrity sha512-uzASkTuC6wXnnshfDgij/Q9FYWxODCyIKVb0eHVGX9G5Cu5iFPvgJQgWTKIft1zomTjKjD25YIwFUnXnzZf4Ew==
-  dependencies:
-    nan "^2.14.1"
-    prebuild-install "^5.0.0"
-
-tree-sitter-rust@^0.20.4:
-  version "0.20.4"
-  resolved "https://r.cnpmjs.org/tree-sitter-rust/-/tree-sitter-rust-0.20.4.tgz"
-  integrity sha512-pgqPgw/vmx3LGjsfOXHJ+YrIx/Xg0NYVPbUWwlonoQMHD0Jxd1i/Fgq6N0ANOu9Wmb188MN9dVRLHPotF+IW5g==
-  dependencies:
-    nan "^2.17.0"
-
-tree-sitter-scala@^0.19.0:
-  version "0.19.0"
-  resolved "https://r2.cnpmjs.org/tree-sitter-scala/-/tree-sitter-scala-0.19.0.tgz"
-  integrity sha512-PALw1LDNvMv/OdrHq5DD5eR7NULa7Lh/CqKCVRtL7ohc4I3E7cO5TkPaBc49MImHbUlpBKxIbH7KDdOyWAVkkg==
-  dependencies:
-    nan "^2.14.1"
-
-tree-sitter-solidity@^1.2.0:
-  version "1.2.0"
-  resolved "https://r.cnpmjs.org/tree-sitter-solidity/-/tree-sitter-solidity-1.2.0.tgz"
-  integrity sha512-oQqSZ96npWi0FLNrM8FZ9M8HHrZfNVLF9CF9nTYlS5a8Svm2I1UAYffq+dxc4K4M+qEnzYiZrJubxdh+BbgdMQ==
-  dependencies:
-    nan "^2.15.0"
-
-tree-sitter-typescript@^0.20.3:
-  version "0.20.3"
-  resolved "https://registry.npmjs.org/tree-sitter-typescript/-/tree-sitter-typescript-0.20.3.tgz"
-  integrity sha512-5+RZ9G3/VOxxSzyniVc5dfNhfan1eOxQvUdTgXhpsGIYlmSW3HwIuPEJ7r65FWH2WnJWirOu11Pm0usmkx2JOg==
-  dependencies:
-    nan "^2.14.0"
-
-tree-sitter@^0.21.1:
-  version "0.21.1"
-  resolved "https://registry.npmjs.org/tree-sitter/-/tree-sitter-0.21.1.tgz#fbb34c09056700814af0e1e37688e06463ba04c4"
-  integrity sha512-7dxoA6kYvtgWw80265MyqJlkRl4yawIjO7S5MigytjELkX43fV2WsAXzsNfO7sBpPPCF5Gp0+XzHk0DwLCq3xQ==
-  dependencies:
-    node-addon-api "^8.0.0"
-    node-gyp-build "^4.8.0"
-
 trim-lines@^3.0.0:
   version "3.0.1"
   resolved "https://r.cnpmjs.org/trim-lines/-/trim-lines-3.0.1.tgz"
@@ -11488,11 +11331,6 @@ which-boxed-primitive@^1.0.2:
     is-number-object "^1.0.4"
     is-string "^1.0.5"
     is-symbol "^1.0.3"
-
-which-pm-runs@^1.0.0:
-  version "1.1.0"
-  resolved "https://r.cnpmjs.org/which-pm-runs/-/which-pm-runs-1.1.0.tgz"
-  integrity sha512-n1brCuqClxfFfq/Rb0ICg9giSZqCS+pLtccdag6C2HyufBrh3fBOiy9nb6ggRMvWOVH5GrdJskj5iGTZNxd7SA==
 
 which-typed-array@^1.1.11, which-typed-array@^1.1.13:
   version "1.1.13"
