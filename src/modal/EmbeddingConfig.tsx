@@ -82,6 +82,10 @@ const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingCo
             })
           })
         }}>
+          <div style={{marginBottom:'20px', fontSize: '12px', color:'rgba(0,0,0,.4)'}}>
+            <span style={{color:'red',marginRight:'10px'}}>*</span>
+            默认继承chat config
+          </div>
           <TextValidator
             name={'baseUrl'}
             value={apiConfigModal.config.baseUrl}
