@@ -93,7 +93,7 @@ async function getDocuments({ filePath: fp, fileType='resource' }: {filePath: st
 export const getRemoteFiles = async (url:string)=>{
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
-        const dl = new GitHub({
+        const dl = await GitHub.createInstance({
             url,
             proxy: proxy,
             downloadFileName: encodeURIComponent(new URL(url).pathname)
@@ -108,7 +108,7 @@ export const getRemoteDownloadedDir = async (url:string)=>{
     const downloadFileName = encodeURIComponent(new URL(url).pathname)
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
-        const dl = new GitHub({
+        const dl = await GitHub.createInstance({
             url,
             proxy: proxy,
             downloadFileName

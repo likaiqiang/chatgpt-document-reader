@@ -1,10 +1,10 @@
 import fs from 'fs/promises';
 import { existsSync, mkdirSync,createWriteStream } from 'fs';
 import {fetch, ProxyAgent} from 'undici'
-import os from 'os';
 import filepath from 'path';
 import ZIPLoader from '@/loaders/zip';
 import { documentsOutputDir } from '@/config';
+const PRIVATE_CONSTRUCTOR_KEY = Symbol('private');
 
 interface GitHubInfo {
   author?: string,
@@ -22,6 +22,14 @@ interface Params{
   proxy?: string
 }
 
+interface GithubParams {
+  url: string,
+  downloadFileName?: string,
+  githubInfo: GitHubInfo,
+  proxy?: string,
+  key:Symbol
+}
+
 export class GitHub {
   url: string;
   downloadFileName: string;
@@ -31,18 +39,31 @@ export class GitHub {
   private proxy:ProxyAgent
   downloadedFiles: string[]
 
-  constructor({url, downloadFileName,proxy}:Params) {
+  constructor({githubInfo, proxy, key, url, downloadFileName}:GithubParams) {
+    if (key !== PRIVATE_CONSTRUCTOR_KEY) {
+      throw new Error('Use GitHub.createInstance() to create an instance.');
+    }
+
     this.url = url;
     this.downloadFileName = downloadFileName;
     if(this.downloadFileName === undefined){
       this.downloadFileName = encodeURIComponent(new URL(url).pathname)
     }
     this.proxy = proxy ? new ProxyAgent(proxy) : undefined
-    this.info = this.getParsedInfo();
+    this.info = githubInfo;
     this.downloadedFiles = []
     if(!existsSync(documentsOutputDir)){
       mkdirSync(documentsOutputDir,{recursive: true})
     }
+  }
+  static async createInstance({url, downloadFileName,proxy}:Params){
+    return new GitHub({
+      githubInfo: await GitHub.getParsedInfo(url),
+      proxy,
+      key: PRIVATE_CONSTRUCTOR_KEY,
+      downloadFileName,
+      url
+    });
   }
   async downloadFile(url:string){
     return new Promise((resolve, reject) => {
@@ -148,8 +169,8 @@ export class GitHub {
     )
   }
 
-  getParsedInfo() {
-    const repoPath = new URL(this.url).pathname;
+  static async getParsedInfo(url:string) {
+    const repoPath = new URL(url).pathname;
     const splitPath = repoPath.split('/');
     const [_,author,repository,__ , branch] = splitPath;
     const rootName = splitPath[splitPath.length-1];
@@ -170,7 +191,7 @@ export class GitHub {
     }
     if (!repoInfo.resPath || repoInfo.resPath == '') {
       if (!repoInfo.branch || repoInfo.branch == '') {
-        repoInfo.branch = 'master';
+        repoInfo.branch = await fetch(`https://api.github.com/repos/${author}/${repository}`).then(res => res.json()).then((res:{default_branch:string})=> res.default_branch);
       }
     }
     return repoInfo;
