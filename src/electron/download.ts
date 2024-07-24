@@ -1,9 +1,14 @@
 import fs from 'fs/promises';
-import { existsSync, mkdirSync,createWriteStream } from 'fs';
+import { existsSync, mkdirSync, createWriteStream } from 'fs';
 import {fetch, ProxyAgent} from 'undici'
 import filepath from 'path';
 import ZIPLoader from '@/loaders/zip';
 import { documentsOutputDir } from '@/config';
+
+import { pipeline } from 'stream';
+import { promisify } from 'util';
+import {Open} from 'unzipper';
+const streamPipeline = promisify(pipeline);
 const PRIVATE_CONSTRUCTOR_KEY = Symbol('private');
 
 interface GitHubInfo {
@@ -82,11 +87,10 @@ export class GitHub {
           }
           const localFilePath = filepath.join(documentsOutputDir, this.downloadFileName);
           const fileStream = createWriteStream(localFilePath);
-          // response.body.pipe(fileStream);
-          fileStream.on('finish', () => {
+          streamPipeline(response.body, fileStream).then(()=>{
             this.downloadedFiles.push(localFilePath)
             resolve(`文件已保存到: ${localFilePath}`);
-          });
+          })
         })
         .catch(error => {
           reject(error.toString());
@@ -210,10 +214,15 @@ export class GitHub {
         this.downloadFileName += '.zip'
       }
       await this.downloadFile(downloadUrl);
-      return ZIPLoader.unzip(
-        filepath.join(documentsOutputDir, this.downloadFileName)
-      ).then(files=>{
-        this.downloadedFiles.push(...files)
+
+      return Open.file(filepath.join(documentsOutputDir, this.downloadFileName)).then(d=>{
+        return d.extract({ path: documentsOutputDir }).then(()=>{
+          const foldername = d.files[0].path.split(filepath.sep)[0];
+          fs.rename(
+            filepath.join(documentsOutputDir, foldername),
+            filepath.join(documentsOutputDir, this.downloadFileName)
+          )
+        })
       })
     } else {
       const response = await fetch(this.info.urlPrefix + this.info.resPath + this.info.urlPostfix,{
@@ -234,15 +243,16 @@ export class GitHub {
   }
 }
 
-// const dl = new GitHub(
+// GitHub.createInstance(
 //   {
-//     url:'https://github.com/lodash/lodash/blob/main/src',
-//     downloadFileName: 'lodash',
+//     url:'https://github.com/Nutlope/aicommits/tree/develop/src',
+//     downloadFileName: 'aicommits-src',
 //     proxy:'http://127.0.0.1:7890'
 //   }
-// )
-// dl.downloadZippedFiles().then(()=>{
-//   console.log(dl.downloadedFiles);
+// ).then(dl=>{
+//   dl.downloadZippedFiles().then(()=>{
+//     console.log(dl.downloadedFiles);
+//   })
 // })
 
 
