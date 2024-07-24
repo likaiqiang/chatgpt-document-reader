@@ -264,7 +264,7 @@ class TXTReader(BaseReader):
             content = fp.read()
 
             # Create metadata dictionary
-            metadata = {"file_name": file.name, 'source': str(file.resolve())}
+            metadata = {"file_name": file.name, "source": str(file.resolve())}
             if extra_info is not None:
                 metadata.update(extra_info)
 
@@ -338,7 +338,7 @@ class CODEReader(BaseReader):
             content = fp.read()
 
             # Create metadata dictionary
-            metadata = {"file_name": file.name, "suffix": file.suffix.lower(), 'source': str(file.resolve())}
+            metadata = {"file_name": file.name, "suffix": file.suffix.lower(), "source": str(file.resolve())}
             if extra_info is not None:
                 metadata.update(extra_info)
 

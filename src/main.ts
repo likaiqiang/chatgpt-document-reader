@@ -279,7 +279,7 @@ const createWindow = () => {
             await ingestData({ filename: filename, filePath: fileDir, embedding, fileType: 'code' });
           }
         } else {
-          filename = convertChineseToUnicode(filename);
+          filename = encodeURIComponent(convertChineseToUnicode(filename));
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
@@ -308,6 +308,7 @@ const createWindow = () => {
   });
   ipcMain.handle(Channel.checkChatConfig, () => {
     const config = getLocalApikey();
+    if(config.ernie) return Promise.resolve()
     if (config.baseUrl && config.apiKey) return Promise.resolve();
     return Promise.reject('no api config');
   });

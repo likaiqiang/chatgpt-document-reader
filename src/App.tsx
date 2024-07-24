@@ -370,7 +370,7 @@ export default function App() {
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
-                                                                <span title={decodeURIComponent(convertUnicodeToNormal(item.filename))}>{decodeURIComponent(convertUnicodeToNormal(item.filename))}</span>
+                                                                <span title={convertUnicodeToNormal(decodeURIComponent(item.filename))}>{convertUnicodeToNormal(decodeURIComponent(item.filename))}</span>
                                                                 <img
                                                                   className={styles.tabCloseIcon}
                                                                   src={closeIcon}
@@ -474,6 +474,7 @@ export default function App() {
                                                                         <DataFor list={message.sourceDocs}>
                                                                             {
                                                                                 (doc, index) => {
+                                                                                    const source = doc.metadata?.source || doc.metadata?.file_path;
                                                                                     return (
                                                                                         <div
                                                                                             key={`messageSourceDocs-${index}`}>
@@ -488,10 +489,10 @@ export default function App() {
                                                                                                     </ReactMarkdown>
                                                                                                     <p
                                                                                                       className="mt-2"
-                                                                                                      style={{cursor: (doc.metadata?.source && checkSupportedLanguages(doc.metadata.source)) ? 'pointer' : ''}}
+                                                                                                      style={{cursor: (source && checkSupportedLanguages(source)) ? 'pointer' : ''}}
                                                                                                       onClick={()=>{
-                                                                                                          if(checkSupportedLanguages(doc.metadata.source)){
-                                                                                                              window.chatBot.requestCallGraph(doc.metadata.source).then((res)=>{
+                                                                                                          if(checkSupportedLanguages(source)){
+                                                                                                              window.chatBot.requestCallGraph(source).then((res)=>{
                                                                                                                   const {code, dot, codeMapping, definitions} = res
                                                                                                                   codeViewRef.current.setIsOpen(true)
                                                                                                                   setTimeout(()=>{
@@ -504,7 +505,7 @@ export default function App() {
                                                                                                           }
                                                                                                       }}
                                                                                                     >
-                                                                                                        <b>Source:</b> {doc.metadata.source}
+                                                                                                        <b>Source:</b> {source}
                                                                                                     </p>
                                                                                                 </AccordionContent>
                                                                                             </AccordionItem>
