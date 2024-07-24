@@ -97,6 +97,7 @@
 .files{
   overflow: auto;
   max-height: 100%;
+  width: 35%;
 }
 .messagelistloading {
   display: flex;
