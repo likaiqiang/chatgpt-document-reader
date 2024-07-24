@@ -6,6 +6,7 @@ import { ChatOpenAI } from 'langchain/chat_models/openai';
 import fetch from 'node-fetch';
 import {HttpsProxyAgent} from "https-proxy-agent";
 import { StringOutputParser } from 'langchain/schema/output_parser';
+import { ChatPromptValue } from '@langchain/core/prompt_values';
 const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','python_code','ernie.py') : path.join(__dirname,'python_code','ernie.py')
 
 
@@ -24,10 +25,13 @@ export default class LLM extends Runnable{
     super()
     this.chatType = chatType
   }
-  async chat(messages: {content: string, role:'assistant' | 'user'}[] | string, signalId?:string){
+  async chat(messages: {content: string, role:'assistant' | 'user'}[] | string | ChatPromptValue, signalId?:string){
     console.log('signalId', signalId);
     if(typeof messages === 'string'){
       messages = [{content: messages, role:'user'}]
+    }
+    if(messages instanceof ChatPromptValue){
+      messages = [{content: messages.messages[0].content, role:'user'}] as {content: string, role:'assistant' | 'user'}[]
     }
     if(this.chatType === ChatType.ERNIE){
       return runPython<string>({
