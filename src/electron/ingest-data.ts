@@ -1,7 +1,7 @@
 import { FaissStore } from './faiss';
 import { HttpsProxyAgent } from 'https-proxy-agent';
 import { documentsOutputDir, outputDir } from '@/config';
-import { getApiConfig, getProxy } from '@/electron/storage';
+import { getApiConfig, getEmbeddingConfig, getProxy } from '@/electron/storage';
 import fetch from 'node-fetch';
 import path from 'path'
 import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
@@ -121,7 +121,7 @@ export const getRemoteDownloadedDir = async (url:string)=>{
 
 export const ingestData = async ({ filename, filePath,embedding, fileType }: IngestParams) => {
     const proxy = getProxy() as string;
-    const config = getApiConfig();
+    const config = getEmbeddingConfig();
     try {
         const docs = await getDocuments({
             filePath,
