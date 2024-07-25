@@ -260,7 +260,8 @@ export default function App() {
             })
         }
         else{
-            promise = window.chatBot.ingestData([urlModal.url], urlModal.checked)
+            const url = urlModal.url.endsWith('.git') ? urlModal.url.slice(0,-4) : urlModal.url
+            promise = window.chatBot.ingestData([url], urlModal.checked)
         }
         return promise.then(async ()=>{
             const res = await getResources()
@@ -276,6 +277,7 @@ export default function App() {
     }
     const onRemoteFileUpload = ()=>{
         if(!urlModal.url.startsWith('https://github.com')) return toast('不支持的url')
+
         return onLocalFileUpload(IngestDataType.remote)
     }
     const onFileUpload = async () => {
