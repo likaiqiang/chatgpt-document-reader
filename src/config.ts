@@ -12,5 +12,3 @@ if(!fs.existsSync(outputDir)){
 if(!fs.existsSync(documentsOutputDir)){
   fs.mkdirSync(documentsOutputDir,{recursive: true})
 }
-
-console.log('outputDir',outputDir);

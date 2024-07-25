@@ -8,6 +8,7 @@ import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
 import {GitHub} from '@/electron/download'
 import fs from 'fs/promises';
+import { getProxyAgent } from '@/utils/default';
 
 const embeddingModel = 'text-embedding-ada-002';
 
@@ -44,7 +45,7 @@ export const checkSupported = (path:string, suffixes:string[] = supportedDocumen
 }
 
 
-async function getDocuments({ filePath: fp, fileType='resource' }: {filePath: string, fileType?: string}) {
+async function getDocuments({ filePath: fp }: {filePath: string, fileType?: string}) {
     const stat = await fs.stat(fp);
     if (stat.isDirectory()) {
         const files = await fs.readdir(fp);
@@ -93,9 +94,11 @@ async function getDocuments({ filePath: fp, fileType='resource' }: {filePath: st
 export const getRemoteFiles = async (url:string)=>{
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
+        const {enableProxy} = getEmbeddingConfig()
+
         const dl = await GitHub.createInstance({
             url,
-            proxy: proxy,
+            proxy: getProxyAgent(enableProxy, proxy),
             downloadFileName: encodeURIComponent(new URL(url).pathname)
         })
         await dl.downloadZippedFiles()
@@ -108,9 +111,10 @@ export const getRemoteDownloadedDir = async (url:string)=>{
     const downloadFileName = encodeURIComponent(new URL(url).pathname)
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
+        const {enableProxy} = getEmbeddingConfig()
         const dl = await GitHub.createInstance({
             url,
-            proxy: proxy,
+            proxy: getProxyAgent(enableProxy, proxy),
             downloadFileName
         })
         await dl.downloadZippedFiles()
@@ -134,7 +138,7 @@ export const ingestData = async ({ filename, filePath,embedding, fileType }: Ing
                     openAIApiKey: config.apiKey,
                     modelName: embeddingModel
                 }, {
-                    httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+                    httpAgent: getProxyAgent(config.enableProxy, proxy),
                     // @ts-ignore
                     fetch,
                     baseURL: config.baseUrl

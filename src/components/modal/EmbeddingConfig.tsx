@@ -1,4 +1,4 @@
-import { Box, Button, Modal } from '@mui/material';
+import { Box, Button, Checkbox, Modal } from '@mui/material';
 import { TextValidator, ValidatorForm } from 'react-material-ui-form-validator';
 import { toast } from 'react-hot-toast';
 import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
@@ -30,11 +30,16 @@ const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingCo
     isOpen:false,
     config: {
       baseUrl:'',
-      apiKey:''
+      apiKey:'',
+      enableProxy: true
     }
   })
   function getEmbeddingConfig(){
     return window.chatBot.requestGetEmbeddingConfig().then(config=>{
+      if(typeof config.enableProxy === 'undefined'){
+        config.enableProxy = true
+        window.chatBot.replyEmbeddingConfig(config)
+      }
       setApiConfigModal(draft => {
         draft.config = config
       })
@@ -74,27 +79,27 @@ const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingCo
       }}
     >
       <Box sx={modalStyle}>
-        <ValidatorForm onSubmit={e=>{
+        <ValidatorForm onSubmit={e => {
           e.preventDefault()
-          window.chatBot.replyEmbeddingConfig(apiConfigModal.config).then(()=>{
+          window.chatBot.replyEmbeddingConfig(apiConfigModal.config).then(() => {
             setApiConfigModal(draft => {
               draft.isOpen = false
             })
           })
         }}>
-          <div style={{marginBottom:'20px', fontSize: '12px', color:'rgba(0,0,0,.4)'}}>
-            <span style={{color:'red',marginRight:'10px'}}>*</span>
+          <div style={{ marginBottom: '20px', fontSize: '12px', color: 'rgba(0,0,0,.4)' }}>
+            <span style={{ color: 'red', marginRight: '10px' }}>*</span>
             请输入embedding config（默认继承chat config）
           </div>
           <TextValidator
             name={'baseUrl'}
             value={apiConfigModal.config.baseUrl}
-            validators={["required","isURL"]}
-            errorMessages={["请输入内容","请输入正确的url"]}
+            validators={["required", "isURL"]}
+            errorMessages={["请输入内容", "请输入正确的url"]}
             label="请输入openai baseurl"
-            style={{width:'100%', marginBottom: '20px'}}
+            style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
-            onChange={e=> {
+            onChange={e => {
               setApiConfigModal(draft => {
                 draft.config.baseUrl = (e.target as HTMLInputElement).value
               })
@@ -106,20 +111,32 @@ const EmbeddingConfig = (props: EmbeddingConfigProps, ref: React.Ref<EmbeddingCo
             label="please enter apikey"
             validators={["required"]}
             errorMessages={["please enter apikey"]}
-            style={{width: '100%', marginBottom: '20px'}}
+            style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
-            onChange={e=> {
+            onChange={e => {
               setApiConfigModal(draft => {
                 draft.config.apiKey = (e.target as HTMLInputElement).value
               })
             }}
           />
+          <div style={{ marginBottom: '20px', fontSize: '12px' }}>
+            <span>是否启用代理</span>
+            <Checkbox
+              checked={apiConfigModal.config.enableProxy}
+              onChange={() => {
+                const value = !apiConfigModal.config.enableProxy
+                setApiConfigModal(draft => {
+                  draft.config.enableProxy = value
+                })
+              }}
+            />
+          </div>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <Button variant="contained" color="secondary" onClick={()=>{
-              window.chatBot.requestTestEmbeddingConfig(apiConfigModal.config).then(()=>{
+            <Button variant="contained" color="secondary" onClick={() => {
+              window.chatBot.requestTestEmbeddingConfig(apiConfigModal.config).then(() => {
                 toast.success('api test success')
-              }).catch((e)=>{
-                if(!e.toString().includes('AbortError')){
+              }).catch((e) => {
+                if (!e.toString().includes('AbortError')) {
                   toast.error('api test failed')
                 }
               })

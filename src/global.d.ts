@@ -23,11 +23,13 @@ declare global {
     interface ApiConfig{
         apiKey:string,
         baseUrl:string,
-        ernie: boolean
+        ernie: boolean,
+        enableProxy: boolean
     }
     interface EmbeddingConfig{
         baseUrl: string,
         apiKey: string
+        enableProxy: boolean
     }
     const MAIN_WINDOW_VITE_NAME:string
     const MAIN_WINDOW_VITE_DEV_SERVER_URL: string

@@ -8,6 +8,7 @@ import { documentsOutputDir } from '@/config';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import {Open} from 'unzipper';
+import { rimraf } from 'rimraf';
 const streamPipeline = promisify(pipeline);
 const PRIVATE_CONSTRUCTOR_KEY = Symbol('private');
 
@@ -24,14 +25,14 @@ interface GitHubInfo {
 interface Params{
   url: string,
   downloadFileName?: string,
-  proxy?: string
+  proxy?: ProxyAgent
 }
 
 interface GithubParams {
   url: string,
   downloadFileName?: string,
   githubInfo: GitHubInfo,
-  proxy?: string,
+  proxy?: ProxyAgent,
   key:Symbol
 }
 
@@ -54,7 +55,7 @@ export class GitHub {
     if(this.downloadFileName === undefined){
       this.downloadFileName = encodeURIComponent(new URL(url).pathname)
     }
-    this.proxy = proxy ? new ProxyAgent(proxy) : undefined
+    this.proxy = proxy
     this.info = githubInfo;
     this.downloadedFiles = []
     if(!existsSync(documentsOutputDir)){
@@ -220,8 +221,9 @@ export class GitHub {
           const foldername = d.files[0].path.split(filepath.sep)[0];
           fs.rename(
             filepath.join(documentsOutputDir, foldername),
-            filepath.join(documentsOutputDir, this.downloadFileName)
+            filepath.join(documentsOutputDir, this.downloadFileName.slice(0, -4))
           )
+          rimraf.sync(filepath.join(documentsOutputDir, this.downloadFileName))
         })
       })
     } else {

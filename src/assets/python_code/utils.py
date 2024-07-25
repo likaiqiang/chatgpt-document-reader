@@ -1,5 +1,6 @@
 import math
 
+import httpx
 import re
 from fsspec import AbstractFileSystem
 from pathlib import Path
@@ -373,14 +374,13 @@ class CODEReader(BaseReader):
         return result
 
 
-def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
+def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
         input_files = [path]
     if Path(path).is_dir():
         input_dir = path
-
     documents = SimpleDirectoryReader(
         exclude_hidden=False,
         recursive=True,
@@ -402,7 +402,8 @@ def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str)
     # 初始化嵌入模型
     embed_model = OpenAIEmbedding(
         api_key=embedding_api_key,
-        api_base=embedding_api_base
+        api_base=embedding_api_base,
+        http_client=httpx.Client(proxies={"http://": proxy, "https://": proxy})
     )
 
     # 初始化语义分块器
@@ -418,7 +419,7 @@ def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str)
     return result
 
 
-def get_text_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
+def get_text_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -448,6 +449,7 @@ def get_text_document(path: str, embedding_api_key: str, embedding_api_base: str
     embed_model = OpenAIEmbedding(
         api_key=embedding_api_key,
         api_base=embedding_api_base,
+        http_client=httpx.Client(proxies={"http://": proxy, "https://": proxy})
     )
     splitter = BaseSentenceSplitter(
         buffer_size=1,
@@ -466,7 +468,7 @@ def split_by_ast(text: str, metadata: Optional[Dict]):
     return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
 
 
-def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str) -> List[Document]:
+def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
     input_files = None
     input_dir = None
     if Path(path).is_file():
@@ -508,7 +510,8 @@ def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str
         return [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs]
     embed_model = OpenAIEmbedding(
         api_key=embedding_api_key,
-        api_base=embedding_api_base
+        api_base=embedding_api_base,
+        http_client=httpx.Client(proxies={"http://": proxy, "https://": proxy})
     )
 
     # 初始化语义分块器

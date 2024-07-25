@@ -28,20 +28,24 @@ export interface ChatConfigProps{
 
 const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>{
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string, models: any[]}>({
+  const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, models: any[]}>({
     isOpen:false,
     config: {
       baseUrl:'',
       apiKey:'',
-      ernie: true
+      ernie: true,
+      enableProxy: true
     },
-    models:[],
-    proxy:''
+    models:[]
   })
   const [modelLoading, setModelLoading] = useState(false)
   const [model, setModel] = useState('')
   async function getChatConfig(){
     return window.chatBot.requestGetChatConfig().then(config=>{
+      if(typeof config.enableProxy === 'undefined'){
+        config.enableProxy = true
+        window.chatBot.replyChatConfig(config)
+      }
       setApiConfigModal(draft => {
         draft.config = config
       })
@@ -192,16 +196,25 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
               })
             }}
           />
+          <div style={{ marginBottom: '20px', fontSize: '12px' }}>
+            <span>是否启用代理</span>
+            <Checkbox
+              checked={apiConfigModal.config.enableProxy}
+              onChange={() => {
+                const value = !apiConfigModal.config.enableProxy
+                setApiConfigModal(draft => {
+                  draft.config.enableProxy = value
+                })
+              }}
+            />
+          </div>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <Button
               variant="contained"
               color="secondary"
               disabled={disabled}
               onClick={() => {
-                window.chatBot.requestTestChatConfig({
-                  ...apiConfigModal.config,
-                  proxy: apiConfigModal.proxy
-                }).then(() => {
+                window.chatBot.requestTestChatConfig(apiConfigModal.config).then(() => {
                   toast.success('api test success')
                 }).catch((e) => {
                   if (!e.toString().includes('AbortError')) {

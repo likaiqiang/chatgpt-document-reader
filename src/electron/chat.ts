@@ -4,11 +4,11 @@ import {FaissStore } from "./faiss";
 import { makeChain } from '@/utils/makechain';
 import path from 'path'
 import fsPromise from 'node:fs/promises';
-import {HttpsProxyAgent} from "https-proxy-agent";
 import {outputDir} from '@/config'
 import { ChatParams } from '@/types/chat';
-import { getApiConfig, getEmbeddingConfig, getProxy } from '@/electron/storage';
-import fetch from 'node-fetch'
+import { getEmbeddingConfig, getProxy } from '@/electron/storage';
+import {fetch} from 'undici'
+import { getProxyAgent } from '@/utils/default';
 
 
 export default async ({question, history, filename}:ChatParams) => {
@@ -30,7 +30,7 @@ export default async ({question, history, filename}:ChatParams) => {
             new Embeddings({
                 openAIApiKey: config.apiKey,
             },{
-                httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+                httpAgent: getProxyAgent(config.enableProxy, proxy),
                 // @ts-ignore
                 fetch,
                 baseURL: config.baseUrl

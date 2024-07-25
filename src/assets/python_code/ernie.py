@@ -20,8 +20,10 @@ signal.signal(signal.SIGTERM, signal_handler)
 async def connect():
     parser = ArgumentParser()
     parser.add_argument("--messages", required=True, help="messages to chat")
+    parser.add_argument("--proxy", help="proxy address")
     args = parser.parse_args()
-    model = ERNIEBot(model="ernie-speed-128k", access_token="8c0c6d5d01c16888a6f9a37021dc438d12174e53")
+    model = ERNIEBot(model="ernie-speed-128k", access_token="8c0c6d5d01c16888a6f9a37021dc438d12174e53",
+                     proxy=args.proxy)
     messages_data = json.loads(args.messages)
     messages = [
         HumanMessage(content=message['content']) if message['role'] == 'user' else AIMessage(

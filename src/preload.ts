@@ -89,7 +89,7 @@ export const api = {
     replyModel(model:string){
         return ipcRenderer.invoke(Channel.replyModel, model)
     },
-    requestTestChatConfig(config: ApiConfig & {proxy: string}){
+    requestTestChatConfig(config: ApiConfig){
         return ipcRenderer.invoke(Channel.requestTestChatConfig, config)
     },
     requestTestEmbeddingConfig(config: EmbeddingConfig){

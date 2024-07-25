@@ -1,6 +1,6 @@
 import { Box, Button, Modal } from '@mui/material';
 import { TextValidator, ValidatorForm } from 'react-material-ui-form-validator';
-import React, { forwardRef, useEffect, useImperativeHandle } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { useImmer } from 'use-immer';
 
 const modalStyle = {
@@ -24,29 +24,24 @@ export interface ProxyConfigProps{
 }
 
 const ProxyConfig = (props: ProxyConfigProps, ref: React.Ref<ProxyConfigHandler>)=>{
-  const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string}>({
-    isOpen:false,
-    config: {
-      baseUrl:'',
-      apiKey:'',
-      ernie: true
-    },
-    proxy:''
+  const [apiConfigModal, setApiConfigModal] = useImmer({
+    isOpen: false,
+    config:{
+      proxy:""
+    }
   })
   async function getProxyConfig(){
-    return window.chatBot.requestGetChatConfig().then(config=>{
+    return window.chatBot.requestGetProxy().then(proxy=>{
       setApiConfigModal(draft => {
-        draft.config = config
+        draft.config.proxy = proxy
       })
     })
   }
 
   useEffect(() => {
     window.chatBot.onProxyChange(()=>{
-      getProxyConfig().then(()=>{
-        setApiConfigModal(draft => {
-          draft.isOpen = true
-        })
+      setApiConfigModal(draft => {
+        draft.isOpen = true
       })
     })
   }, []);
@@ -76,7 +71,7 @@ const ProxyConfig = (props: ProxyConfigProps, ref: React.Ref<ProxyConfigHandler>
       <Box sx={modalStyle}>
         <ValidatorForm onSubmit={e => {
           e.preventDefault()
-          window.chatBot.replyProxy(apiConfigModal.proxy).then(() => {
+          window.chatBot.replyProxy(apiConfigModal.config.proxy).then(() => {
             setApiConfigModal(draft => {
               draft.isOpen = false
             })
@@ -88,13 +83,13 @@ const ProxyConfig = (props: ProxyConfigProps, ref: React.Ref<ProxyConfigHandler>
           </div>
           <TextValidator
             name={'proxy'}
-            value={apiConfigModal.proxy}
+            value={apiConfigModal.config.proxy}
             label="proxy config eg: http://127.0.0.1:7890"
             style={{ width: '100%', marginBottom: '20px' }}
             size={"small"}
             onChange={e => {
               setApiConfigModal(draft => {
-                draft.proxy = (e.target as HTMLInputElement).value
+                draft.config.proxy = (e.target as HTMLInputElement).value
               })
             }}
           />

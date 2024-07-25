@@ -5,7 +5,8 @@ import { Document } from '@/types/document';
 import {existsSync, mkdirSync, writeFileSync} from 'fs'
 import { documentsOutputDir } from '@/config';
 import { runPython } from '@/utils/shell';
-import { getEmbeddingConfig } from '@/electron/storage';
+import { getEmbeddingConfig, getProxy } from '@/electron/storage';
+import { getProxyAgent } from '@/utils/default';
 
 // semantic_splitter_zip.py
 const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','semantic_splitter_zip.py') : filepath.join(__dirname,'python_code','semantic_splitter_zip.py')
@@ -40,11 +41,16 @@ class ZIPLoader{
   }
   async parse(path:string): Promise<Document[]>{
     const embeddingConfig = getEmbeddingConfig()
+    const proxy = getProxy() as string;
+    const args = ["--path", path, '--embedding_api_key', embeddingConfig.apiKey, '--embedding_api_base', embeddingConfig.baseUrl]
+    if(getProxyAgent(embeddingConfig.enableProxy, proxy)){
+      args.push('--proxy', proxy)
+    }
     const foldername = encodeURIComponent(new URL(path).pathname)
     await ZIPLoader.unzip(path, foldername)
     return runPython<string>({
           scriptPath,
-      args: ["--path", path, '--embedding_api_key', embeddingConfig.apiKey, '--embedding_api_base', embeddingConfig.baseUrl],
+          args,
           socketEvent:'split_zip_result'
         }).then(json=>{
           const messages = JSON.parse(json) as Document[]

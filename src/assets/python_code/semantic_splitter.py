@@ -32,7 +32,7 @@ async def connect_handler():
         asyncio.create_task(sio.disconnect())
 
     result = get_pdf_document(path=args.path, embedding_api_key=args.embedding_api_key,
-                              embedding_api_base=args.embedding_api_base)
+                              embedding_api_base=args.embedding_api_base, proxy=args.proxy)
     await sio.emit('split_pdf_result', json.dumps(result), callback=ack_callback)
 
 
@@ -45,6 +45,7 @@ async def main():
     # 解析命令行参数
     parser = ArgumentParser()
     parser.add_argument("--path", required=True, help="path to pdf")
+    parser.add_argument("--proxy", help="proxy address")
     parser.add_argument("--embedding_api_key", required=True, help="embedding api key")
     parser.add_argument("--embedding_api_base", default="https://api.openai.com/v1", help="embedding api base")
     global args

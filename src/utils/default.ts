@@ -1,7 +1,6 @@
-import {fetch, ProxyAgent} from 'undici'
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { BrowserWindow, IpcMainEvent } from 'electron';
-import BrowserView = Electron.BrowserView;
+import {fetch, ProxyAgent,Dispatcher} from 'undici'
+import { IpcMainEvent } from 'electron';
+import { getProxy } from '@/electron/storage';
 
 export function mainSend(window: Electron.BrowserWindow | Electron.BrowserView, name: string): void
 export function mainSend<T>(window: Electron.BrowserWindow | Electron.BrowserView, name: string, params: T): void
@@ -14,13 +13,29 @@ export function mainOn<T>(window: Electron.BrowserWindow | Electron.BrowserView,
   window && window.webContents.on(name,cb)
 }
 
-export const fetchModels = async ({baseUrl, apiKey, proxy}: ApiConfig & {proxy: string}) =>{
+export function getProxyAgent(enableProxy:boolean, proxy: string):Dispatcher|undefined {
+  let dispatcher = undefined
+  if(enableProxy){
+    dispatcher = new ProxyAgent(proxy)
+  }
+  else if (enableProxy === false){
+    dispatcher = undefined
+  }
+  else{
+    dispatcher = proxy ? new ProxyAgent(proxy) : undefined
+  }
+  return dispatcher
+}
+
+export const fetchModels = async ({baseUrl, apiKey, enableProxy}: ApiConfig) =>{
   baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0,baseUrl.length -1) : baseUrl
+  const proxy = getProxy()
   return fetch(`${baseUrl}/models`,{
     headers:{
       'Authorization': `Bearer ${apiKey}`
     },
-    dispatcher: proxy ? new ProxyAgent(proxy) : undefined
+    dispatcher: getProxyAgent(enableProxy, proxy),
+    method:'GET',
   }).then(async res=>{
     const status = res.status + ''
     if(status.startsWith('4') || status.startsWith('5')) return Promise.reject(res.statusText)

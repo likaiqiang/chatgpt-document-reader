@@ -4,9 +4,9 @@ import { Runnable, RunnableSequence } from 'langchain/schema/runnable';
 import { getApiConfig, getModel, getProxy } from '@/electron/storage';
 import { ChatOpenAI } from 'langchain/chat_models/openai';
 import fetch from 'node-fetch';
-import {HttpsProxyAgent} from "https-proxy-agent";
 import { StringOutputParser } from 'langchain/schema/output_parser';
 import { ChatPromptValue } from '@langchain/core/prompt_values';
+import { getProxyAgent } from '@/utils/default';
 const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','python_code','ernie.py') : path.join(__dirname,'python_code','ernie.py')
 
 
@@ -33,24 +33,30 @@ export default class LLM extends Runnable{
     if(messages instanceof ChatPromptValue){
       messages = [{content: messages.messages[0].content, role:'user'}] as {content: string, role:'assistant' | 'user'}[]
     }
+    const config = getApiConfig()
+    const proxy = getProxy() as string;
     if(this.chatType === ChatType.ERNIE){
+      const proxyAgent = getProxyAgent(config.enableProxy, proxy)
+      const args = ["--messages", JSON.stringify(messages)]
+      if(proxyAgent){
+        args.push('--proxy', proxy)
+      }
       return runPython<string>({
         scriptPath,
-        args: ["--messages", JSON.stringify(messages)],
+        args,
         socketEvent:'llm_response',
         signalId
       })
     }
     if(this.chatType === ChatType.CHATGPT){
       const modelName = getModel()
-      const config = getApiConfig()
-      const proxy = getProxy() as string;
+
       const model = new ChatOpenAI({
         temperature: 0, // increase temperature to get more creative answers
         modelName,
         openAIApiKey: config.apiKey
       },{
-        httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
+        httpAgent: getProxyAgent(config.enableProxy, proxy),
         // @ts-ignore
         fetch,
         baseURL: config.baseUrl
