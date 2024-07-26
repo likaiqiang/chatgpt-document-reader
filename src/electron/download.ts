@@ -215,16 +215,9 @@ export class GitHub {
         this.downloadFileName += '.zip'
       }
       await this.downloadFile(downloadUrl);
-
-      return Open.file(filepath.join(documentsOutputDir, this.downloadFileName)).then(d=>{
-        return d.extract({ path: documentsOutputDir }).then(()=>{
-          const foldername = d.files[0].path.split(filepath.sep)[0];
-          fs.rename(
-            filepath.join(documentsOutputDir, foldername),
-            filepath.join(documentsOutputDir, this.downloadFileName.slice(0, -4))
-          )
-          rimraf.sync(filepath.join(documentsOutputDir, this.downloadFileName))
-        })
+      return ZIPLoader.unzip({
+        zipFilePath: filepath.join(documentsOutputDir, this.downloadFileName),
+        foldername:this.downloadFileName.slice(0, -4)
       })
     } else {
       const response = await fetch(this.info.urlPrefix + this.info.resPath + this.info.urlPostfix,{
