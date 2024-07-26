@@ -1,14 +1,13 @@
 import { FaissStore } from './faiss';
-import { HttpsProxyAgent } from 'https-proxy-agent';
 import { documentsOutputDir, outputDir } from '@/config';
-import { getApiConfig, getEmbeddingConfig, getProxy } from '@/electron/storage';
-import fetch from 'node-fetch';
+import { getEmbeddingConfig, getProxy } from '@/electron/storage';
 import path from 'path'
-import { getCodeDocs, getPdfDocs, getTextDocs, getZipDocs } from '@/loaders';
+import { getCodeDocs, getPdfDocs, getTextDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
 import {GitHub} from '@/electron/download'
 import fs from 'fs/promises';
 import { getProxyAgent } from '@/utils/default';
+import { RequestInfo, RequestInit,fetch } from 'undici';
 
 const embeddingModel = 'text-embedding-ada-002';
 
@@ -29,7 +28,7 @@ export const supportedDocuments = [
     ...supportedLanguages,
     '.pdf',
     '.txt',
-    '.zip'
+    // '.zip'
 ];
 
 export const checkSupported = (path:string, suffixes:string[] = supportedDocuments)=>{
@@ -44,53 +43,29 @@ export const checkSupported = (path:string, suffixes:string[] = supportedDocumen
     },false)
 }
 
-
-async function getDocuments({ filePath: fp }: {filePath: string, fileType?: string}) {
+async function getDocuments({ filePath: fp, fileType }: { filePath: string, fileType?: string }) {
     const stat = await fs.stat(fp);
     if (stat.isDirectory()) {
-        const files = await fs.readdir(fp);
-
-        let isPdfDir = false, isCodeDir = false, isTextDir=false
-
-        for(const file of files){
-            if(checkSupported(file, ['.pdf']) && isPdfDir === false){
-                isPdfDir = true
-            }
-            if(checkSupportedLanguages(file) && isCodeDir === false){
-                isCodeDir = true
-            }
-            if(checkSupported(file, ['.txt']) && isTextDir === false){
-                isTextDir = true
-            }
+        if(fileType === 'code'){
+            return getCodeDocs(fp);
         }
-
-        const result = []
-        if (isPdfDir) {
-            result.push(...await getPdfDocs(fp))
-        }
-        if (isCodeDir) {
-            result.push(...await getCodeDocs(fp))
-        }
-        if (isTextDir) {
-            result.push(...await getTextDocs(fp))
-        }
-        return result
     }
+
     if (fp.endsWith('.pdf')) {
-        return getPdfDocs(fp)
+        return getPdfDocs(fp);
     }
-    if(fp.endsWith('.txt')){
-        return getTextDocs(fp)
+    if (fp.endsWith('.txt')) {
+        return getTextDocs(fp);
     }
-    if (fp.endsWith('.zip')) {
-        return getZipDocs(fp) // 待优化
+    // if (fp.endsWith('.zip')) {
+    //     return getZipDocs(fp); // 待优化
+    // }
+    if (checkSupported(fp)) {
+        return getCodeDocs(fp);
     }
-    if(checkSupported(fp)){
-        return getCodeDocs(fp)
-    }
-    return []
-}
 
+    return [];
+}
 export const getRemoteFiles = async (url:string)=>{
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
@@ -132,23 +107,28 @@ export const ingestData = async ({ filename, filePath,embedding, fileType }: Ing
             fileType
         });
         console.log('docs', docs);
+
         if(docs.length === 0) return Promise.reject('no supported docs')
         const vectorStore = await FaissStore.fromDocuments(docs,
             new Embeddings({
                     openAIApiKey: config.apiKey,
                     modelName: embeddingModel
                 }, {
-                    httpAgent: getProxyAgent(config.enableProxy, proxy),
                     // @ts-ignore
-                    fetch,
-                    baseURL: config.baseUrl
+                    fetch:(url: RequestInfo, init?: RequestInit,)=>{
+                        return fetch(url,{
+                            ...init,
+                            dispatcher: getProxyAgent(config.enableProxy, proxy)
+                        })
+                    },
+                    baseURL: config.baseUrl,
                 }
             ));
         const outputFilePath = path.join(outputDir, filename);
         await vectorStore.save(outputFilePath);
 
     } catch (error) {
-        console.log('error', error);
+        console.log('error', error.stack);
         return Promise.reject(error.code || 'ingest data failed');
     }
 };
