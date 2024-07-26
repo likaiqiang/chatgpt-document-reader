@@ -149,11 +149,11 @@ export default function App() {
             if(res.length){
                 cacheRef.current = await forceUpdateCache()
                 setActive(0)
-                setResources(sortedRes)
                 initCacheByName(sortedRes[0].filename!)
                 const files = await window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
                 setFiles(files)
             }
+            setResources(sortedRes)
             return sortedRes
         })
     }
