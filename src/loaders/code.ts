@@ -1,34 +1,36 @@
 import filepath from 'path';
-import { Document } from "@/types/document";
-import {runPython} from '@/utils/shell'
-import { getEmbeddingConfig, getProxy } from '@/electron/storage';
-import { getProxyAgent } from '@/utils/default';
-
-const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','semantic_splitter_code.py') : filepath.join(__dirname,'python_code','semantic_splitter_code.py')
+import { Document } from '@/types/document';
+import fg from 'fast-glob';
+import fs from 'fs/promises';
+import { supportedLanguages } from '@/electron/ingest-data';
+import { splitCode } from '@/utils/code';
+import ZIPLoader from '@/loaders/zip';
 
 class CodeLoader {
-    async parse(path:string, signalId?:string): Promise<Document<Record<string, any>>[]>{
-      const embeddingConfig = getEmbeddingConfig()
-      const proxy = getProxy() as string;
-      const args = ["--path", path, '--embedding_api_key', embeddingConfig.apiKey, '--embedding_api_base', embeddingConfig.baseUrl]
-      if(getProxyAgent(embeddingConfig.enableProxy, proxy)){
-        args.push('--proxy', proxy)
-      }
-      return runPython<string>({
-        scriptPath,
-        args,
-        socketEvent:'split_code_result',
-        signalId
-      }).then(json=>{
-        const messages = JSON.parse(json) as Document[]
-        console.log('code messages',messages);
-        return messages.map(message=>{
-          return new Document({
-            pageContent: message.pageContent,
-            metadata: message.metadata
+  async parse(path: string): Promise<Document<Record<string, any>>[]> {
+    //{"file_name": file.name, "suffix": file.suffix.lower(), "source": str(file.resolve())}
+    const patterns = supportedLanguages.map(language => {
+      return '**/*' + language;
+    });
+    const files = await fg(patterns, { cwd: path, absolute: true });
+    const fileReadPromises = files.map(file => {
+      return () => {
+        return fs.readFile(file, 'utf-8').then(async content => {
+          return await splitCode({
+            code: content,
+            suffix: filepath.extname(file),
+            metadata: {
+              file_name: filepath.basename(file),
+              suffix: filepath.extname(file),
+              source: file
+            }
           })
-        })
-      })
-    }
+        });
+      };
+    });
+    const docs = await ZIPLoader.promiseAllWithConcurrency(fileReadPromises,{limit: 3})
+    return docs.flat()
+  }
 }
-export default CodeLoader
+
+export default CodeLoader;
