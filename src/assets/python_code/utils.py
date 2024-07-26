@@ -213,7 +213,7 @@ class BaseSentenceSplitter(SemanticSplitterNodeParser):
         nodes_with_progress = get_tqdm_iterable(nodes, show_progress, "Parsing nodes")
 
         def process_node(node):
-            return self.build_semantic_nodes_from_documents([node], show_progress)
+            return self.build_semantic_nodes_from_document(node, show_progress)
 
         with ThreadPoolExecutor(max_workers=5) as executor:
             # Use executor.map to process nodes concurrently
@@ -225,27 +225,23 @@ class BaseSentenceSplitter(SemanticSplitterNodeParser):
 
         return all_nodes
 
-    def build_semantic_nodes_from_documents(
+    def build_semantic_nodes_from_document(
             self,
-            documents: Sequence[Document],
+            document: Document,
             show_progress: bool = False,
     ) -> List[BaseNode]:
         """Build window nodes from documents."""
-        all_nodes: List[BaseNode] = []
+        text = document.text
+        text_splits = self.sentence_splitter(text, document.metadata)
 
-        for doc in documents:
-            text = doc.text
-            text_splits = self.sentence_splitter(text, doc.metadata)
+        chunks = self.semantic_sentence_combination(text_splits)
+        nodes = build_nodes_from_splits(
+            chunks,
+            document,
+            id_func=self.id_func,
+        )
 
-            chunks = self.semantic_sentence_combination(text_splits)
-            nodes = build_nodes_from_splits(
-                chunks,
-                doc,
-                id_func=self.id_func,
-            )
-            all_nodes.extend(nodes)
-
-        return all_nodes
+        return nodes
 
 
 class TXTReader(BaseReader):
@@ -323,6 +319,16 @@ class CODEReader(BaseReader):
             return top_level_nodes
         return []
 
+    @staticmethod
+    def split_by_ast(source_code, suffix):
+        parser = CODEReader.get_parser(suffix)
+        if parser is not None:
+            tree = parser.parse(bytes(source_code, 'utf8'))
+            root_node = tree.root_node
+            top_level_nodes = []
+
+        return []
+
     def load_data(
             self,
             file: Path,
@@ -349,7 +355,7 @@ class CODEReader(BaseReader):
             return [doc]
 
     @staticmethod
-    def split_code_by_token(codes: List[str], suffix) -> List[str]:
+    def split_code_by_token(code: str, suffix) -> List[str]:
         max_tokens = 8191
         # models = {
         #     'text-embedding-3-large': 8191,
@@ -357,21 +363,19 @@ class CODEReader(BaseReader):
         #     'text-embedding-3-small': 8191
         # }
         enc = tiktoken.encoding_for_model('text-embedding-ada-002')
-        result = []
+        tokens = enc.encode(code)
+        chunks = []
+        start = 0
         parser = CODEReader.get_parser(suffix)
         if parser is not None:
-            result = []
-            for code in codes:
-                tokens = enc.encode(code)
-                token_count = len(tokens)
-                if token_count > max_tokens:
-                    # 截取前 max_tokens 个 tokens 并解码
-                    truncated_code = enc.decode(tokens[:max_tokens])
-                    result.append(truncated_code)
-                else:
-                    result.append(code)
+            while start < len(tokens):
+                end = start + max_tokens
+                chunk_tokens = tokens[start:end]
+                chunk_text = enc.decode(chunk_tokens)
+                chunks.append(chunk_text)
+                start = end
 
-        return result
+        return chunks
 
 
 def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
@@ -475,7 +479,6 @@ def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str
         input_files = [path]
     if Path(path).is_dir():
         input_dir = path
-
     documents = SimpleDirectoryReader(
         exclude_hidden=False,
         recursive=True,
@@ -497,33 +500,12 @@ def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str
 
     if len(documents) == 0:
         return []
-    enc = tiktoken.encoding_for_model('text-embedding-ada-002')
-    small_docs = []
-    large_docs = []
+    result = []
     for doc in documents:
-        content = doc.get_content()
-        if len(enc.encode(content)) <= 8191:
-            small_docs.append(doc)
-        else:
-            large_docs.append(doc)
-    if len(large_docs) == 0:
-        return [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs]
-    embed_model = OpenAIEmbedding(
-        api_key=embedding_api_key,
-        api_base=embedding_api_base,
-        http_client=httpx.Client(proxies={"http://": proxy, "https://": proxy})
-    )
-
-    # 初始化语义分块器
-    splitter = BaseSentenceSplitter(
-        buffer_size=1,
-        embed_model=embed_model,
-        sentence_splitter=split_by_ast,
-        breakpoint_percentile_threshold=80
-    )
-
-    nodes = splitter.get_nodes_from_documents(large_docs)
-    result = [{"pageContent": doc.get_content(), 'metadata': doc.metadata} for doc in small_docs] + [
-        {"pageContent": content, "metadata": node.metadata} for node in nodes if
-        (content := node.get_content().strip())]
+        chunks = CODEReader.split_code_by_token(doc.get_content(), doc.metadata['suffix'])
+        for chunk in chunks:
+            result.append({
+                "pageContent": chunk,
+                "metadata": doc.metadata
+            })
     return result

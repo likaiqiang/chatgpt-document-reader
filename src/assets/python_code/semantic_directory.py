@@ -23,7 +23,8 @@ signal.signal(signal.SIGTERM, signal_handler)
 async def connect_handler():
     input_files = SimpleDirectoryReader(
         input_dir=args.path,
-        exclude_hidden=False
+        exclude_hidden=False,
+        recursive=True
     ).input_files
 
     files = [str(file.resolve()) for file in input_files]
@@ -46,13 +47,13 @@ async def connect_handler():
 
     await sio.emit('split_zip_result', json.dumps(result), callback=ack_callback)
 
-
 @sio.event
 async def connect():
     await connect_handler()
 
 
 async def main():
+    print('start')
     parser = ArgumentParser()
     parser.add_argument("--path", required=True, help="path to zip")
     parser.add_argument("--proxy", help="proxy address")

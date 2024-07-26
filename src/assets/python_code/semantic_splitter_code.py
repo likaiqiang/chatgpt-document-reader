@@ -28,12 +28,12 @@ class SentenceCombination(TypedDict):
 
 
 async def connect_handler():
-    result = get_code_document(path=args.path, embedding_api_key=args.embedding_api_key,
-                               embedding_api_base=args.embedding_api_base, proxy=args.proxy)
-
     def ack_callback(response):
         print(response)
         asyncio.create_task(sio.disconnect())
+
+    result = get_code_document(path=args.path, embedding_api_key=args.embedding_api_key,
+                               embedding_api_base=args.embedding_api_base, proxy=args.proxy)
 
     await sio.emit('split_code_result', json.dumps(result), callback=ack_callback)
 
