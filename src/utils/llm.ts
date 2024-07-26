@@ -1,13 +1,37 @@
-import path from 'path'
-import {runPython} from '@/utils/shell'
 import { Runnable, RunnableSequence } from 'langchain/schema/runnable';
 import { getApiConfig, getModel, getProxy } from '@/electron/storage';
 import { ChatOpenAI } from 'langchain/chat_models/openai';
-import fetch from 'node-fetch';
 import { StringOutputParser } from 'langchain/schema/output_parser';
 import { ChatPromptValue } from '@langchain/core/prompt_values';
 import { getProxyAgent } from '@/utils/default';
-const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? path.join(process.cwd(),'src','assets','python_code','ernie.py') : path.join(__dirname,'python_code','ernie.py')
+import {fetch} from 'undici'
+
+interface Message{
+  content: string,
+  role: 'user' | 'assistant'
+}
+
+class Ernie{
+  private apiKey
+  private secretKey
+  private accessToken: string
+  constructor({apiKey, secretKey}:{apiKey:string, secretKey:string}) {
+    this.apiKey = apiKey
+    this.secretKey = secretKey
+  }
+  private async getAccessToken(){
+    return fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${this.apiKey}&client_secret=${this.secretKey}`).then(res=>res.json()).then((res:{access_token:string})=>res.access_token)
+  }
+  async chat(messages:Message[], model='ernie-speed-128k'){
+    this.accessToken = await this.getAccessToken()
+    return fetch(`https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/${model}?access_token=${this.accessToken}`,{
+      method:'post',
+      body: JSON.stringify({
+        messages
+      })
+    }).then(res=>res.json()).then((res:{result:string})=>res.result)
+  }
+}
 
 
 export enum ChatType {
@@ -26,7 +50,6 @@ export default class LLM extends Runnable{
     this.chatType = chatType
   }
   async chat(messages: {content: string, role:'assistant' | 'user'}[] | string | ChatPromptValue, signalId?:string){
-    console.log('signalId', signalId);
     if(typeof messages === 'string'){
       messages = [{content: messages, role:'user'}]
     }
@@ -36,17 +59,11 @@ export default class LLM extends Runnable{
     const config = getApiConfig()
     const proxy = getProxy() as string;
     if(this.chatType === ChatType.ERNIE){
-      const proxyAgent = getProxyAgent(config.enableProxy, proxy)
-      const args = ["--messages", JSON.stringify(messages)]
-      if(proxyAgent){
-        args.push('--proxy', proxy)
-      }
-      return runPython<string>({
-        scriptPath,
-        args,
-        socketEvent:'llm_response',
-        signalId
+      const client = new Ernie({
+        apiKey:'VvRRhjliQW4pYXLGcLIDmi96',
+        secretKey:'uBf5UQFtnfgCUKWYcPnlbhexyjq7QNMN'
       })
+      return client.chat(messages)
     }
     if(this.chatType === ChatType.CHATGPT){
       const modelName = getModel()

@@ -25,16 +25,16 @@ from llama_index.core.schema import Document
 
 from typing import List
 
-import tree_sitter_python as tspython
-import tree_sitter_php as tsphp
-import tree_sitter_javascript as tsjavascript
-import tree_sitter_typescript as tstypescript
-import tree_sitter_go as tsgo
-import tree_sitter_cpp as tscpp
-import tree_sitter_java as tsjava
-import tree_sitter_ruby as tsruby
-import tree_sitter_c_sharp as tscs
-from tree_sitter import Language, Parser
+# import tree_sitter_python as tspython
+# import tree_sitter_php as tsphp
+# import tree_sitter_javascript as tsjavascript
+# import tree_sitter_typescript as tstypescript
+# import tree_sitter_go as tsgo
+# import tree_sitter_cpp as tscpp
+# import tree_sitter_java as tsjava
+# import tree_sitter_ruby as tsruby
+# import tree_sitter_c_sharp as tscs
+# from tree_sitter import Language, Parser
 import tiktoken
 from llama_index.core import SimpleDirectoryReader
 from pdfReader import Reader
@@ -271,111 +271,111 @@ class TXTReader(BaseReader):
             return [doc]
 
 
-class CODEReader(BaseReader):
-    @staticmethod
-    def is_supported(suffix: str) -> bool:
-        return suffix in ['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
-
-    @staticmethod
-    def get_parser(suffix: str):
-        if suffix is None:
-            return None
-        parser_dict = {
-            '.py': Language(tspython.language()),
-            '.php': Language(tsphp.language_php()),
-            '.js': Language(tsjavascript.language()),
-            '.ts': Language(tstypescript.language_typescript()),
-            '.go': Language(tsgo.language()),
-            '.cpp': Language(tscpp.language()),
-            '.java': Language(tsjava.language()),
-            '.rb': Language(tsruby.language()),
-            '.cs': Language(tscs.language())
-        }
-        if not suffix.startswith('.'):
-            suffix = '.' + suffix
-        language = parser_dict[suffix]
-        if language is None:
-            return None
-        parser = Parser()
-        parser.set_language(language)
-        return parser
-
-    @staticmethod
-    def extract_top_level_nodes(source_code, suffix):
-        parser = CODEReader.get_parser(suffix)
-        if parser is not None:
-            tree = parser.parse(bytes(source_code, 'utf8'))
-            root_node = tree.root_node
-            top_level_nodes = []
-
-            # 遍历根节点的直接子节点
-            for child in root_node.children:
-                # 提取每个顶层节点的文本内容
-                start_byte = child.start_byte
-                end_byte = child.end_byte
-                node_text = source_code[start_byte:end_byte]
-                top_level_nodes.append(node_text)
-
-            return top_level_nodes
-        return []
-
-    @staticmethod
-    def split_by_ast(source_code, suffix):
-        parser = CODEReader.get_parser(suffix)
-        if parser is not None:
-            tree = parser.parse(bytes(source_code, 'utf8'))
-            root_node = tree.root_node
-            top_level_nodes = []
-
-        return []
-
-    def load_data(
-            self,
-            file: Path,
-            extra_info: Optional[Dict] = None,
-            fs: Optional[AbstractFileSystem] = None,
-    ) -> List[Document]:
-        """Parse file."""
-        if not isinstance(file, Path):
-            file = Path(file)
-
-        fs = fs or get_default_fs()
-        with fs.open(file, "r", encoding='utf-8') as fp:
-            # Read the entire file content
-            content = fp.read()
-
-            # Create metadata dictionary
-            metadata = {"file_name": file.name, "suffix": file.suffix.lower(), "source": str(file.resolve())}
-            if extra_info is not None:
-                metadata.update(extra_info)
-
-            # Create a single Document with the entire file content
-            doc = Document(text=content, metadata=metadata)
-
-            return [doc]
-
-    @staticmethod
-    def split_code_by_token(code: str, suffix) -> List[str]:
-        max_tokens = 8191
-        # models = {
-        #     'text-embedding-3-large': 8191,
-        #     'text-embedding-ada-002': 8191,
-        #     'text-embedding-3-small': 8191
-        # }
-        enc = tiktoken.encoding_for_model('text-embedding-ada-002')
-        tokens = enc.encode(code)
-        chunks = []
-        start = 0
-        parser = CODEReader.get_parser(suffix)
-        if parser is not None:
-            while start < len(tokens):
-                end = start + max_tokens
-                chunk_tokens = tokens[start:end]
-                chunk_text = enc.decode(chunk_tokens)
-                chunks.append(chunk_text)
-                start = end
-
-        return chunks
+# class CODEReader(BaseReader):
+#     @staticmethod
+#     def is_supported(suffix: str) -> bool:
+#         return suffix in ['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
+#
+#     @staticmethod
+#     def get_parser(suffix: str):
+#         if suffix is None:
+#             return None
+#         parser_dict = {
+#             '.py': Language(tspython.language()),
+#             '.php': Language(tsphp.language_php()),
+#             '.js': Language(tsjavascript.language()),
+#             '.ts': Language(tstypescript.language_typescript()),
+#             '.go': Language(tsgo.language()),
+#             '.cpp': Language(tscpp.language()),
+#             '.java': Language(tsjava.language()),
+#             '.rb': Language(tsruby.language()),
+#             '.cs': Language(tscs.language())
+#         }
+#         if not suffix.startswith('.'):
+#             suffix = '.' + suffix
+#         language = parser_dict[suffix]
+#         if language is None:
+#             return None
+#         parser = Parser()
+#         parser.set_language(language)
+#         return parser
+#
+#     @staticmethod
+#     def extract_top_level_nodes(source_code, suffix):
+#         parser = CODEReader.get_parser(suffix)
+#         if parser is not None:
+#             tree = parser.parse(bytes(source_code, 'utf8'))
+#             root_node = tree.root_node
+#             top_level_nodes = []
+#
+#             # 遍历根节点的直接子节点
+#             for child in root_node.children:
+#                 # 提取每个顶层节点的文本内容
+#                 start_byte = child.start_byte
+#                 end_byte = child.end_byte
+#                 node_text = source_code[start_byte:end_byte]
+#                 top_level_nodes.append(node_text)
+#
+#             return top_level_nodes
+#         return []
+#
+#     @staticmethod
+#     def split_by_ast(source_code, suffix):
+#         parser = CODEReader.get_parser(suffix)
+#         if parser is not None:
+#             tree = parser.parse(bytes(source_code, 'utf8'))
+#             root_node = tree.root_node
+#             top_level_nodes = []
+#
+#         return []
+#
+#     def load_data(
+#             self,
+#             file: Path,
+#             extra_info: Optional[Dict] = None,
+#             fs: Optional[AbstractFileSystem] = None,
+#     ) -> List[Document]:
+#         """Parse file."""
+#         if not isinstance(file, Path):
+#             file = Path(file)
+#
+#         fs = fs or get_default_fs()
+#         with fs.open(file, "r", encoding='utf-8') as fp:
+#             # Read the entire file content
+#             content = fp.read()
+#
+#             # Create metadata dictionary
+#             metadata = {"file_name": file.name, "suffix": file.suffix.lower(), "source": str(file.resolve())}
+#             if extra_info is not None:
+#                 metadata.update(extra_info)
+#
+#             # Create a single Document with the entire file content
+#             doc = Document(text=content, metadata=metadata)
+#
+#             return [doc]
+#
+#     @staticmethod
+#     def split_code_by_token(code: str, suffix) -> List[str]:
+#         max_tokens = 8191
+#         # models = {
+#         #     'text-embedding-3-large': 8191,
+#         #     'text-embedding-ada-002': 8191,
+#         #     'text-embedding-3-small': 8191
+#         # }
+#         enc = tiktoken.encoding_for_model('text-embedding-ada-002')
+#         tokens = enc.encode(code)
+#         chunks = []
+#         start = 0
+#         parser = CODEReader.get_parser(suffix)
+#         if parser is not None:
+#             while start < len(tokens):
+#                 end = start + max_tokens
+#                 chunk_tokens = tokens[start:end]
+#                 chunk_text = enc.decode(chunk_tokens)
+#                 chunks.append(chunk_text)
+#                 start = end
+#
+#         return chunks
 
 
 def get_pdf_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
@@ -467,45 +467,45 @@ def get_text_document(path: str, embedding_api_key: str, embedding_api_base: str
     return result
 
 
-def split_by_ast(text: str, metadata: Optional[Dict]):
-    suffix = metadata.get("suffix")
-    return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
+# def split_by_ast(text: str, metadata: Optional[Dict]):
+#     suffix = metadata.get("suffix")
+#     return CODEReader.extract_top_level_nodes(source_code=text, suffix=suffix)
 
 
 def get_code_document(path: str, embedding_api_key: str, embedding_api_base: str, proxy: str) -> List[Document]:
     input_files = None
-    input_dir = None
-    if Path(path).is_file():
-        input_files = [path]
-    if Path(path).is_dir():
-        input_dir = path
-    documents = SimpleDirectoryReader(
-        exclude_hidden=False,
-        recursive=True,
-        input_files=input_files,
-        input_dir=input_dir,
-        file_extractor={
-            ".py": CODEReader(),
-            ".php": CODEReader(),
-            ".js": CODEReader(),
-            ".ts": CODEReader(),
-            ".go": CODEReader(),
-            ".cpp": CODEReader(),
-            ".java": CODEReader(),
-            ".rb": CODEReader(),
-            ".cs": CODEReader(),
-        },
-        required_exts=['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
-    ).load_data()
-
-    if len(documents) == 0:
-        return []
-    result = []
-    for doc in documents:
-        chunks = CODEReader.split_code_by_token(doc.get_content(), doc.metadata['suffix'])
-        for chunk in chunks:
-            result.append({
-                "pageContent": chunk,
-                "metadata": doc.metadata
-            })
-    return result
+    # input_dir = None
+    # if Path(path).is_file():
+    #     input_files = [path]
+    # if Path(path).is_dir():
+    #     input_dir = path
+    # documents = SimpleDirectoryReader(
+    #     exclude_hidden=False,
+    #     recursive=True,
+    #     input_files=input_files,
+    #     input_dir=input_dir,
+    #     file_extractor={
+    #         ".py": CODEReader(),
+    #         ".php": CODEReader(),
+    #         ".js": CODEReader(),
+    #         ".ts": CODEReader(),
+    #         ".go": CODEReader(),
+    #         ".cpp": CODEReader(),
+    #         ".java": CODEReader(),
+    #         ".rb": CODEReader(),
+    #         ".cs": CODEReader(),
+    #     },
+    #     required_exts=['.py', '.php', '.js', '.ts', '.go', '.cpp', '.java', '.rb', '.cs']
+    # ).load_data()
+    #
+    # if len(documents) == 0:
+    #     return []
+    # result = []
+    # for doc in documents:
+    #     chunks = CODEReader.split_code_by_token(doc.get_content(), doc.metadata['suffix'])
+    #     for chunk in chunks:
+    #         result.append({
+    #             "pageContent": chunk,
+    #             "metadata": doc.metadata
+    #         })
+    # return result
