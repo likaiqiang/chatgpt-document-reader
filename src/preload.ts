@@ -3,6 +3,17 @@ import {Channel} from "@/types/bridge";
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
 import { FindInPageParmas, StopFindInPageParmas, WebContentsOnParams } from '@/types/webContents';
 
+interface Message{
+    content: string,
+    role:'assistant' | 'user'
+}
+
+interface RequestllmParams{
+    messages: Message[],
+    chatType?: 'ernie' | 'gpt3',
+    signalId?: string
+}
+
 
 export const api = {
     /**
@@ -15,8 +26,8 @@ export const api = {
     selectFile(){
         return ipcRenderer.invoke(Channel.selectFile)
     },
-    ingestData(files: string[]):Promise<Resource>{
-        return ipcRenderer.invoke(Channel.ingestdata, files)
+    ingestData(files: string[], embedding = true):Promise<Resource>{
+        return ipcRenderer.invoke(Channel.ingestdata, files, embedding)
     },
     chat(params: ChatParams): Promise<ChatResponse>{
         return ipcRenderer.invoke(Channel.chat, params)
@@ -24,23 +35,35 @@ export const api = {
     getResources(): Promise<Resource[]>{
       return ipcRenderer.invoke(Channel.resources)
     },
-    checkproxy(proxy:string){
+    checkProxy(proxy:string){
         return ipcRenderer.invoke(Channel.checkProxy, proxy)
     },
-    checkApiConfig(){
-        return ipcRenderer.invoke(Channel.checkApiConfig)
+    checkChatConfig(){
+        return ipcRenderer.invoke(Channel.checkChatConfig)
+    },
+    checkEmbeddingConfig(){
+        return ipcRenderer.invoke(Channel.checkEmbeddingConfig)
     },
     onOutputDirChange(cb=()=>{}){
         ipcRenderer.on(Channel.outputDirChange,cb)
     },
-    onApiConfigChange(cb=()=>{}){
-        ipcRenderer.on(Channel.apiConfigChange, cb)
+    onChatConfigChange(cb=()=>{}){
+        ipcRenderer.on(Channel.chatConfigChange, cb)
+    },
+    onEmbeddingConfigChange(cb=()=>{}){
+        ipcRenderer.on(Channel.embeddingConfigChange, cb)
+    },
+    onWindowFocussed(cb=()=>{}) {
+        ipcRenderer.on(Channel.onWindowFocussed, cb)
     },
     onRenderFileHistoryCleared(cb=()=>{}){
         ipcRenderer.on(Channel.renderFileHistoryCleared, cb)
     },
-    replyApiConfig(config: ApiConfig){
-        return ipcRenderer.invoke(Channel.replyApiConfig, config)
+    replyChatConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.replyChatConfig, config)
+    },
+    replyEmbeddingConfig(config: EmbeddingConfig){
+        return ipcRenderer.invoke(Channel.replyEmbeddingConfig, config)
     },
     onProxyChange(cb=()=>{}){
         ipcRenderer.on(Channel.proxyChange,cb)
@@ -48,14 +71,35 @@ export const api = {
     replyProxy(proxy:string){
         return ipcRenderer.invoke(Channel.replyProxy, proxy)
     },
-    requestGetApiConfig(){
-        return ipcRenderer.invoke(Channel.requestGetApiConfig)
+    requestGetChatConfig(){
+        return ipcRenderer.invoke(Channel.requestGetChatConfig)
+    },
+    requestGetEmbeddingConfig(){
+        return ipcRenderer.invoke(Channel.requestGetEmbeddingConfig)
     },
     requestGetProxy(){
         return ipcRenderer.invoke(Channel.requestGetProxy)
     },
-    requestTestApi(config: ApiConfig & {proxy: string}){
-        return ipcRenderer.invoke(Channel.requestTestApi, config)
+    requestGetModels(config: Partial<ApiConfig>): Promise<any[]>{
+        return ipcRenderer.invoke(Channel.requestGetModels, config)
+    },
+    requestGetModel(): Promise<string>{
+        return ipcRenderer.invoke(Channel.requestGetModel)
+    },
+    replyModel(model:string){
+        return ipcRenderer.invoke(Channel.replyModel, model)
+    },
+    requestTestChatConfig(config: ApiConfig){
+        return ipcRenderer.invoke(Channel.requestTestChatConfig, config)
+    },
+    requestTestEmbeddingConfig(config: EmbeddingConfig){
+        return ipcRenderer.invoke(Channel.requestTestEmbeddingConfig, config)
+    },
+    requestCallGraph(path:string){
+        return ipcRenderer.invoke(Channel.requestCallGraph, path)
+    },
+    requestllm({messages, chatType = 'ernie',signalId}:RequestllmParams){
+        return ipcRenderer.invoke(Channel.requestllm, {messages, chatType, signalId})
     },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)
@@ -98,7 +142,8 @@ export const api = {
     },
     replyDeleteFile(filename:string){
         return ipcRenderer.invoke(Channel.replyDeleteFile, {filename})
-    }
+    },
+    sendSignalId: (signalId:string) => ipcRenderer.send(Channel.sendSignalId,signalId)
 }
 
 contextBridge.exposeInMainWorld('chatBot', api)

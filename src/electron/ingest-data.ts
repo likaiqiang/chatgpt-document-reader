@@ -1,47 +1,38 @@
 import { FaissStore } from './faiss';
-import ZipLoader from '@/loaders/zip';
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { outputDir } from '@/config';
-import { getApiConfig, getProxy } from '@/electron/storage';
-import fetch from 'node-fetch';
+import { documentsOutputDir, outputDir } from '@/config';
+import { getEmbeddingConfig, getProxy } from '@/electron/storage';
 import path from 'path'
-import { Document } from '@/types/document';
 import { getCodeDocs, getPdfDocs, getTextDocs } from '@/loaders';
 import { default as Embeddings } from '@/electron/embeddings';
+import {GitHub} from '@/electron/download'
+import fs from 'fs/promises';
+import { getProxyAgent } from '@/utils/default';
+import { RequestInfo, RequestInit,fetch } from 'undici';
 
 const embeddingModel = 'text-embedding-ada-002';
 
 
 export const supportedLanguages = [
-    '.cpp',
-    '.go',
-    '.java',
-    '.js',
-    '.php',
-    '.proto', //
     '.py',
-    '.rst', //
-    '.rb',
-    '.rs',
-    '.scala',
-    '.markdown',
-    '.md',
-    '.sol',
-    '.kt',
-    '.cs',
+    '.php',
+    '.js',
     '.ts',
-    '.tsx'
+    '.go',
+    '.cpp',
+    '.java',
+    '.rb',
+    '.cs'
 ]
 
 export const supportedDocuments = [
     ...supportedLanguages,
     '.pdf',
     '.txt',
-    '.zip'
+    // '.zip'
 ];
 
-export const checkSupported = (path:string)=>{
-    return supportedDocuments.reduce((acc, ext) => {
+export const checkSupported = (path:string, suffixes:string[] = supportedDocuments)=>{
+    return suffixes.reduce((acc, ext) => {
         return acc || path.endsWith(ext);
     }, false);
 }
@@ -52,99 +43,92 @@ export const checkSupported = (path:string)=>{
     },false)
 }
 
-
-async function getDocuments({ buffer, filename, filePath, ext }: IngestParams & {ext?:string}): Promise<Document[]> {
-
-    if (filePath.endsWith('.pdf')) {
-        return getPdfDocs({ buffer, filename, filePath });
-    }
-    if(filePath.endsWith('.txt')){
-        return getTextDocs({ buffer: buffer.toString(), filename, filePath })
-    }
-    if (filePath.endsWith('.zip')) {
-        const tasks: Array<Promise<Document[]>> = [];
-        const files = await new ZipLoader().parse(buffer as Buffer, path => {
-            return checkSupported(path)
-        });
-        for (const file of files) {
-            const { path, content } = file;
-            if (path.endsWith('.pdf')) {
-                tasks.push(
-                    getPdfDocs({ buffer: Buffer.from(content), filename, filePath })
-                );
-            }
-            else if(path.endsWith('.txt')){
-                tasks.push(
-                    getTextDocs({ buffer: content, filename, filePath })
-                )
-            }
-            else if(checkSupportedLanguages(path)){
-                tasks.push(
-                  getCodeDocs({ buffer: content, filename, filePath:path })
-                )
-            }
-
+async function getDocuments({ filePath: fp, fileType }: { filePath: string, fileType?: string }) {
+    const stat = await fs.stat(fp);
+    if (stat.isDirectory()) {
+        if(fileType === 'code'){
+            return getCodeDocs(fp);
         }
-        return Promise.all(tasks).then(docs => {
-            return docs.flat();
-        });
     }
-    return getCodeDocs({ buffer: buffer.toString(), filename, filePath, ext })
+
+    if (fp.endsWith('.pdf')) {
+        return getPdfDocs(fp);
+    }
+    if (fp.endsWith('.txt')) {
+        return getTextDocs(fp);
+    }
+    // if (fp.endsWith('.zip')) {
+    //     return getZipDocs(fp); // 待优化
+    // }
+    if (checkSupported(fp)) {
+        return getCodeDocs(fp);
+    }
+
+    return [];
 }
+export const getRemoteFiles = async (url:string)=>{
+    if(url.startsWith('https://github.com')){
+        const proxy = getProxy() as string;
+        const {enableProxy} = getEmbeddingConfig()
 
-async function handleGithubUrl(url:string) {
-    const proxy = getProxy() as string;
-    const response = await fetch(url,{
-        agent: proxy ? new HttpsProxyAgent(proxy) : undefined
-    });
-    const data = await response.json();
-
-    console.log('data',data);
-
-    if (data.payload?.blob?.rawLines) {
-        return {
-            code: data.payload.blob.rawLines.join('\n'),
-            ext: path.extname(url),
-            filename: `github_${data.payload.repo.ownerLogin}_${data.payload.repo.name}_${encodeURIComponent(data.payload.path)}`
-        }
+        const dl = await GitHub.createInstance({
+            url,
+            proxy: getProxyAgent(enableProxy, proxy),
+            downloadFileName: encodeURIComponent(new URL(url).pathname)
+        })
+        await dl.downloadZippedFiles()
+        return dl.downloadedFiles
     }
     return Promise.reject('无法处理这个URL')
 }
 
-export const getRemoteCode = async (url:string)=>{
-    const {code, ext, filename} = await handleGithubUrl(url)
-    return {
-        ext,
-        code,
-        filename
+export const getRemoteDownloadedDir = async (url:string)=>{
+    const downloadFileName = encodeURIComponent(new URL(url).pathname)
+    if(url.startsWith('https://github.com')){
+        const proxy = getProxy() as string;
+        const {enableProxy} = getEmbeddingConfig()
+        const dl = await GitHub.createInstance({
+            url,
+            proxy: getProxyAgent(enableProxy, proxy),
+            downloadFileName
+        })
+        await dl.downloadZippedFiles()
+        return path.join(documentsOutputDir, downloadFileName)
     }
+    return Promise.reject('无法处理这个URL')
 }
 
-export const ingestData = async ({ buffer, filename, filePath }: IngestParams) => {
+export const ingestData = async ({ filename, filePath,embedding, fileType }: IngestParams) => {
     const proxy = getProxy() as string;
-    const config = getApiConfig();
+    const config = getEmbeddingConfig();
     try {
         const docs = await getDocuments({
-            buffer,
-            filename,
-            filePath
+            filePath,
+            fileType
         });
+        console.log('docs', docs);
+
+        if(docs.length === 0) return Promise.reject('no supported docs')
         const vectorStore = await FaissStore.fromDocuments(docs,
             new Embeddings({
                     openAIApiKey: config.apiKey,
                     modelName: embeddingModel
                 }, {
-                    httpAgent: proxy ? new HttpsProxyAgent(proxy) : undefined,
                     // @ts-ignore
-                    fetch,
-                    baseURL: config.baseUrl
+                    fetch:(url: RequestInfo, init?: RequestInit,)=>{
+                        return fetch(url,{
+                            ...init,
+                            dispatcher: getProxyAgent(config.enableProxy, proxy)
+                        })
+                    },
+                    baseURL: config.baseUrl,
                 }
             ));
         const outputFilePath = path.join(outputDir, filename);
         await vectorStore.save(outputFilePath);
 
     } catch (error) {
-        console.log('error', error);
+        console.log('error', error.stack);
         return Promise.reject(error.code || 'ingest data failed');
     }
 };

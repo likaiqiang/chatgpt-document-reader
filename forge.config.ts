@@ -5,30 +5,22 @@ const config: ForgeConfig = {
   rebuildConfig: {
     onlyModules:[]
   },
+  packagerConfig:{
+    ignore: (file) => {
+      if (!file) return false;
+      return (
+        !/^[/\\]package.json$/.test(file) &&
+        !/^[/\\]\.vite($|[/\\]).*$/.test(file)
+      );
+    }
+  },
   makers:[
     {
-      name: "@electron-forge/maker-dmg",
-      platforms: ["darwin"],
+      name: "@electron-forge/maker-zip",
+      platforms: ['darwin', 'linux', 'win32'],
       config: {
-        // your dmg config
+        name:'chatgpt-document-reader'
       },
-    },
-    {
-      name: "@electron-forge/maker-squirrel",
-      platforms: ["win32"],
-      config: {
-        name:'chatgpt-document-reader',
-        authors:'likaiqiang',
-        description:'a electron pdf chatbot',
-        exe: 'chatgpt-document-reader.exe',
-      },
-    },
-    {
-      name: "@electron-forge/maker-deb",
-      platforms:["linux"],
-      config:{
-
-      }
     }
   ],
   plugins: [

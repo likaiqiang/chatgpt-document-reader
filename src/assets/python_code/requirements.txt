@@ -1,0 +1,4 @@
+llama_index==0.10.43
+numpy==1.26.4
+tiktoken==0.7.0
+python-socketio

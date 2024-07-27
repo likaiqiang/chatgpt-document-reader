@@ -4,8 +4,11 @@ import fs from 'fs'
 const userPath = app.getPath('userData')
 
 export const outputDir = path.join(userPath,'.faisscache')
+export const documentsOutputDir = path.join(userPath,'.documents')
 
-fs.mkdirSync(outputDir,{recursive: true})
-
-
-console.log('outputDir',outputDir);
+if(!fs.existsSync(outputDir)){
+  fs.mkdirSync(outputDir,{recursive: true})
+}
+if(!fs.existsSync(documentsOutputDir)){
+  fs.mkdirSync(documentsOutputDir,{recursive: true})
+}

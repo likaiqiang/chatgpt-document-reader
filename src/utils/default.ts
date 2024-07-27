@@ -1,7 +1,6 @@
-import fetch from 'node-fetch'
-import { HttpsProxyAgent } from 'https-proxy-agent';
-import { BrowserWindow, IpcMainEvent } from 'electron';
-import BrowserView = Electron.BrowserView;
+import {fetch, ProxyAgent,Dispatcher} from 'undici'
+import { IpcMainEvent } from 'electron';
+import { getProxy } from '@/electron/storage';
 
 export function mainSend(window: Electron.BrowserWindow | Electron.BrowserView, name: string): void
 export function mainSend<T>(window: Electron.BrowserWindow | Electron.BrowserView, name: string, params: T): void
@@ -10,41 +9,40 @@ export function mainSend<T>(window: Electron.BrowserWindow | Electron.BrowserVie
 }
 
 export function mainOn<T>(window: Electron.BrowserWindow | Electron.BrowserView, name:string, cb:(event: IpcMainEvent, params?: T)=>void = ()=>{}): void {
+  // @ts-ignore
   window && window.webContents.on(name,cb)
 }
 
-
-let fetchModelsDone = false
-let fetchModelController = new AbortController()
-export const fetchModels = async ({baseUrl, apiKey, proxy}: ApiConfig & {proxy: string})=>{
-  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0,baseUrl.length -1) : baseUrl
-  if(!fetchModelsDone){
-    fetchModelController.abort()
-    fetchModelController = new AbortController()
-    return fetchApi()
+export function getProxyAgent(enableProxy:boolean, proxy: string):Dispatcher|undefined {
+  let dispatcher = undefined
+  if(enableProxy){
+    dispatcher = new ProxyAgent(proxy)
+  }
+  else if (enableProxy === false){
+    dispatcher = undefined
   }
   else{
-    fetchModelController = new AbortController()
-    return fetchApi()
+    dispatcher = proxy ? new ProxyAgent(proxy) : undefined
   }
-  async function fetchApi(){
-    fetchModelsDone = false
-    return fetch(`${baseUrl}/models`,{
-      headers:{
-        'Authorization': `Bearer ${apiKey}`
-      },
-      agent: proxy ? new HttpsProxyAgent(proxy) : undefined,
-      signal: fetchModelController.signal
-    }).then(res=>{
-      fetchModelsDone = true
-      const status = res.status + ''
-      if(status.startsWith('4') || status.startsWith('5')) return Promise.reject(res.statusText)
-      return res.json()
-    }).catch(e=>{
-      fetchModelsDone = true
-      return Promise.reject(e)
-    })
-  }
+  return dispatcher
+}
+
+export const fetchModels = async ({baseUrl, apiKey, enableProxy}: ApiConfig) =>{
+  baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0,baseUrl.length -1) : baseUrl
+  const proxy = getProxy()
+  return fetch(`${baseUrl}/models`,{
+    headers:{
+      'Authorization': `Bearer ${apiKey}`
+    },
+    dispatcher: getProxyAgent(enableProxy, proxy),
+    method:'GET',
+  }).then(async res=>{
+    const status = res.status + ''
+    if(status.startsWith('4') || status.startsWith('5')) return Promise.reject(res.statusText)
+    return res.json()
+  }).catch(e=>{
+    return Promise.reject(e.toString())
+  })
 }
 
 export const getNormalizeBaseUrl = (baseUrl:string)=>{

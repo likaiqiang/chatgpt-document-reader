@@ -9,7 +9,8 @@ export type Message = {
 
 export interface Resource{
   filename:string,
-  birthtime: Date
+  birthtime: Date,
+  embedding: boolean
 }
 export interface ChatResponse{
   text: string,

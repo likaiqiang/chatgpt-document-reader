@@ -1,7 +1,7 @@
-// eslint-disable-next-line no-use-before-define
-import React, {useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
+import '@/styles/animate.css';
 import ReactMarkdown from 'react-markdown';
 import LoadingDots from '@/components/ui/LoadingDots';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -14,17 +14,37 @@ import { toast, Toaster } from 'react-hot-toast';
 import { ChatResponse, Resource } from '@/types/chat';
 import { useImmer } from 'use-immer';
 import ReactLoading from 'react-loading';
-import ReactDOM from 'react-dom';
+import {createPortal} from 'react-dom';
 import botImage from '@/assets/images/bot-image.png'
 import userIcon from '@/assets/images/usericon.png'
-import { Box, Button, Link, Modal, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import closeIcon from '@/assets/images/close.jpg'
+import { Box, Button, Link, Modal, TextField, Checkbox } from '@mui/material';
 import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
 import TextareaAutosize from 'react-textarea-autosize';
 import Confirm from '@/Confirm';
+import { SimpleTreeView  } from '@mui/x-tree-view/SimpleTreeView';
+import { TreeItem } from '@mui/x-tree-view/TreeItem';
+import CodeViewModal, { CodeViewHandle } from '@/CodeView';
+import { useTreeViewApiRef } from '@mui/x-tree-view';
+import {
+    ChatConfigComponent,
+    ChatConfigHandler,
+    ProxyConfigComponent,
+    ProxyConfigHandler,
+    EmbeddingConfigHandler,
+    EmbeddingConfigComponent,
+} from '@/components/modal/index';
 
 enum IngestDataType{
     local = 'local',
     remote = 'remote'
+}
+
+interface File{
+    type: 'file' | 'dir',
+    filepath: string,
+    filename: string,
+    children?: File[]
 }
 
 function convertUnicodeToNormal(str:string) {
@@ -50,33 +70,44 @@ const isUrl = (value:string)=>{
 
 ValidatorForm.addValidationRule('isURL', isUrl);
 
+const supportedLanguages = [
+    '.py',
+    '.php',
+    '.js',
+    '.ts',
+    '.go',
+    '.cpp',
+    '.java',
+    '.rb',
+    '.cs'
+]
+
+const checkSupportedLanguages = (path:string)=>{
+    return supportedLanguages.reduce((acc, ext)=>{
+        return acc || path.endsWith(ext)
+    },false)
+}
+
 export default function App() {
     const [query, setQuery] = useState<string>('');
     const [loading, setLoading] = useState<boolean>(false);
     const [uploadLoading, setUploadLoading] = useState(false)
     const [active, setActive] = useState(0)
 
-
     const [resources, setResources] = useImmer<Resource[]>([])
+    const [files, setFiles] = useState<File[]>([])
     const [cache, setCache, forceUpdateCache] = useLocalStorage('chat-cache', {})
     const cacheRef = useLatest(cache)
     const curResourceName = resources.length ? resources[active].filename! : ''
 
-    const [apiConfigModal, setApiConfigModal] = useImmer<{isOpen:boolean, config: ApiConfig, proxy: string}>({
-        isOpen:false,
-        config: {
-            baseUrl:'',
-            apiKey:''
-        },
-        proxy:''
-    })
     const [uploadModal, setUploadModal] = useImmer({
         isOpen: false
     })
 
     const [urlModal, setUrlModal] = useImmer({
         isOpen: false,
-        url:''
+        url:'',
+        checked: true
     })
     const [clearHistoryModal, setClearHistoryModal] = useImmer({
         isOpen: false
@@ -84,9 +115,14 @@ export default function App() {
     const [deleteFileModal, setDeleteFileModal] = useImmer({
         isOpen: false
     })
-
+    const codeViewRef = useRef<CodeViewHandle>()
     const messageListRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const apiRef = useTreeViewApiRef();
+    const chatConfigComponentRef = useRef<ChatConfigHandler>()
+    const proxyConfigComponentRef = useRef<ProxyConfigHandler>()
+    const embeddingConfigComponentRef = useRef<EmbeddingConfigHandler>()
+
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -110,35 +146,23 @@ export default function App() {
                 return a.birthtime.getTime() - b.birthtime.getTime()
             })
             console.log('sortedRes',sortedRes);
-            setResources(sortedRes)
             if(res.length){
-                cacheRef.current =  await forceUpdateCache()
-                initCacheByName(sortedRes[0].filename!)
+                cacheRef.current = await forceUpdateCache()
                 setActive(0)
-                return window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
+                initCacheByName(sortedRes[0].filename!)
+                const files = await window.chatBot.setRenderCurrentFile(sortedRes[0].filename!)
+                setFiles(files)
             }
+            setResources(sortedRes)
+            return sortedRes
         })
     }
-    function getApiConfig(){
-        return window.chatBot.requestGetApiConfig().then(config=>{
-            setApiConfigModal(draft => {
-                draft.config = config
-            })
-        })
-    }
+
     useEffect(() => {
         getResources().then()
         textAreaRef.current?.focus();
-        window.chatBot.onOutputDirChange(()=>{
-            getResources().then()
-        })
-        window.chatBot.onApiConfigChange(()=>{
-            getApiConfig().then(()=>{
-                setApiConfigModal(draft => {
-                    draft.isOpen = true
-                })
-            })
-        })
+        window.chatBot.onWindowFocussed(getResources)
+
         window.chatBot.onShowClearHistoryModal(()=>{
             setClearHistoryModal(draft => {
                 draft.isOpen = true
@@ -149,12 +173,6 @@ export default function App() {
                 draft.isOpen = true
             })
         })
-        getApiConfig().then()
-        window.chatBot.requestGetProxy().then(proxy=>{
-            setApiConfigModal(draft => {
-                draft.proxy = proxy
-            })
-        })
     }, []);
 
     // handle form submission
@@ -162,11 +180,9 @@ export default function App() {
     const handleSubmit = useMemoizedFn(async (e) => {
         e.preventDefault();
         try{
-            await window.chatBot.checkApiConfig()
+            await window.chatBot.checkChatConfig()
         } catch {
-            setApiConfigModal(draft => {
-                draft.isOpen = true
-            })
+            chatConfigComponentRef.current.open()
             return Promise.reject()
         }
         if (resources.length === 0) {
@@ -227,7 +243,10 @@ export default function App() {
         const name = resources[index].filename!
         initCacheByName(name)
         setActive(index)
-        window.chatBot.setRenderCurrentFile(name)
+        window.chatBot.setRenderCurrentFile(name).then(files=>{
+            console.log('files',files);
+            setFiles(files)
+        })
     })
     const onLocalFileUpload = (type: IngestDataType = IngestDataType.local)=>{
         let promise = null
@@ -237,19 +256,19 @@ export default function App() {
         setUploadLoading(true)
         if(type === IngestDataType.local){
             promise = window.chatBot.selectFile().then(files=>{
-                return window.chatBot.ingestData(files)
+                return window.chatBot.ingestData(files, urlModal.checked)
             })
         }
         else{
-            promise = window.chatBot.ingestData([urlModal.url])
+            const url = urlModal.url.endsWith('.git') ? urlModal.url.slice(0,-4) : urlModal.url
+            promise = window.chatBot.ingestData([url], urlModal.checked)
         }
-        return promise.then(res=>{
-            setResources(draft => {
-                draft.push(res)
-            })
-            setActive(resources.length)
-            initCacheByName(res.filename!)
-            window.chatBot.setRenderCurrentFile(res.filename!)
+        return promise.then(async ()=>{
+            const res = await getResources()
+            setActive(res.length - 1)
+            initCacheByName(res[res.length - 1].filename!)
+            const files = await window.chatBot.setRenderCurrentFile(res[res.length - 1].filename!)
+            setFiles(files)
         }).catch((error)=>{
             toast.error(error.toString())
         }).finally(()=>{
@@ -257,17 +276,16 @@ export default function App() {
         })
     }
     const onRemoteFileUpload = ()=>{
-        if(!urlModal.url.includes('https://github.com')) return toast('不支持的url')
+        if(!urlModal.url.startsWith('https://github.com')) return toast('不支持的url')
+
         return onLocalFileUpload(IngestDataType.remote)
     }
     const onFileUpload = async () => {
 
         try{
-            await window.chatBot.checkApiConfig()
+            await window.chatBot.checkEmbeddingConfig()
         } catch {
-            setApiConfigModal(draft => {
-                draft.isOpen = true
-            })
+            embeddingConfigComponentRef.current.open()
             return Promise.reject()
         }
         setUploadModal(draft => {
@@ -289,6 +307,47 @@ export default function App() {
         boxShadow: 24,
         p: 4,
     };
+
+    const TreeCustomItem = useMemo(()=>{
+        return ({list = []}: {list: File[]})=>{
+            return (
+              <DataFor list={list}>
+                  {
+                      (item,index)=>{
+                          return (
+                            <Whether value={item.type === 'dir'}>
+                                <If>
+                                    <TreeItem
+                                      itemId={item.filepath}
+                                      label={item.filename}
+                                    >
+                                        <TreeCustomItem list={item.children || []}/>
+                                    </TreeItem>
+                                </If>
+                                <Else>
+                                    <TreeItem
+                                      onClick={()=>{
+                                          window.chatBot.requestCallGraph(item.filepath).then((res)=>{
+                                              const {code, dot, codeMapping, definitions} = res
+                                              codeViewRef.current.setIsOpen(true)
+                                              setTimeout(()=>{
+                                                  codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
+                                              },0)
+                                          })
+                                      }}
+                                      itemId={item.filepath}
+                                      label={item.filename}
+                                    />
+                                </Else>
+                            </Whether>
+                          )
+                      }
+                  }
+              </DataFor>
+            )
+        }
+    },[])
+
 
     return (
         <>
@@ -313,7 +372,16 @@ export default function App() {
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
-                                                                {convertUnicodeToNormal(item.filename)}
+                                                                <span title={convertUnicodeToNormal(decodeURIComponent(item.filename))}>{convertUnicodeToNormal(decodeURIComponent(item.filename))}</span>
+                                                                <img
+                                                                  className={styles.tabCloseIcon}
+                                                                  src={closeIcon}
+                                                                  onClick={()=>{
+                                                                      setDeleteFileModal(draft => {
+                                                                          draft.isOpen = true
+                                                                      })
+                                                                  }}
+                                                                />
                                                             </li>
                                                         )
                                                     }
@@ -343,6 +411,19 @@ export default function App() {
                             <main className={styles.main}>
                                 <div className={styles.cloud}>
                                     <div ref={messageListRef} className={styles.messagelist}>
+                                        <img
+                                          src={closeIcon}
+                                          alt=''
+                                          className={styles.messagelistCloseIcon}
+                                          onClick={()=>{
+                                              setClearHistoryModal(draft => {
+                                                  draft.isOpen = true
+                                              })
+                                          }}
+                                          style={{
+                                              display: resources[active]?.embedding  ? 'block' : 'none',
+                                          }}
+                                        />
                                         <DataFor list={messages}>
                                             {
                                                 (message, index) => {
@@ -378,7 +459,7 @@ export default function App() {
                                                                 </Whether>
                                                                 <div className={styles.markdownanswer}>
                                                                     <ReactMarkdown>
-                                                                        {message.message}
+                                                                        {resources[active].embedding ? message.message :'没有embedding，不可以聊天'}
                                                                     </ReactMarkdown>
                                                                 </div>
                                                             </div>
@@ -395,6 +476,7 @@ export default function App() {
                                                                         <DataFor list={message.sourceDocs}>
                                                                             {
                                                                                 (doc, index) => {
+                                                                                    const source = doc.metadata?.source || doc.metadata?.file_path;
                                                                                     return (
                                                                                         <div
                                                                                             key={`messageSourceDocs-${index}`}>
@@ -404,11 +486,25 @@ export default function App() {
                                                                                                     <h3>Source {index + 1}</h3>
                                                                                                 </AccordionTrigger>
                                                                                                 <AccordionContent>
-                                                                                                    <ReactMarkdown>
-                                                                                                        {doc.pageContent}
-                                                                                                    </ReactMarkdown>
-                                                                                                    <p className="mt-2">
-                                                                                                        <b>Source:</b> {doc.metadata.source}
+                                                                                                    <p
+                                                                                                      className="mt-2"
+                                                                                                      style={{cursor: (source && checkSupportedLanguages(source)) ? 'pointer' : ''}}
+                                                                                                      onClick={()=>{
+                                                                                                          if(checkSupportedLanguages(source)){
+                                                                                                              window.chatBot.requestCallGraph(source).then((res)=>{
+                                                                                                                  const {code, dot, codeMapping, definitions} = res
+                                                                                                                  codeViewRef.current.setIsOpen(true)
+                                                                                                                  setTimeout(()=>{
+                                                                                                                      codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
+                                                                                                                  },0)
+                                                                                                              })
+                                                                                                          }
+                                                                                                          else{
+                                                                                                              console.log('not supported')
+                                                                                                          }
+                                                                                                      }}
+                                                                                                    >
+                                                                                                        <b>Source:</b> {source}
                                                                                                     </p>
                                                                                                 </AccordionContent>
                                                                                             </AccordionItem>
@@ -426,12 +522,21 @@ export default function App() {
                                             }
                                         </DataFor>
                                     </div>
+                                    <div className={styles.files}>
+                                        <Whether value={!!files.length}>
+                                            <SimpleTreeView
+                                              apiRef={apiRef}
+                                            >
+                                                <TreeCustomItem list={files}/>
+                                            </SimpleTreeView>
+                                        </Whether>
+                                    </div>
                                 </div>
                                 <div className={styles.center}>
                                     <div className={styles.cloudform}>
                                         <form onSubmit={handleSubmit}>
                                             <TextareaAutosize
-                                                disabled={loading}
+                                                disabled={loading || resources[active]?.embedding === false}
                                                 onKeyDown={handleEnter}
                                                 ref={textAreaRef}
                                                 autoFocus={false}
@@ -442,7 +547,7 @@ export default function App() {
                                                 placeholder={
                                                     loading
                                                         ? 'Waiting for response...'
-                                                        : 'What is this legal case about?'
+                                                        : 'Enter your question here...'
                                                 }
                                                 value={query}
                                                 onChange={(e) => setQuery(e.target.value)}
@@ -450,7 +555,7 @@ export default function App() {
                                             />
                                             <button
                                                 type="submit"
-                                                disabled={loading}
+                                                disabled={loading || resources[active]?.embedding === false}
                                                 className={styles.generatebutton}
                                             >
                                                 <Whether value={loading}>
@@ -503,7 +608,7 @@ export default function App() {
             <Toaster />
             <Whether value={uploadLoading}>
                 {
-                    ReactDOM.createPortal(
+                    createPortal(
                       <div className={styles.loadingMask}>
                           <ReactLoading type={'bars'} color="#000" />
                       </div>,
@@ -529,6 +634,16 @@ export default function App() {
                     >
                         从文件上传
                     </Link>
+                    <Checkbox
+                      checked={urlModal.checked}
+                      style={{verticalAlign: 0}}
+                      onChange={e=>{
+                          setUrlModal(draft => {
+                              draft.checked = e.target.checked
+                          })
+                      }}
+                    />
+                    <span style={{verticalAlign: '6px'}}>是否embedding</span>
                     <ValidatorForm onSubmit={e=>{
                         e.preventDefault()
                     }}>
@@ -605,91 +720,15 @@ export default function App() {
                   })
               }}
             />
-            <Modal
-              open={apiConfigModal.isOpen}
-              onClose={()=>{
-                  setApiConfigModal(draft => {
-                      draft.isOpen = false
-                  })
-              }}
-            >
-                <Box sx={modalStyle}>
-                    <ValidatorForm onSubmit={e=>{
-                        e.preventDefault()
-                        Promise.all([
-                            window.chatBot.replyApiConfig(apiConfigModal.config),
-                            window.chatBot.replyProxy(apiConfigModal.proxy)
-                        ]).then(()=>{
-                            setApiConfigModal(draft => {
-                                draft.isOpen = false
-                            })
-                        })
-                    }}>
-                        <TextValidator
-                          name={'baseUrl'}
-                          value={apiConfigModal.config.baseUrl}
-                          validators={["required","isURL"]}
-                          errorMessages={["请输入内容","请输入正确的url"]}
-                          label="请输入baseurl"
-                          style={{width:'100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.config.baseUrl = e.target.value
-                              })
-                          }}
-                        />
-                        <TextValidator
-                          name={'apiKey'}
-                          value={apiConfigModal.config.apiKey}
-                          label="please enter apikey"
-                          validators={["required"]}
-                          errorMessages={["please enter apikey"]}
-                          style={{width: '100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.config.apiKey = e.target.value
-                              })
-                          }}
-                        />
-                        <TextValidator
-                          name={'proxy'}
-                          value={apiConfigModal.proxy}
-                          label="proxy config eg: http://127.0.0.1:7890"
-                          style={{width: '100%', marginBottom: '20px'}}
-                          size={"small"}
-                          onChange={e=> {
-                              setApiConfigModal(draft => {
-                                  // @ts-ignore
-                                  draft.proxy = e.target.value
-                              })
-                          }}
-                        />
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                            <Button variant="contained" color="secondary" onClick={()=>{
-                                window.chatBot.requestTestApi({
-                                    ...apiConfigModal.config,
-                                    proxy: apiConfigModal.proxy
-                                }).then(()=>{
-                                    toast.success('api test success')
-                                }).catch((e)=>{
-                                    if(!e.toString().includes('AbortError')){
-                                        toast.error('api test failed')
-                                    }
-                                })
-                            }}>
-                                测试
-                            </Button>
-                            <Button type={'submit'} variant="contained" color="primary">
-                                确认
-                            </Button>
-                        </Box>
-                    </ValidatorForm>
-                </Box>
-            </Modal>
+            <ChatConfigComponent ref={chatConfigComponentRef}/>
+            <ProxyConfigComponent ref={proxyConfigComponentRef}/>
+            <EmbeddingConfigComponent ref={embeddingConfigComponentRef}/>
+            {
+                createPortal(
+                  <CodeViewModal ref={codeViewRef} />,
+                  document.body
+                )
+            }
         </>
     );
 }
