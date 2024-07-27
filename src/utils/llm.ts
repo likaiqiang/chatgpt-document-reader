@@ -4,7 +4,9 @@ import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { StringOutputParser } from 'langchain/schema/output_parser';
 import { ChatPromptValue } from '@langchain/core/prompt_values';
 import { getProxyAgent } from '@/utils/default';
-import {fetch} from 'undici'
+import { fetch, RequestInfo, RequestInit } from 'undici';
+import { ipcMain } from 'electron';
+import { Channel } from '@/types/bridge';
 
 interface Message{
   content: string,
@@ -22,10 +24,11 @@ class Ernie{
   private async getAccessToken(){
     return fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${this.apiKey}&client_secret=${this.secretKey}`).then(res=>res.json()).then((res:{access_token:string})=>res.access_token)
   }
-  async chat(messages:Message[], model='ernie-speed-128k'){
+  async chat(messages:Message[], signal: AbortSignal ,model='ernie-speed-128k'){
     this.accessToken = await this.getAccessToken()
     return fetch(`https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/${model}?access_token=${this.accessToken}`,{
       method:'post',
+      signal: signal,
       body: JSON.stringify({
         messages
       })
@@ -56,6 +59,12 @@ export default class LLM extends Runnable{
     if(messages instanceof ChatPromptValue){
       messages = [{content: messages.messages[0].content, role:'user'}] as {content: string, role:'assistant' | 'user'}[]
     }
+    const abortController = new AbortController()
+    if(signalId){
+      ipcMain.once(Channel.sendSignalId, ()=>{
+        abortController.abort()
+      })
+    }
     const config = getApiConfig()
     const proxy = getProxy() as string;
     if(this.chatType === ChatType.ERNIE){
@@ -63,7 +72,7 @@ export default class LLM extends Runnable{
         apiKey:'VvRRhjliQW4pYXLGcLIDmi96',
         secretKey:'uBf5UQFtnfgCUKWYcPnlbhexyjq7QNMN'
       })
-      return client.chat(messages)
+      return client.chat(messages, abortController.signal)
     }
     if(this.chatType === ChatType.CHATGPT){
       const modelName = getModel()
@@ -73,9 +82,14 @@ export default class LLM extends Runnable{
         modelName,
         openAIApiKey: config.apiKey
       },{
-        httpAgent: getProxyAgent(config.enableProxy, proxy),
         // @ts-ignore
-        fetch,
+        fetch:(url: RequestInfo, init?: RequestInit,)=>{
+            return fetch(url,{
+                ...init,
+                signal:abortController.signal,
+                dispatcher: getProxyAgent(config.enableProxy, proxy)
+            })
+        },
         baseURL: config.baseUrl
       });
       const runnable = RunnableSequence.from([
