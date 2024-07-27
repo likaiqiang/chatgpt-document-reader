@@ -35,4 +35,12 @@ export const getModel = ()=>{
 export const setModal = (model:string)=>{
   return store.set(partKeyPrefix + 'model', model)
 }
+export const getStore = (key:string)=>{
+  key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
+  return store.get(key) || {};
+}
+export const setStore = (key:string, value:any)=>{
+  key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key
+  return store.set(key, value);
+}
 

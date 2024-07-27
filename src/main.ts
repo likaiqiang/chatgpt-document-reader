@@ -41,7 +41,7 @@ import {
   getEmbeddingConfig as getLocalEmbeddingConfig,
   setEmbeddingConfig as setLocalEmbeddingConfig,
   getModel as getLocalModel,
-  setModal as setLocalModel
+  setModal as setLocalModel, getStore, setStore
 } from './electron/storage';
 import {
   FindInPageParmas,
@@ -366,14 +366,10 @@ const createWindow = () => {
   });
 
   ipcMain.handle(Channel.electronStoreSet, (_, key, value) => {
-    console.log('electronStoreSet', electronStore);
-    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key;
-    return electronStore.set(key, value);
+    return setStore(key, value)
   });
   ipcMain.handle(Channel.electronStoreGet, (_, key) => {
-    key = !key.startsWith('@___PART___') ? ('@___PART___' + key) : key;
-    console.log('electronStoreGet', electronStore.get(key));
-    return electronStore.get(key) || {};
+    return getStore(key)
   });
   ipcMain.handle(Channel.setRenderCurrentFile, (_, file) => {
     currentRenderFile = file;
@@ -433,9 +429,9 @@ const createWindow = () => {
 
   });
   ipcMain.handle(Channel.replyClearHistory, (e, { filename }) => {
-    const renderChatCache = (cloneDeep(electronStore.get('@___PART___chat-cache') || {})) as { [key: string]: object };
+    const renderChatCache = (cloneDeep(getStore('chat-cache') || {})) as { [key: string]: object };
     delete renderChatCache[filename];
-    electronStore.set('@___PART___chat-cache', renderChatCache);
+    setStore('chat-cache', renderChatCache);
   });
 
   ipcMain.handle(Channel.replyDeleteFile, (e, { filename }) => {
@@ -448,6 +444,9 @@ const createWindow = () => {
     if (existsSync(document)) {
       promise.push(rimraf(document));
     }
+    const renderChatCache = (cloneDeep(getStore('chat-cache') || {})) as { [key: string]: object };
+    delete renderChatCache[filename];
+    setStore('chat-cache', renderChatCache);
     return Promise.all(promise);
   });
 

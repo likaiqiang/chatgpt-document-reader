@@ -1,11 +1,7 @@
-import { ChatOpenAI } from 'langchain/chat_models/openai';
 import { ChatPromptTemplate } from 'langchain/prompts';
 import { RunnableSequence } from 'langchain/schema/runnable';
-import { StringOutputParser } from 'langchain/schema/output_parser';
 import type { VectorStoreRetriever } from 'langchain/vectorstores/base';
-import {HttpsProxyAgent} from "https-proxy-agent";
 import { getApiConfig, getModel, getProxy } from '@/electron/storage';
-import fetch from 'node-fetch'
 import { AnswerChain } from '@/utils/AnswerChain';
 import LLM,{ChatType} from '@/utils/llm';
 const CONDENSE_TEMPLATE = `鉴于以下对话和后续问题，将后续问题改写为一个独立的问题。
