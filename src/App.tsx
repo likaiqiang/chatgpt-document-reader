@@ -486,9 +486,6 @@ export default function App() {
                                                                                                     <h3>Source {index + 1}</h3>
                                                                                                 </AccordionTrigger>
                                                                                                 <AccordionContent>
-                                                                                                    <ReactMarkdown>
-                                                                                                        {doc.pageContent}
-                                                                                                    </ReactMarkdown>
                                                                                                     <p
                                                                                                       className="mt-2"
                                                                                                       style={{cursor: (source && checkSupportedLanguages(source)) ? 'pointer' : ''}}
