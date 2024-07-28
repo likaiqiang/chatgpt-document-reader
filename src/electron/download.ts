@@ -7,10 +7,9 @@ import { documentsOutputDir } from '@/config';
 
 import { pipeline } from 'stream';
 import { promisify } from 'util';
-import {Open} from 'unzipper';
-import { rimraf } from 'rimraf';
 const streamPipeline = promisify(pipeline);
 const PRIVATE_CONSTRUCTOR_KEY = Symbol('private');
+
 
 interface GitHubInfo {
   author?: string,
@@ -38,7 +37,7 @@ interface GithubParams {
 
 export class GitHub {
   url: string;
-  downloadFileName: string;
+  private downloadFileName: string;
   info: GitHubInfo = {};
   private requestedPromises: (()=>Promise<{ path: string, data: string }[]>)[] = [];
   private dirPaths: string[] = [];
@@ -87,6 +86,7 @@ export class GitHub {
             throw new Error(`请求失败: ${response.statusText}`);
           }
           const localFilePath = filepath.join(documentsOutputDir, this.downloadFileName);
+
           const fileStream = createWriteStream(localFilePath);
           streamPipeline(response.body, fileStream).then(()=>{
             this.downloadedFiles.push(localFilePath)
@@ -232,7 +232,16 @@ export class GitHub {
       if (response instanceof Array) {
         return this.downloadDir();
       } else {
-        return this.downloadFile((response as {download_url:string}).download_url);
+        interface Response {
+          download_url:string,
+          name:string
+        }
+        if(!existsSync(filepath.join(documentsOutputDir, this.downloadFileName))){
+          mkdirSync(filepath.join(documentsOutputDir, this.downloadFileName), {recursive: true});
+        }
+        this.downloadFileName = filepath.join(this.downloadFileName, (response as Response).name);
+
+        return this.downloadFile((response as Response).download_url);
       }
     }
   }
@@ -240,9 +249,9 @@ export class GitHub {
 
 // GitHub.createInstance(
 //   {
-//     url:'https://github.com/Nutlope/aicommits/tree/develop/src',
-//     downloadFileName: 'aicommits-src',
-//     proxy:'http://127.0.0.1:7890'
+//     url:'https://github.com/electron/forge/blob/main/packages/maker/zip/src/MakerZIP.ts',
+//     downloadFileName: 'MakerZIP.ts',
+//     proxy: new ProxyAgent('http://127.0.0.1:7890')
 //   }
 // ).then(dl=>{
 //   dl.downloadZippedFiles().then(()=>{
