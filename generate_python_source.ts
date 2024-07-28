@@ -69,7 +69,7 @@ function fetchSafely(url:string, token:string, options: RequestInit = {}) {
         ...options.headers
       };
     }
-    const proxy = process.env.http_proxy || process.env.https_proxy || 'http://127.0.0.1:7890'
+    const proxy = process.env.http_proxy || process.env.https_proxy
     const res = await fetch(url, {
       ...options,
       dispatcher: proxy ? new ProxyAgent(proxy) : undefined
