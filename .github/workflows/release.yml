@@ -70,7 +70,7 @@ jobs:
   build_macos:
     name: Build on MacOS
     environment: release
-    runs-on: macos-11
+    runs-on: macos-12
     permissions:
       contents: write
     steps:
