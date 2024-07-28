@@ -1,7 +1,22 @@
 import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs'
-const pythonPath = path.join(process.cwd(),'src','assets','python_source','python')
+import os from 'os';
+
+function getPythonPath() {
+  const platform = os.platform();
+  if (platform === 'win32'){
+    return path.join(process.cwd(),'src','assets','python_source','python')
+  }
+  if (platform === 'linux'){
+    return path.join(process.cwd(),'src','assets','python_source','bin','python')
+  }
+  if (platform === 'darwin'){
+    return path.join(process.cwd(),'src','assets','python_source','bin','python')
+  }
+}
+
+const pythonPath = getPythonPath()
 
 async function installPythonPackage(packageName:string) {
   console.log(`install ${packageName}`)
