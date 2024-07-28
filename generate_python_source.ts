@@ -19,21 +19,31 @@ function selectCPythonBuild() {
   let build = 'cpython-3.10.14+20240415-';
 
   if (platform === 'win32') {
-    build += 'x86_64-pc-windows-msvc';
+    if (arch === 'x64') {
+      build += 'x86_64-pc-windows-msvc-install_only.tar.gz';
+    } else if (arch === 'ia32') {
+      build += 'i686-pc-windows-msvc-install_only.tar.gz';
+    } else {
+      return null;
+    }
   } else if (platform === 'darwin') {
-    build += 'x86_64-apple-darwin';
+    if (arch === 'x64') {
+      build += 'x86_64-apple-darwin-install_only.tar.gz';
+    } else if (arch === 'arm64') {
+      build += 'aarch64-apple-darwin-install_only.tar.gz';
+    } else {
+      return null;
+    }
   } else if (platform === 'linux') {
-    build += 'x86_64-unknown-linux-gnu';
+    if (arch === 'x64') {
+      build += 'x86_64-unknown-linux-gnu-install_only.tar.gz';
+    } else if (arch.startsWith('arm')) {
+      build += 'armv7-unknown-linux-gnueabihf-install_only.tar.gz';
+    } else {
+      return null;
+    }
   } else {
     return null;
-  }
-
-  if (arch === 'x64') {
-    build += '-install_only.tar.gz';
-  } else if (arch.startsWith('arm')) {
-    build += '-armv7-unknown-linux-gnueabihf-install_only.tar.gz';
-  } else {
-    build += '-i686-pc-windows-msvc-install_only.tar.gz';
   }
 
   return build;
