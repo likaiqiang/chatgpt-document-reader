@@ -63,7 +63,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: chatgpt-document-reader-v${{ env.VERSION }}
-          path: out/make/zip/win32/x64/*.zip
+          path: out/make/**/*.zip
 
   build_macos:
     name: Build on MacOS
@@ -117,4 +117,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
             name: chatgpt-document-reader-v${{ env.VERSION }}
-            path: out/make/*.dmg
+            path: out/make/**/*.zip

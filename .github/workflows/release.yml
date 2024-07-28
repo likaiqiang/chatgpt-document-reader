@@ -65,7 +65,7 @@ jobs:
         with:
           draft: true
           fail_on_unmatched_files: true
-          files: out/make/zip/win32/x64/*.zip
+          files: out/make/**/*.zip
 
   build_macos:
     name: Build on MacOS
@@ -121,4 +121,4 @@ jobs:
         with:
           draft: true
           fail_on_unmatched_files: true
-          files: out/make/*.dmg
+          files: out/make/**/*.zip
