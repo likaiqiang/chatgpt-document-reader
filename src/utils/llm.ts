@@ -21,18 +21,43 @@ class Ernie{
     this.apiKey = apiKey
     this.secretKey = secretKey
   }
-  private async getAccessToken(){
-    return fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${this.apiKey}&client_secret=${this.secretKey}`).then(res=>res.json()).then((res:{access_token:string})=>res.access_token)
+  static normalizeMessages(messages:Message[]){
+    let userIndex = 0;
+    const currentMessage = messages[messages.length - 1].role === 'user' ? messages[messages.length - 1] : null;
+    const normalizedMessages = [];
+    while (userIndex < messages.length - 1) {
+      if(messages[userIndex].role === 'user' && messages[userIndex + 1].role === 'assistant') {
+        normalizedMessages.push(messages[userIndex]);
+        normalizedMessages.push(messages[userIndex + 1]);
+      }
+      userIndex ++
+    }
+    currentMessage && normalizedMessages.push(currentMessage);
+    if(normalizedMessages.length % 2 === 0) {
+      normalizedMessages.unshift({ role: 'user', content: '' });
+    }
+    return normalizedMessages;
+  }
+  private async getAccessToken(signal?: AbortSignal){
+    return fetch(`https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${this.apiKey}&client_secret=${this.secretKey}`,{
+      signal
+    }).then(res=>res.json()).then((res:{access_token:string})=>res.access_token)
   }
   async chat(messages:Message[], signal: AbortSignal ,model='ernie-speed-128k'){
-    this.accessToken = await this.getAccessToken()
+    if(messages[messages.length - 1].role !== 'user'){
+      return Promise.reject('The last message must be user')
+    }
+    this.accessToken = await this.getAccessToken(signal)
     return fetch(`https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/${model}?access_token=${this.accessToken}`,{
       method:'post',
       signal: signal,
       body: JSON.stringify({
-        messages
+        messages: Ernie.normalizeMessages(messages)
       })
-    }).then(res=>res.json()).then((res:{result:string})=>res.result)
+    }).then(res=>res.json()).then((res:{result:string})=>{
+      if(res.result) return res.result
+      return Promise.reject(res)
+    })
   }
 }
 
