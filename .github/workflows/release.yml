@@ -65,7 +65,7 @@ jobs:
         with:
           draft: true
           fail_on_unmatched_files: true
-          files: out/make/squirrel.windows/x64/*.exe
+          files: out/make/zip/win32/x64/*.zip
 
   build_macos:
     name: Build on MacOS
