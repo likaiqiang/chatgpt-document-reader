@@ -1,9 +1,17 @@
 import os from 'os';
-import tar from 'tar';
+import {x} from 'tar';
 import fs,{createWriteStream} from 'fs'
 import path from 'path';
 import { Readable } from 'stream';
-import {exec} from 'child_process'
+import {SingleBar} from 'cli-progress';
+import { fetch, ProxyAgent, RequestInit } from 'undici';
+
+const bar = new SingleBar({
+  format: 'Downloading |{bar}| {percentage}% || {value}/{total} Chunks',
+  barCompleteChar: '\u2588',
+  barIncompleteChar: '\u2591',
+  hideCursor: true
+});
 
 function selectCPythonBuild() {
   const platform = os.platform();
@@ -48,26 +56,24 @@ async function retry<T>(action: () => Promise<T>): Promise<T> {
   }
 }
 
-interface FetchOptions extends RequestInit {
-  headers?: Record<string, string>;
-  'User-Agent'?:string,
-  'X-GitHub-Api-Version'?:string
-}
-function fetchSafely(url:string, token:string, options:FetchOptions = {}) {
+function fetchSafely(url:string, token:string, options: RequestInit = {}) {
   return retry(async () => {
     if (!token) token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+    options.headers = {
+      'User-Agent': 'prantlf/grab-github-release',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
     if (token) {
       options.headers = {
         Authorization: `Bearer ${token}`,
         ...options.headers
       };
     }
-    options = {
-      'User-Agent': 'prantlf/grab-github-release',
-      'X-GitHub-Api-Version': '2022-11-28',
-      ...options
-    };
-    const res = await fetch(url, options);
+    const proxy = process.env.http_proxy || process.env.https_proxy || 'http://127.0.0.1:7890'
+    const res = await fetch(url, {
+      ...options,
+      dispatcher: proxy ? new ProxyAgent(proxy) : undefined
+    });
     if (!res.ok) {
       if (res.status === 403 || res.status === 429) {
         const after = res.headers.get('retry-after');
@@ -87,7 +93,7 @@ function fetchSafely(url:string, token:string, options:FetchOptions = {}) {
         }
       }
       const err = new Error(`GET "${url}" failed: ${res.status} ${res.statusText}`) as Error & { response: Response };
-      err.response = res;
+      // err.response = res;
       throw err
     }
     return res
@@ -97,14 +103,24 @@ function fetchSafely(url:string, token:string, options:FetchOptions = {}) {
 
 async function download(url:string, archive:string, token?:string) {
   const res = await fetchSafely(url, token)
+  const totalSize = parseInt(res.headers.get('content-length'), 10);
   await new Promise((resolve, reject) => {
-    // @ts-ignore
+    bar.start(totalSize, 0);
     const stream = Readable.fromWeb(res.body)
     stream
-      .on('error', reject)
-      .pipe(createWriteStream(archive))
-      .on('finish', resolve)
-      .on('error', reject)
+      .on('data', chunk=>{
+        bar.increment(chunk.length)
+      })
+    stream.pipe(createWriteStream(archive))
+
+      .on('finish', ()=>{
+        bar.stop()
+        resolve('')
+      })
+      .on('error', ()=>{
+        bar.stop()
+        reject('')
+      })
   })
 }
 
@@ -119,8 +135,8 @@ async function downloadAndExtractBuild(downloadUrl:string, extractPath:string) {
   // 创建一个临时文件来保存下载的tar.gz文件
   const tempFilePath = path.join(extractPath, buildName);
   await download(downloadUrl, tempFilePath);
-
-  await tar.x({
+  console.log(`${buildName} start extract`);
+  await x({
     file: tempFilePath,
     C: extractPath,
     strip: 1
@@ -129,7 +145,7 @@ async function downloadAndExtractBuild(downloadUrl:string, extractPath:string) {
   // 删除临时tar.gz文件
   fs.unlinkSync(tempFilePath);
 
-  console.log(`Build ${buildName} has been downloaded and extracted to ${extractPath}`);
+  console.log(`${buildName} has been downloaded and extracted to ${extractPath}`);
 }
 
 

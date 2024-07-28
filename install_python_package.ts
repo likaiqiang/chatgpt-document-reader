@@ -9,15 +9,15 @@ async function installPythonPackage(packageName:string) {
   return new Promise((resolve, reject)=>{
     exec(command, (error, stdout, stderr) => {
       if (error) {
-        console.error(`执行出错: ${error}`);
+        console.error(error);
         return reject(error)
       }
       if (stdout) {
-        console.log(`标准输出: ${stdout}`);
+        console.log(stdout);
         return resolve(stdout)
       }
       if (stderr) {
-        console.error(`标准错误输出: ${stderr}`);
+        console.error(stderr);
         return reject(stderr)
       }
     });

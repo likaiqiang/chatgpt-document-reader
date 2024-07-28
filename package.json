@@ -12,7 +12,7 @@
     "make-dmg": "electron-forge make --platform=darwin",
     "make-linux": "electron-forge make --platform=linux",
     "lint": "eslint --ext .ts,.tsx .",
-    "postinstall": "node build.js"
+    "postinstall": "node build.js && npx ts-node generate_python_source.ts && npx ts-node install_python_package.ts"
   },
   "keywords": [],
   "author": {
@@ -36,6 +36,7 @@
     "@originjs/vite-plugin-commonjs": "^1.0.3",
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-dynamic-import-vars": "^2.1.2",
+    "@types/cli-progress": "^3.11.6",
     "@types/css-modules": "^1.0.5",
     "@types/d3-selection": "^3.0.10",
     "@types/download": "^8.0.5",
@@ -54,6 +55,7 @@
     "@typescript-eslint/parser": "^5.0.0",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",
+    "cli-progress": "^3.12.0",
     "docx": "^8.5.0",
     "electron": "26.6.3",
     "electron-squirrel-startup": "^1.0.0",
