@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Layout from '@/components/layout';
 import styles from '@/styles/Home.module.css';
 import '@/styles/animate.css';
@@ -7,33 +7,34 @@ import LoadingDots from '@/components/ui/LoadingDots';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import DataFor from '@/components/DataFor';
 import Whether, { Else, If } from '@/components/Whether';
-import {useLocalStorage} from '@/utils/hooks';
+import { useLocalStorage } from '@/utils/hooks';
 import cloneDeep from 'lodash.clonedeep';
 import { useLatest, useMemoizedFn } from 'ahooks/es/index';
 import { toast, Toaster } from 'react-hot-toast';
 import { ChatResponse, Resource } from '@/types/chat';
 import { useImmer } from 'use-immer';
 import ReactLoading from 'react-loading';
-import {createPortal} from 'react-dom';
-import botImage from '@/assets/images/bot-image.png'
-import userIcon from '@/assets/images/usericon.png'
-import closeIcon from '@/assets/images/close.jpg'
-import { Box, Button, Link, Modal, TextField, Checkbox } from '@mui/material';
-import { ValidatorForm, TextValidator } from "react-material-ui-form-validator";
+import { createPortal } from 'react-dom';
+import botImage from '@/assets/images/bot-image.png';
+import userIcon from '@/assets/images/usericon.png';
+import closeIcon from '@/assets/images/close.jpg';
+import { Box, Button, Checkbox, Link, Modal, TextField } from '@mui/material';
+import { ValidatorForm } from 'react-material-ui-form-validator';
 import TextareaAutosize from 'react-textarea-autosize';
 import Confirm from '@/Confirm';
-import { SimpleTreeView  } from '@mui/x-tree-view/SimpleTreeView';
+import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
 import CodeViewModal, { CodeViewHandle } from '@/CodeView';
 import { useTreeViewApiRef } from '@mui/x-tree-view';
 import {
     ChatConfigComponent,
     ChatConfigHandler,
-    ProxyConfigComponent,
-    ProxyConfigHandler,
-    EmbeddingConfigHandler,
     EmbeddingConfigComponent,
+    EmbeddingConfigHandler,
+    ProxyConfigComponent,
+    ProxyConfigHandler
 } from '@/components/modal/index';
+import { v4 as uuidv4 } from 'uuid';
 
 enum IngestDataType{
     local = 'local',
@@ -51,7 +52,8 @@ function convertUnicodeToNormal(str:string) {
     // 创建一个正则表达式，匹配Unicode转义序列的格式
     const unicodeRegex = /\\u[0-9a-fA-F]{4}/g;
     // 使用replace方法，将匹配的Unicode转义序列还原为普通字符
-    const result = str.replace(unicodeRegex, function (match) {
+    // 返回结果字符串
+    return str.replace(unicodeRegex, function(match) {
         // 去掉转义序列的前缀
         const hex = match.slice(2);
         // 将十六进制数转换为十进制数
@@ -59,8 +61,6 @@ function convertUnicodeToNormal(str:string) {
         // 返回对应的字符
         return String.fromCharCode(codePoint);
     });
-    // 返回结果字符串
-    return result;
 }
 
 const isUrl = (value:string)=>{
@@ -122,6 +122,8 @@ export default function App() {
     const chatConfigComponentRef = useRef<ChatConfigHandler>()
     const proxyConfigComponentRef = useRef<ProxyConfigHandler>()
     const embeddingConfigComponentRef = useRef<EmbeddingConfigHandler>()
+
+    const ingestDataSignalIdRef = useRef<string>();
 
 
     const initCacheByName = useMemoizedFn((name: string) => {
@@ -253,15 +255,26 @@ export default function App() {
         setUploadModal(draft => {
             draft.isOpen = false
         })
-        setUploadLoading(true)
         if(type === IngestDataType.local){
             promise = window.chatBot.selectFile().then(files=>{
-                return window.chatBot.ingestData(files, urlModal.checked)
+                setUploadLoading(true)
+                ingestDataSignalIdRef.current = uuidv4()
+                return window.chatBot.ingestData({
+                    files,
+                    embedding:urlModal.checked,
+                    signalId: ingestDataSignalIdRef.current
+                })
             })
         }
         else{
+            setUploadLoading(true)
             const url = urlModal.url.endsWith('.git') ? urlModal.url.slice(0,-4) : urlModal.url
-            promise = window.chatBot.ingestData([url], urlModal.checked)
+            ingestDataSignalIdRef.current = uuidv4()
+            promise = window.chatBot.ingestData({
+                files:[url],
+                embedding: urlModal.checked,
+                signalId: ingestDataSignalIdRef.current
+            })
         }
         return promise.then(async ()=>{
             const res = await getResources()
@@ -611,6 +624,11 @@ export default function App() {
                     createPortal(
                       <div className={styles.loadingMask}>
                           <ReactLoading type={'bars'} color="#000" />
+                          <Button onClick={()=>{
+                              window.chatBot.sendSignalId(ingestDataSignalIdRef.current)
+                          }}>
+                              取消
+                          </Button>
                       </div>,
                       document.body
                     )
