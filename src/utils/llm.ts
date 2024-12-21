@@ -86,8 +86,11 @@ export default class LLM extends Runnable{
     }
     const abortController = new AbortController()
     if(signalId){
-      ipcMain.once(Channel.sendSignalId, ()=>{
-        abortController.abort()
+      ipcMain.once(Channel.sendSignalId, (e, id)=>{
+        if(id === signalId){
+          abortController.abort()
+          return Promise.reject('user cancel')
+        }
       })
     }
     const config = getApiConfig()

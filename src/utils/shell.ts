@@ -49,6 +49,7 @@ export const runPython = async <T>({scriptPath, args, socketEvent, signalId}:Pyt
 
         if(signalId){
           ipcMain.once(Channel.sendSignalId, onKill)
+          reject('user cancel')
         }
 
         const onSocketEvent = (content: T,callback: (s:string)=>void)=>{

@@ -43,7 +43,7 @@ export const checkSupported = (path:string, suffixes:string[] = supportedDocumen
     },false)
 }
 
-async function getDocuments({ filePath: fp, fileType }: { filePath: string, fileType?: string }) {
+async function getDocuments({ filePath: fp, fileType, signal }: { filePath: string, fileType?: string, signal?: AbortSignal }) {
     const stat = await fs.stat(fp);
     if (stat.isDirectory()) {
         if(fileType === 'code'){
@@ -82,7 +82,7 @@ export const getRemoteFiles = async (url:string)=>{
     return Promise.reject('无法处理这个URL')
 }
 
-export const getRemoteDownloadedDir = async (url:string)=>{
+export const getRemoteDownloadedDir = async (url:string, signal?: AbortSignal)=>{
     const downloadFileName = encodeURIComponent(new URL(url).pathname)
     if(url.startsWith('https://github.com')){
         const proxy = getProxy() as string;
@@ -90,7 +90,8 @@ export const getRemoteDownloadedDir = async (url:string)=>{
         const dl = await GitHub.createInstance({
             url,
             proxy: getProxyAgent(enableProxy, proxy),
-            downloadFileName
+            downloadFileName,
+            signal
         })
         await dl.downloadZippedFiles()
         return path.join(documentsOutputDir, downloadFileName)
@@ -98,13 +99,14 @@ export const getRemoteDownloadedDir = async (url:string)=>{
     return Promise.reject('无法处理这个URL')
 }
 
-export const ingestData = async ({ filename, filePath,embedding, fileType }: IngestParams) => {
+export const ingestData = async ({ filename, filePath,embedding, fileType, signal }: IngestParams) => {
     const proxy = getProxy() as string;
     const config = getEmbeddingConfig();
     try {
         const docs = await getDocuments({
             filePath,
-            fileType
+            fileType,
+            signal
         });
         console.log('docs', docs);
 

@@ -14,6 +14,12 @@ interface RequestllmParams{
     signalId?: string
 }
 
+interface IngestDataParams{
+    files: string[],
+    embedding:boolean,
+    signalId?: string
+}
+
 
 export const api = {
     /**
@@ -26,8 +32,8 @@ export const api = {
     selectFile(){
         return ipcRenderer.invoke(Channel.selectFile)
     },
-    ingestData(files: string[], embedding = true):Promise<Resource>{
-        return ipcRenderer.invoke(Channel.ingestdata, files, embedding)
+    ingestData({files, embedding = true, signalId}:IngestDataParams):Promise<Resource>{
+        return ipcRenderer.invoke(Channel.ingestdata, files, embedding, signalId)
     },
     chat(params: ChatParams): Promise<ChatResponse>{
         return ipcRenderer.invoke(Channel.chat, params)
