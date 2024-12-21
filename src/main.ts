@@ -1,55 +1,47 @@
+import type { MenuItemConstructorOptions } from 'electron';
 import {
   app,
-  BrowserWindow,
   BrowserView,
+  BrowserWindow,
   dialog,
+  globalShortcut,
   ipcMain,
   Menu,
-  shell,
-  globalShortcut,
   RenderProcessGoneDetails,
   Result,
-  screen
+  screen,
+  shell
 } from 'electron';
 import electronSquirrelStartup from 'electron-squirrel-startup';
-import type { MenuItemConstructorOptions } from 'electron';
 import contextMenu from 'electron-context-menu';
 import cloneDeep from 'lodash.clonedeep';
 import { rimraf } from 'rimraf';
 
-import { existsSync, watch } from 'fs';
+import fs, { existsSync, watch } from 'fs';
 import { Channel } from '@/types/bridge';
-import { mainSend, fetchModels, mainOn } from '@/utils/default';
-import { Server } from "socket.io";
+import { fetchModels, mainOn, mainSend } from '@/utils/default';
+import { Server } from 'socket.io';
 
-import {
-  getRemoteDownloadedDir,
-  getRemoteFiles,
-  ingestData,
-  supportedDocuments
-} from './electron/ingest-data';
+import { getRemoteDownloadedDir, ingestData, supportedDocuments } from './electron/ingest-data';
 import path from 'path';
 import chat from './electron/chat';
-import fs from 'fs';
 import { documentsOutputDir, outputDir } from '@/config';
 import {
-  setApiConfig as setLocalApikey,
-  setProxy as setLocalProxy,
   getApiConfig as getLocalApikey,
-  getProxy as getLocalProxy,
-  store as electronStore,
   getEmbeddingConfig as getLocalEmbeddingConfig,
-  setEmbeddingConfig as setLocalEmbeddingConfig,
   getModel as getLocalModel,
-  setModal as setLocalModel, getStore, setStore
+  getProxy as getLocalProxy,
+  getStore,
+  setApiConfig as setLocalApikey,
+  setEmbeddingConfig as setLocalEmbeddingConfig,
+  setModal as setLocalModel,
+  setProxy as setLocalProxy,
+  setStore
 } from './electron/storage';
-import {
-  FindInPageParmas,
-  StopFindInPageParmas
-} from '@/types/webContents';
+import { FindInPageParmas, StopFindInPageParmas } from '@/types/webContents';
 import { getCodeDot } from './cg';
-import http from 'http'
-import LLM from '@/utils/llm'
+import http from 'http';
+import LLM from '@/utils/llm';
 
 let mainWindow: BrowserWindow = null,
   searchWindow: BrowserView = null;
@@ -121,7 +113,8 @@ function convertChineseToUnicode(str: string) {
   // 创建一个正则表达式，匹配中文字符的范围
   const chineseRegex = /[\u4e00-\u9fa5]/g;
   // 使用replace方法，将匹配的中文字符替换为Unicode转义序列
-  const result = str.replace(chineseRegex, function(match) {
+  // 返回结果字符串
+  return str.replace(chineseRegex, function(match) {
     // 获取中文字符的码点
     const codePoint = match.codePointAt(0);
     // 将码点转换为十六进制数，并补齐四位
@@ -129,8 +122,6 @@ function convertChineseToUnicode(str: string) {
     // 返回Unicode转义序列
     return '\\u' + hex;
   });
-  // 返回结果字符串
-  return result;
 }
 
 function scanResources() {
@@ -264,8 +255,14 @@ const createWindow = () => {
     });
     return filePaths;
   });
-  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[], embedding:boolean) => {
-    console.log('embedding',embedding);
+  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[], embedding:boolean, signalId) => {
+    const abortController = new AbortController();
+    ipcMain.once(Channel.sendSignalId, (e, id) => {
+      if(id === signalId) {
+        abortController.abort();
+        return Promise.reject('user cancelled');
+      }
+    })
     try {
       if (filePaths.length) {
         let filename = /^https?/.test(filePaths[0]) ? encodeURIComponent(new URL(filePaths[0]).pathname) : filePaths[0].split(path.sep).pop();
@@ -274,16 +271,16 @@ const createWindow = () => {
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          const fileDir = await getRemoteDownloadedDir(filePaths[0]);
+          const fileDir = await getRemoteDownloadedDir(filePaths[0], abortController.signal);
           if(embedding){
-            await ingestData({ filename: filename, filePath: fileDir, embedding, fileType: 'code' });
+            await ingestData({ filename: filename, filePath: fileDir, embedding, fileType: 'code',signal:abortController.signal });
           }
         } else {
           filename = encodeURIComponent(convertChineseToUnicode(filename));
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          await ingestData({ filename: filename, filePath: filePaths[0], embedding, fileType: 'resource' });
+          await ingestData({ filename: filename, filePath: filePaths[0], embedding, fileType: 'resource',signal:abortController.signal });
         }
         return { filename };
       } else {

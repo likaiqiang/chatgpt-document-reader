@@ -18,7 +18,8 @@ declare global {
         filename?: string,
         filePath?: string,
         embedding: boolean,
-        fileType: 'code' | 'resource'
+        fileType: 'code' | 'resource',
+        signal?: AbortSignal
     }
     interface ApiConfig{
         apiKey:string,
