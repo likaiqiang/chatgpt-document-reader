@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import { existsSync, mkdirSync, createWriteStream } from 'fs';
-import {fetch, ProxyAgent} from 'undici'
+import { Dispatcher, fetch, ProxyAgent } from 'undici';
 import filepath from 'path';
 import ZIPLoader from '@/loaders/zip';
 import { documentsOutputDir } from '@/config';
@@ -25,13 +25,11 @@ interface Params{
   url: string,
   downloadFileName?: string,
   proxy?: ProxyAgent
+  signal?: AbortSignal
 }
 
-interface GithubParams {
-  url: string,
-  downloadFileName?: string,
+interface GithubParams extends Params{
   githubInfo: GitHubInfo,
-  proxy?: ProxyAgent,
   key:Symbol
 }
 
@@ -42,13 +40,14 @@ export class GitHub {
   private requestedPromises: (()=>Promise<{ path: string, data: string }[]>)[] = [];
   private dirPaths: string[] = [];
   private proxy:ProxyAgent
+  private signal: AbortSignal
   downloadedFiles: string[]
 
-  constructor({githubInfo, proxy, key, url, downloadFileName}:GithubParams) {
+  constructor({githubInfo, proxy, key, url, downloadFileName, signal}:GithubParams) {
     if (key !== PRIVATE_CONSTRUCTOR_KEY) {
       throw new Error('Use GitHub.createInstance() to create an instance.');
     }
-
+    this.signal = signal;
     this.url = url;
     this.downloadFileName = downloadFileName;
     if(this.downloadFileName === undefined){
@@ -61,19 +60,21 @@ export class GitHub {
       mkdirSync(documentsOutputDir,{recursive: true})
     }
   }
-  static async createInstance({url, downloadFileName,proxy}:Params){
+  static async createInstance({url, downloadFileName,proxy, signal}:Params){
     return new GitHub({
-      githubInfo: await GitHub.getParsedInfo(url),
+      githubInfo: await GitHub.getParsedInfo(url,proxy, signal),
       proxy,
       key: PRIVATE_CONSTRUCTOR_KEY,
       downloadFileName,
-      url
+      url,
+      signal
     });
   }
   async downloadFile(url:string){
     return new Promise((resolve, reject) => {
       fetch(url,{
         dispatcher: this.proxy,
+        signal: this.signal,
         headers:{
           Accept:"application/json, text/plain, */*",
           Origin:"https://minhaskamal.github.io",
@@ -102,6 +103,7 @@ export class GitHub {
     this.requestedPromises.push(()=>{
       return fetch(url,{
         dispatcher: this.proxy,
+        signal: this.signal,
         headers:{
           Accept:"application/json, text/plain, */*",
           Origin:"https://minhaskamal.github.io",
@@ -120,6 +122,7 @@ export class GitHub {
   private async mapFileAndDirectory() {
     return fetch(this.info.urlPrefix + this.dirPaths.pop() + this.info.urlPostfix,{
       dispatcher: this.proxy,
+      signal: this.signal,
       headers:{
         Origin:"https://minhaskamal.github.io",
         Referer:"https://minhaskamal.github.io/",
@@ -174,7 +177,7 @@ export class GitHub {
     )
   }
 
-  static async getParsedInfo(url:string) {
+  static async getParsedInfo(url:string, proxy?: Dispatcher, signal?:AbortSignal) {
     const repoPath = new URL(url).pathname;
     const splitPath = repoPath.split('/');
     const [_,author,repository,__ , branch] = splitPath;
@@ -196,7 +199,10 @@ export class GitHub {
     }
     if (!repoInfo.resPath || repoInfo.resPath == '') {
       if (!repoInfo.branch || repoInfo.branch == '') {
-        repoInfo.branch = await fetch(`https://api.github.com/repos/${author}/${repository}`).then(res => res.json()).then((res:{default_branch:string})=> res.default_branch);
+        repoInfo.branch = await fetch(`https://api.github.com/repos/${author}/${repository}`,{
+          dispatcher: proxy,
+          signal: signal,
+        }).then(res => res.json()).then((res:{default_branch:string})=> res.default_branch);
       }
     }
     return repoInfo;
@@ -222,6 +228,7 @@ export class GitHub {
     } else {
       const response = await fetch(this.info.urlPrefix + this.info.resPath + this.info.urlPostfix,{
         dispatcher: this.proxy,
+        signal: this.signal,
         headers:{
           Origin:"https://minhaskamal.github.io",
           Referer:"https://minhaskamal.github.io/",
