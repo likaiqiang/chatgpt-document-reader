@@ -1,5 +1,5 @@
 import {fetch, ProxyAgent,Dispatcher} from 'undici'
-import { IpcMainEvent } from 'electron';
+import { BrowserView, BrowserWindow, IpcMainEvent } from 'electron';
 import { getProxy } from '@/electron/storage';
 
 export function mainSend(window: Electron.BrowserWindow | Electron.BrowserView, name: string): void
@@ -51,4 +51,47 @@ export const getNormalizeBaseUrl = (baseUrl:string)=>{
   if(url.endsWith('/')) url = url.slice(0, url.length -1)
   if(!url.endsWith('v1')) url = url + '/v1'
   return url
+}
+
+export const toastFactory = (mainWindow: BrowserWindow) => {
+  const notificationWindow = new BrowserView();
+  notificationWindow.setAutoResize({ width: true, height: true });
+
+  notificationWindow.webContents.loadURL(`
+        data:text/html;charset=utf-8,
+        <html lang=''>
+          <body>
+            <div id='message' style='margin:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,0.8); color:white; font-size:16px;'>
+              
+            </div>
+          </body>
+          <script >
+            window.updateMessage = (msg) => {
+              document.getElementById('message').innerText = msg;
+            };
+          </script>
+        </html>
+      `);
+  let closeTimer: string | number | NodeJS.Timeout = null
+  return (message: string) => {
+    mainWindow.addBrowserView(notificationWindow);
+    const { width: mainWidth, height: mainHeight } = mainWindow.getContentBounds();
+    const { width: toastWidth, height: toastHeight } = mainWindow.getContentBounds();
+    notificationWindow.setBounds({
+      x: mainWidth / 2 - toastWidth / 2,
+      y: mainHeight - toastHeight,
+      width: toastWidth,
+      height: toastHeight
+    });
+
+    notificationWindow.webContents.executeJavaScript(
+      `window.updateMessage("${message}")`
+    ).catch(err=>{
+      console.log(err);
+    })
+    clearTimeout(closeTimer)
+    closeTimer = setTimeout(()=>{
+      mainWindow.removeBrowserView(notificationWindow)
+    },1000)
+  };
 }

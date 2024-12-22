@@ -19,7 +19,8 @@ import { rimraf } from 'rimraf';
 
 import fs, { existsSync, watch } from 'fs';
 import { Channel } from '@/types/bridge';
-import { fetchModels, mainOn, mainSend } from '@/utils/default';
+import { fetchModels, mainOn, mainSend, toastFactory } from '@/utils/default';
+import sharedInstance from './shareInstance'
 import { Server } from 'socket.io';
 
 import { getRemoteDownloadedDir, ingestData, supportedDocuments } from './electron/ingest-data';
@@ -44,13 +45,13 @@ import http from 'http';
 import LLM from '@/utils/llm';
 
 let mainWindow: BrowserWindow = null,
-  searchWindow: BrowserView = null;
+  searchWindow: BrowserView = null
 
 let currentRenderFile = '';
 
-const server = http.createServer()
+const server = http.createServer();
 
-const wss = new Server(server)
+const wss = new Server(server);
 
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
@@ -125,15 +126,15 @@ function convertChineseToUnicode(str: string) {
 }
 
 function scanResources() {
-  const documentFiles = fs.readdirSync(documentsOutputDir)
-  const outputFiles = fs.readdirSync(outputDir)
+  const documentFiles = fs.readdirSync(documentsOutputDir);
+  const outputFiles = fs.readdirSync(outputDir);
   // 定义一个空数组，用于存放符合条件的子目录
   const subdirs: { filename: string, birthtime: Date, embedding: boolean }[] = [];
 
   // 遍历数组中的每个元素
   for (const file of outputFiles) {
     // 拼接 dir 和 file，得到完整的路径
-    const _path = path.join(outputDir, file)
+    const _path = path.join(outputDir, file);
 
     const stat = fs.statSync(_path);
     // 判断 path 是否是一个文件夹，如果是，继续执行
@@ -155,14 +156,14 @@ function scanResources() {
       }
     }
   }
-  for(const file of documentFiles) {
+  for (const file of documentFiles) {
 
-    if(!outputFiles.includes(file)) {
+    if (!outputFiles.includes(file)) {
       subdirs.push({
         filename: file,
         birthtime: fs.statSync(path.join(documentsOutputDir, file)).birthtime,
         embedding: false
-      })
+      });
     }
   }
   // 返回 subdirs 数组
@@ -213,7 +214,7 @@ const createWindow = () => {
   });
   searchWindow.setBounds({ x: 0, y: 0, width: 0, height: 0 });
 
-  mainWindow.setBrowserView(searchWindow);
+  mainWindow.addBrowserView(searchWindow);
 
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(`${MAIN_WINDOW_VITE_DEV_SERVER_URL}`);
@@ -237,9 +238,7 @@ const createWindow = () => {
     showServices: false,
 
     append: () => {
-      return [
-
-      ];
+      return [];
     }
   });
   ipcMain.handle(Channel.closeSearchWindow, () => {
@@ -255,14 +254,14 @@ const createWindow = () => {
     });
     return filePaths;
   });
-  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[], embedding:boolean, signalId) => {
+  ipcMain.handle(Channel.ingestdata, async (e, filePaths: string[], embedding: boolean, signalId) => {
     const abortController = new AbortController();
     ipcMain.once(Channel.sendSignalId, (e, id) => {
-      if(id === signalId) {
+      if (id === signalId) {
         abortController.abort();
         return Promise.reject('user cancelled');
       }
-    })
+    });
     try {
       if (filePaths.length) {
         let filename = /^https?/.test(filePaths[0]) ? encodeURIComponent(new URL(filePaths[0]).pathname) : filePaths[0].split(path.sep).pop();
@@ -272,15 +271,27 @@ const createWindow = () => {
             return Promise.reject('filename repeat');
           }
           const fileDir = await getRemoteDownloadedDir(filePaths[0], abortController.signal);
-          if(embedding){
-            await ingestData({ filename: filename, filePath: fileDir, embedding, fileType: 'code',signal:abortController.signal });
+          if (embedding) {
+            await ingestData({
+              filename: filename,
+              filePath: fileDir,
+              embedding,
+              fileType: 'code',
+              signal: abortController.signal
+            });
           }
         } else {
           filename = encodeURIComponent(convertChineseToUnicode(filename));
           if (hasRepeat(filename)) {
             return Promise.reject('filename repeat');
           }
-          await ingestData({ filename: filename, filePath: filePaths[0], embedding, fileType: 'resource',signal:abortController.signal });
+          await ingestData({
+            filename: filename,
+            filePath: filePaths[0],
+            embedding,
+            fileType: 'resource',
+            signal: abortController.signal
+          });
         }
         return { filename };
       } else {
@@ -305,7 +316,7 @@ const createWindow = () => {
   });
   ipcMain.handle(Channel.checkChatConfig, () => {
     const config = getLocalApikey();
-    if(config.ernie) return Promise.resolve()
+    if (config.ernie) return Promise.resolve();
     if (config.baseUrl && config.apiKey) return Promise.resolve();
     return Promise.reject('no api config');
   });
@@ -334,8 +345,8 @@ const createWindow = () => {
   });
   ipcMain.handle(Channel.requestGetModels, (e, config) => {
     //eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return fetchModels(config).then((result: {data: any[]}) => result.data);
-  })
+    return fetchModels(config).then((result: { data: any[] }) => result.data);
+  });
   ipcMain.handle(Channel.requestGetModel, () => {
     return getLocalModel();
   });
@@ -352,8 +363,8 @@ const createWindow = () => {
     return getCodeDot(path);
   });
   ipcMain.handle(Channel.requestllm, (e, params) => {
-    const { chatType, messages,signalId } = params;
-    return new LLM({chatType}).chat(messages,signalId)
+    const { chatType, messages, signalId } = params;
+    return new LLM({ chatType }).chat(messages, signalId);
   });
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);
@@ -363,10 +374,10 @@ const createWindow = () => {
   });
 
   ipcMain.handle(Channel.electronStoreSet, (_, key, value) => {
-    return setStore(key, value)
+    return setStore(key, value);
   });
   ipcMain.handle(Channel.electronStoreGet, (_, key) => {
-    return getStore(key)
+    return getStore(key);
   });
   ipcMain.handle(Channel.setRenderCurrentFile, (_, file) => {
     currentRenderFile = file;
@@ -434,7 +445,7 @@ const createWindow = () => {
   ipcMain.handle(Channel.replyDeleteFile, (e, { filename }) => {
     const filepath = path.join(outputDir, filename);
     const document = path.join(documentsOutputDir, filename);
-    const promise = []
+    const promise = [];
     if (existsSync(filepath)) {
       promise.push(rimraf(filepath));
     }
@@ -457,15 +468,15 @@ const createWindow = () => {
   });
   watch(documentsOutputDir, () => {
     mainSend(mainWindow, Channel.outputDirChange);
-  })
+  });
 };
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  server.listen(7765,'127.0.0.1',()=>{
-    global.wss = wss
+  server.listen(7765, '127.0.0.1', () => {
+    global.wss = wss;
     createWindow();
     // 注册事件，ctrl + f 唤起关键字查找控件
     mainWindow.on('focus', () => {
@@ -474,13 +485,16 @@ app.on('ready', () => {
           mainSend(searchWindow, Channel.onFound);
         }
       });
-      mainSend(mainWindow, Channel.onWindowFocussed)
+      const toast = toastFactory(mainWindow)
+      sharedInstance.setInstance<(message:string)=>void>('toast', toast)
+
+      mainSend(mainWindow, Channel.onWindowFocussed);
     });
 
     mainWindow.on('blur', () => {
       globalShortcut.unregisterAll();
     });
-  })
+  });
 });
 
 // Quit when all windows are closed, except on macOS. There, it's common

@@ -4,6 +4,7 @@ import { Dispatcher, fetch, ProxyAgent } from 'undici';
 import filepath from 'path';
 import ZIPLoader from '@/loaders/zip';
 import { documentsOutputDir } from '@/config';
+import sharedInstance from '@/shareInstance';
 
 import { pipeline } from 'stream';
 import { promisify } from 'util';
@@ -71,6 +72,7 @@ export class GitHub {
     });
   }
   async downloadFile(url:string){
+    sharedInstance.getInstance<(message:string)=>void>('toast')('正在下载' + url)
     return new Promise((resolve, reject) => {
       fetch(url,{
         dispatcher: this.proxy,
@@ -101,6 +103,7 @@ export class GitHub {
   }
   private getFile(path: string, url: string) {
     this.requestedPromises.push(()=>{
+      sharedInstance.getInstance<(message:string)=>void>('toast')('正在下载' + url)
       return fetch(url,{
         dispatcher: this.proxy,
         signal: this.signal,
@@ -158,7 +161,7 @@ export class GitHub {
     if (!existsSync(outputDir)) {
       mkdirSync(outputDir, { recursive: true });
     }
-    const files = await ZIPLoader.promiseAllWithConcurrency<{path:string, data: string}>(this.requestedPromises,{limit:100});
+    const files = await ZIPLoader.promiseAllWithConcurrency<{path:string, data: string}>(this.requestedPromises);
 
     return Promise.all(
       files.map(file => {
