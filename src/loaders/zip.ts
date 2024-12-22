@@ -8,9 +8,16 @@ import { getEmbeddingConfig, getProxy } from '@/electron/storage';
 import { getProxyAgent } from '@/utils/default';
 import { Open } from 'unzipper';
 import { rimraf } from 'rimraf';
+import si from 'systeminformation';
 
 // semantic_directory.py
 const scriptPath = MAIN_WINDOW_VITE_DEV_SERVER_URL ? filepath.join(process.cwd(),'src','assets','python_code','semantic_directory.py') : filepath.join(__dirname,'python_code','semantic_directory.py')
+
+async function getDynamicConcurrency() {
+  const cores = (await si.cpu()).cores;
+  const load = (await si.currentLoad()).currentLoad / 100; // 获取当前 CPU 使用率
+  return Math.max(1, Math.floor(cores * (1 - load)));
+}
 
 class ZIPLoader{
   constructor() {
@@ -18,12 +25,14 @@ class ZIPLoader{
       mkdirSync(documentsOutputDir,{recursive: true})
     }
   }
-  static promiseAllWithConcurrency<T>(task:(()=>Promise<T[]>)[] = [],option = {limit: 3}): Promise<T[]>{
-
+  static async promiseAllWithConcurrency<T>(task:(()=>Promise<T[]>)[] = [],option:{concurrency?:number} = {}): Promise<T[]>{
+    if(option.concurrency === undefined){
+      option.concurrency = await getDynamicConcurrency()
+    }
     const newTask = []
-    for(let i=0;i<task.length;i+=option.limit){
+    for(let i=0;i<task.length;i+=option.concurrency){
         const tmp = []
-        for(let j=i;j<i+option.limit;j++){
+        for(let j=i;j<i+option.concurrency;j++){
             task[j] && tmp.push(task[j])
         }
         newTask.push(tmp)

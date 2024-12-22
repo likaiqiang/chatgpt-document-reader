@@ -28,7 +28,7 @@ class CodeLoader {
         });
       };
     });
-    const docs = await ZIPLoader.promiseAllWithConcurrency(fileReadPromises,{limit: 3})
+    const docs = await ZIPLoader.promiseAllWithConcurrency(fileReadPromises)
     return docs.flat()
   }
 }
