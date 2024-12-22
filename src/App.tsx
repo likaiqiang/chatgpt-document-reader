@@ -107,7 +107,7 @@ export default function App() {
     const [urlModal, setUrlModal] = useImmer({
         isOpen: false,
         url:'',
-        checked: true
+        checked: false
     })
     const [clearHistoryModal, setClearHistoryModal] = useImmer({
         isOpen: false
