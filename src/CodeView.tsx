@@ -6,7 +6,7 @@ import Whether from '@/components/Whether';
 import * as d3 from 'd3-graphviz';
 import styles from '@/styles/Home.module.css';
 import Editor from '@monaco-editor/react';
-import { editor } from 'monaco-editor';
+import { editor,Range} from 'monaco-editor';
 import ChatComponent, { ChatHandle } from './components/Chat';
 
 const selectNodeConfig = {
@@ -50,6 +50,8 @@ export interface CodeViewHandle {
 
 const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
   const eleRef = useRef<HTMLDivElement>(null);
+  const editorEleRef = useRef<HTMLDivElement>(null);
+  const [dotContainerStyle, setDotContainerStyle] = useState({})
   const graphvizRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
@@ -58,6 +60,7 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
   const [codeMapping, setCodeMapping] = useState<{ [key: string]: any }>({});
   const [definitions, setDefinitions] = useState<Definition[]>([]);
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
+  const [decorationIds, setDecorationIds] = useState<string[]>([]); // 存储装饰器 ID
   const chatRef = useRef<ChatHandle>(null);
   const abortControllerRef = useRef<AbortController>();
   const isFetchRef = useRef(false);
@@ -131,9 +134,27 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
       if (parentNode) {
         onselectNodeStyle(parentNode);
         const id = parentNode.getAttribute('id');
-        const lineNumber = id ? codeMapping[id]?.loc.start.line : -1;
-        if (editorRef.current && lineNumber >= 0) {
-          editorRef.current.revealLineInCenter(lineNumber);
+        const {start, end} = id ? codeMapping[id]?.loc : {start:{line: -1, column: -1}, end:{line: -1, column: -1}};
+        if (editorRef.current && start.line >= 0) {
+          editorRef.current.revealLineInCenter(start.line);
+          if(decorationIds.length){
+            editorRef.current.deltaDecorations(decorationIds,[])
+          }
+          const ids = editorRef.current.deltaDecorations([],[
+            {
+              range: new Range(
+                start.line,
+                start.column,
+                end.line,
+                end.column
+              ),
+              options:{
+                className: 'myHighlight',
+                inlineClassName: 'myInlineHighlight',
+              }
+            }
+          ])
+          setDecorationIds(ids)
         }
       }
     }
@@ -169,10 +190,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
             ref={eleRef}
             id={'graphviz'}
             className={styles.graphviz}
-            style={{ flex: dot ? 1 : '', maxHeight: '30vh' }}
+            style={Object.assign({}, { flex: dot ? 1 : '', overflow:"auto" },dotContainerStyle)}
             onClick={onClick}
           />
-          <div className={styles.codeContent} style={{ width: dot ? '50%' : '100%', height: '100%' }}>
+          <div className={styles.codeContent} ref={editorEleRef} style={{ width: dot ? '50%' : '100%', height: '100%' }}>
             <Whether value={!!code}>
               <Editor
                 width={'100%'}
@@ -182,6 +203,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
                 className={'codeEdit'}
                 onMount={(editor) => {
                   editorRef.current = editor;
+                  const {height} = getComputedStyle(editorEleRef.current)
+                  setDotContainerStyle({
+                    height: height
+                  })
                   editor.addAction({
                     id: 'inline comments',
                     label: '行内注释',

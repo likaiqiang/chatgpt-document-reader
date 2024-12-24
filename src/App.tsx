@@ -392,7 +392,7 @@ export default function App() {
                                                     (item, index) => {
                                                         return (
                                                             <li className={["mr-10", "mb-10",styles.tabItem,active === index ? styles.tabActive : ''].join(" ")}
-                                                                title={item.filename}
+                                                                title={convertUnicodeToNormal(decodeURIComponent(item.filename))}
                                                                 onClick={() => {
                                                                     onTabClick(index)
                                                                 }}>
