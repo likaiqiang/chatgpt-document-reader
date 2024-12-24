@@ -1,16 +1,7 @@
-import traverse  from "@babel/traverse";
-import type {NodePath} from '@babel/traverse'
-import * as tern from "tern";
-import type {Query} from 'tern'
-import {parse} from '@babel/parser'
-import type {ParseResult} from '@babel/parser'
-import generate from '@babel/generator';
-import fs from 'fs'
-import ts from 'typescript'
-import path from 'path'
-import * as t from '@babel/types';
+import * as ts from 'typescript';
+import path from 'path';
+import fs from 'fs';
 import { extractFunctionsAndClasses } from '@/utils/code';
-const server = new tern.Server({});
 
 interface Position {
   line: number;
@@ -19,295 +10,268 @@ interface Position {
 }
 interface SourceLocation {
   start: Position;
-  end: Position;
-  filename: string;
-  identifierName: string | undefined | null;
-}
-
-interface Vertex {
-  id: string;
-  loc: SourceLocation;
-  name: string;
-  path: NodePath;
-  start: number,
-  end: number
-}
-
-
-interface GetFunctionDefLocParams {
-  code: string;
-  fileName?: string;
-  calleeEnd: number;
-}
-
-interface DotNode {
-  [key: string]: string;
+  end: Position
 }
 
 interface DotStatement {
   head: {
     id: string;
-    path: NodePath<t.Node>;
     attrs: { [key: string]: string };
-    loc: SourceLocation
+    loc: SourceLocation,
+    code:string
   };
   tail: {
     id: string;
-    path: NodePath<t.Node>;
     attrs: { [key: string]: string };
     loc:SourceLocation,
+    code:string
   };
-  attributes?: { [key: string]: string };
+  attributes?: { [key: string]: string }
 }
 
-interface DotJson {
-  node?: DotNode;
-  statements?: DotStatement[];
+interface Definition {
+  type: string;
+  name: string;
+  startPosition: { row: number, column: number };
+  endPosition: { row: number, column: number };
+  code:string
 }
 
-function generateNameByPath(path: NodePath): string {
-  if (path.isFunctionDeclaration() || path.isVariableDeclarator()) {
-    const { id } = path.node as t.FunctionDeclaration | t.VariableDeclarator;
-    if (t.isIdentifier(id)) {
-      return id.name;
+function getFunctionName(node: ts.Node): string | undefined {
+  if (ts.isFunctionDeclaration(node)) {
+    return node.name?.getText();
+  }
+
+  if (ts.isMethodDeclaration(node)) {
+    let name = node.name.getText();
+    // 如果是类方法，加上类名
+    if (ts.isClassDeclaration(node.parent)) {
+      name = `${node.parent.name?.getText()}.${name}`;
     }
+    return name;
   }
-  if (path.isObjectMethod() || path.isObjectProperty()) {
-    const { key } = path.node as t.ObjectMethod | t.ObjectProperty;
-    if (t.isIdentifier(key)) {
-      return key.name;
+
+  if (ts.isConstructorDeclaration(node)) {
+    // 构造函数，返回类名 + ".constructor"
+    if (ts.isClassDeclaration(node.parent)) {
+      return `${node.parent.name?.getText()}.constructor`;
     }
+    return "constructor";
   }
-  if (path.isClassMethod()) {
-    const classPath = path.findParent((p) => p.isClassDeclaration());
-    const { key } = path.node as t.ClassMethod;
-    if (classPath && classPath.isClassDeclaration() && t.isIdentifier(classPath.node.id)) {
-      if (t.isIdentifier(key)) {
-        return `${classPath.node.id.name}.${key.name}`;
-      }
+
+  if (ts.isFunctionExpression(node)) {
+    if (ts.isVariableDeclaration(node.parent)) {
+      // 变量声明的函数表达式
+      return node.parent.name.getText();
     }
-  }
-  return '';
-}
-function tsCompile({source, options}: {source: string, options?: ts.TranspileOptions}){
-  if (!options) {
-    options = {
-      compilerOptions: {
-        module: ts.ModuleKind.ESNext,
-        target: ts.ScriptTarget.ES2020
-      }
-    };
+    if (ts.isPropertyAssignment(node.parent)) {
+      // 对象属性的函数表达式
+      return node.parent.name.getText();
+    }
+    return node.name?.getText();
   }
 
-  // 转换代码
-  const result = ts.transpileModule(source, options);
-
-  // 返回JavaScript代码
-  return {
-    code: result.outputText,
-    map: result.sourceMapText
-  }
-}
-
-function getVertexes(ast: ParseResult<t.File>): Vertex[] {
-  const vertexes: Vertex[] = [];
-
-  traverse(ast, {
-    FunctionDeclaration(path: NodePath<t.FunctionDeclaration>) {
-      const { id } = path.node;
-      if (id) {
-        vertexes.push({
-          id: `${id.name}-${id.loc.start.line}-${id.loc.start.column}`,
-          loc: id.loc,
-          start: id.start,
-          end: id.end,
-          name: generateNameByPath(path),
-          path
-        });
-      }
-    },
-    VariableDeclarator(path: NodePath<t.VariableDeclarator>) {
-      const { id, init } = path.node;
-      if (init && (t.isFunctionExpression(init) || t.isArrowFunctionExpression(init))) {
-        vertexes.push({
-          id: `${(id as t.Identifier).name}-${id.loc.start.line}-${id.loc.start.column}`,
-          loc: id.loc,
-          name: generateNameByPath(path),
-          path,
-          start: id.start,
-          end: id.end
-        });
-      }
-    },
-    ObjectMethod(path: NodePath<t.ObjectMethod>) {
-      const { key, kind } = path.node;
-      if (kind !== 'get') {
-        vertexes.push({
-          id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
-          loc: key.loc,
-          name: generateNameByPath(path),
-          path,
-          start: key.start,
-          end: key.end
-        });
-      }
-    },
-    ObjectProperty(path: NodePath<t.ObjectProperty>) {
-      const { key, value } = path.node;
-      if (value && (t.isFunctionExpression(value) || t.isArrowFunctionExpression(value))) {
-        vertexes.push({
-          id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
-          loc:key.loc,
-          name: generateNameByPath(path),
-          path,
-          start: key.start,
-          end: key.end
-        });
-      }
-    },
-    ClassMethod(path: NodePath<t.ClassMethod>) {
-      const { key } = path.node;
-      vertexes.push({
-        id: `${(key as t.Identifier).name}-${key.loc.start.line}-${key.loc.start.column}`,
-        loc: key.loc,
-        name: generateNameByPath(path),
-        path,
-        start: key.start,
-        end: key.end
-      });
-    },
-  });
-
-  return vertexes;
-}
-
-function getFunctionDefLoc({ code, fileName = 'example.js', calleeEnd }: GetFunctionDefLocParams): any {
-  server.addFile(fileName, code);
-  let result: any = {};
-  const query: Query = {
-    type: "definition",
-    file: fileName,
-    end: calleeEnd,
-  };
-
-  server.flush(() => {
-    server.request({ query }, (err, data) => {
-      if (err) throw err;
-      result = data;
-    });
-  });
-
-  return result;
-}
-
-function getParentFuncLoc(path: NodePath): SourceLocation | null {
-  const parentFunc = path.getFunctionParent();
-
-  if (!parentFunc) {
-    return null
-  }
-
-  if (t.isFunctionExpression(parentFunc.node) || t.isArrowFunctionExpression(parentFunc.node)) {
-    if (!('id' in parentFunc.node) || !parentFunc.node.id) {
-      const container = parentFunc.container as t.Node;
-      if (t.isObjectProperty(container)) {
-        const { key } = container;
-        if (t.isIdentifier(key) || t.isLiteral(key)) {
-          return key.loc;
-        }
-      }
-      if (t.isVariableDeclarator(container)) {
-        const { id } = container;
-        if (t.isIdentifier(id)) {
-          return id.loc;
-        }
-      }
+  if (ts.isArrowFunction(node)) {
+    if (ts.isVariableDeclaration(node.parent)) {
+      return node.parent.name.getText();
+    }
+    if (ts.isPropertyAssignment(node.parent)) {
+      return node.parent.name.getText();
     }
   }
 
-  if (t.isObjectMethod(parentFunc.node) || t.isClassMethod(parentFunc.node)) {
-    const { key } = parentFunc.node;
-    if (t.isIdentifier(key) || t.isLiteral(key)) {
-      return key.loc;
+  if (ts.isCallExpression(node)) {
+    if (ts.isPropertyAccessExpression(node.expression)) {
+      // 对象方法调用: obj.method()
+      return `${node.expression.expression.getText()}.${node.expression.name.getText()}`;
     }
-  }
-
-  if (t.isFunctionDeclaration(parentFunc.node)) {
-    const { id } = parentFunc.node;
-    if (t.isIdentifier(id)) {
-      return id.loc;
-    }
+    return node.expression.getText();
   }
 
   return null;
 }
 
-function generateDotJson(code: string): DotJson {
-  const ast = parse(code, {
-    sourceType: 'unambiguous',
-    plugins: ['jsx', 'typescript'],
-  });
 
-  const dotJson: DotJson = {
-    node: { fillcolor: "#eeeeee", style: "filled,rounded", shape: "rect" },
-    statements: [],
-  };
-
-  const funcDecVertexes = getVertexes(ast);
-
-  traverse(ast, {
-    CallExpression(p) {
-      const { end: calleeEnd } = p.node.callee;
-      const data = getFunctionDefLoc({
-        code,
-        fileName: 'example.js',
-        calleeEnd,
-      });
-
-      if (Object.keys(data).length) {
-        const { start, end } = data;
-        const callVertex = funcDecVertexes.find(vertex => vertex.start === start && vertex.end === end);
-        const parentFunc = p.getFunctionParent();
-
-        if (parentFunc) {
-          const parentLoc = getParentFuncLoc(p);
-          if(parentLoc){
-            const {column, line} = parentLoc.start
-            const parentFuncVertex = funcDecVertexes.find(vertex => vertex.loc.start.line === line && vertex.loc.start.column === column);
-
-            if (callVertex && parentFuncVertex) {
-              dotJson.statements.push({
-                head: {
-                  id: parentFuncVertex.id,
-                  path: parentFuncVertex.path,
-                  loc: parentFuncVertex.path.node.loc,
-                  attrs: {
-                    label: parentFuncVertex.name,
-                    id: parentFuncVertex.id,
-                  },
-                },
-                tail: {
-                  id: callVertex.id,
-                  path: callVertex.path,
-                  loc: callVertex.path.node.loc,
-                  attrs: {
-                    id: callVertex.id,
-                    label: callVertex.name,
-                  },
-                },
-                attributes: {},
-              });
-            }
-          }
-        }
-      }
-    },
-  });
-
-  return dotJson;
+function getParentFunctionNode(node: ts.Node): ts.Node | undefined {
+  let current: ts.Node | undefined = node;
+  while (current) {
+    if (
+      ts.isFunctionDeclaration(current) ||
+      ts.isMethodDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isArrowFunction(current) ||
+      ts.isConstructorDeclaration(current)
+    ) {
+      return current; // 找到父函数节点
+    }
+    current = current.parent; // 向上查找
+  }
+  return undefined; // 未找到父函数节点
 }
-function generateDotStr(dotJson: DotJson): string {
-  const { node = {}, statements = [] } = dotJson;
+
+function getLocationInFile(sourceFile: ts.SourceFile, node: ts.Node) {
+  const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+  const end = sourceFile.getLineAndCharacterOfPosition(node.getEnd());
+
+  return {
+    start: {
+      line: start.line + 1,      // 转换为从1开始
+      column: start.character + 1 // 转换为从1开始
+    },
+    end: {
+      line: end.line + 1,
+      column: end.character + 1
+    },
+    label: getFunctionName(node) || 'anonymous',
+    code: node.getText()
+  };
+}
+
+function analyzeAllFunctionCalls(code: string) {
+  // 创建源文件
+  const sourceFile = ts.createSourceFile(
+    'sample.ts',
+    code,
+    ts.ScriptTarget.Latest,
+    true
+  );
+
+  // 创建程序
+  const program = ts.createProgram({
+    rootNames: ['sample.ts'],
+    options: {
+      target: ts.ScriptTarget.ES2021,
+      noEmitOnError: false,
+      noResolve: true,          // 不解析导入
+      allowJs: true,            // 允许编译 JavaScript 文件
+      noImplicitAny: false,     // 允许隐式 any 类型
+      suppressImplicitAnyIndexErrors: true,  // 抑制隐式索引错误
+      skipDefaultLibCheck: true, // 跳过默认库检查
+      skipLibCheck: true,       // 跳过所有库的类型检查
+      noEmit: true,             // 不输出文件
+      allowUnreachableCode: true, // 允许不可达代码
+      allowUnusedLabels: true,    // 允许未使用的标签
+      noUnusedLocals: false,      // 允许未使用的局部变量
+      noUnusedParameters: false,   // 允许未使用的参数
+      noImplicitReturns: false,   // 允许函数不返回值
+      noFallthroughCasesInSwitch: false, // 允许 switch 语句中的 fallthrough
+    },
+    host: {
+      ...ts.createCompilerHost({}),
+      getSourceFile: (fileName) =>
+        fileName === 'sample.ts' ? sourceFile : undefined,
+      writeFile: () => {},
+      getCurrentDirectory: () => '',
+      getDefaultLibFileName: () => 'lib.d.ts',
+      fileExists: () => true,
+      readFile: () => '',
+      getCanonicalFileName: (f) => f,
+      useCaseSensitiveFileNames: () => true,
+      getNewLine: () => '\n',
+    }
+  });
+
+  const checker = program.getTypeChecker();
+
+  const calls: DotStatement[] = [];
+  const defs: Definition[] = [];
+
+  // 遍历AST收集所有函数调用
+  function visit(node: ts.Node) {
+    function getLineAndColumn(pos: number, sourceFile: ts.SourceFile) {
+      const { line, character } = sourceFile.getLineAndCharacterOfPosition(pos);
+      return {
+        row: line + 1,
+        column: character + 1
+      };
+    }
+    if (ts.isCallExpression(node)) {
+      const parentNode = getParentFunctionNode(node);
+      const symbol = checker.getSymbolAtLocation(node.expression);
+      if(parentNode && symbol){
+        const head = getLocationInFile(sourceFile, parentNode)
+        const tail = getLocationInFile(sourceFile, symbol.declarations?.[0]);
+        const _node = getLocationInFile(sourceFile, node);
+        const headId = `${head.label}-${head.start.line}-${head.start.column}`
+        const tailId = `${tail.label}-${tail.start.line}-${tail.start.column}`
+        calls.push({
+          head:{
+            id: headId,
+            loc:{
+              start: head.start,
+              end: head.end
+            },
+            code: head.code,
+            attrs:{
+              label: head.label,
+              id: headId
+            }
+          },
+          tail:{
+            id: tailId,
+            loc:{
+              start: tail.start,
+              end: tail.end
+            },
+            code: tail.code,
+            attrs:{
+              label: tail.label,
+              id: tailId
+            }
+          },
+          attributes: {}
+        });
+      }
+    }
+    if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) {
+      const name = node.name?.getText() ?? '<anonymous>';
+      defs.push({
+        type: 'Function',
+        name: name,
+        code: node.getText(),
+        startPosition: getLineAndColumn(node.getStart(), sourceFile),
+        endPosition: getLineAndColumn(node.getEnd(), sourceFile)
+      });
+    } else if (ts.isClassDeclaration(node)) {
+      const name = node.name?.getText() ?? '<anonymous>';
+      defs.push({
+        type: 'Class',
+        name: name,
+        code: node.getText(),
+        startPosition: getLineAndColumn(node.getStart(), sourceFile),
+        endPosition: getLineAndColumn(node.getEnd(), sourceFile)
+      });
+      node.members.forEach(member => {
+        if (ts.isConstructorDeclaration(member)) {
+          defs.push({
+            type: 'Constructor',
+            name: 'constructor',
+            code: member.getText(),
+            startPosition: getLineAndColumn(member.getStart(), sourceFile),
+            endPosition: getLineAndColumn(member.getEnd(), sourceFile),
+          });
+        }
+        else if (ts.isMethodDeclaration(member)) {
+          const methodName = member.name.getText();
+          defs.push({
+            type: 'Method',
+            name: methodName,
+            code: member.getText(),
+            startPosition: getLineAndColumn(member.getStart(), sourceFile),
+            endPosition: getLineAndColumn(member.getEnd(), sourceFile)
+          });
+        }
+      });
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return { calls, defs, code };
+}
+
+function generateDotStr(statements:DotStatement[] ): string {
+  const node:{[key:string]:string} = { fillcolor: "#eeeeee", style: "filled,rounded", shape: "rect" };
   let str = 'digraph G {\nrankdir=LR;';
   if(statements.length === 0) return ''
 
@@ -350,46 +314,34 @@ function generateDotStr(dotJson: DotJson): string {
   return str + '\n}';
 }
 
-const getCodeBlock=(filepath:string, code: string)=>{
-  const suffix = path.extname(filepath)
-  const codeBlock = `
-    \`\`\`${suffix ? suffix.slice(1) : ''}
-    ${code}
-    \`\`\`
-  `
-  return codeBlock
-}
 export const getCodeDot= async (filepath: string)=>{
   const code = fs.readFileSync(filepath, 'utf-8')
   let suffix = path.extname(filepath)
 
   if(suffix === '.ts') suffix = '.js'
 
-  let returnCode = code, dot = ''
+  let returnCode = '', dot = '', definitions:Definition[] = []
   const codeMapping: { [key: string]: any } = {}
 
   if(suffix === '.js'){
-    const compiledCode = tsCompile({
-      source: code
-    })
-    returnCode = compiledCode.code
-    const dotJson = generateDotJson(compiledCode.code)
-
-    for(const statement of dotJson.statements){
+    const {calls,defs, code: compiledCode} = analyzeAllFunctionCalls(code)
+    returnCode = compiledCode
+    definitions = defs
+    for(const statement of calls){
       const {head, tail} = statement
       for(const node of [head, tail]){
         if(!codeMapping[node.id]){
-          codeMapping[node.id] = {
-            code: generate(node.path.node).code,
-            loc: node.loc
-          }
+          codeMapping[node.id] = node
         }
       }
     }
-    dot = generateDotStr(dotJson)
+    dot = generateDotStr(calls)
+  }
+  else{
+    returnCode = code
+    definitions = await extractFunctionsAndClasses(code, suffix.slice(1))
   }
 
-  const definitions = await extractFunctionsAndClasses(returnCode, suffix.slice(1))
   return {
     code: returnCode,
     dot,
