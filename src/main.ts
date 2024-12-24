@@ -359,7 +359,13 @@ const createWindow = () => {
   ipcMain.handle(Channel.replyEmbeddingConfig, (e, config) => {
     setLocalEmbeddingConfig(config);
   });
-  ipcMain.handle(Channel.requestCallGraph, (e, path) => {
+  ipcMain.handle(Channel.requestCallGraph, (e, params) => {
+    const {path, signalId} = params;
+    ipcMain.once(Channel.sendSignalId, (e, id)=>{
+      if(id === signalId){
+        return Promise.reject('user cancel')
+      }
+    })
     return getCodeDot(path);
   });
   ipcMain.handle(Channel.requestllm, (e, params) => {

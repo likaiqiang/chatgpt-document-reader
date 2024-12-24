@@ -101,8 +101,8 @@ export const api = {
     requestTestEmbeddingConfig(config: EmbeddingConfig){
         return ipcRenderer.invoke(Channel.requestTestEmbeddingConfig, config)
     },
-    requestCallGraph(path:string){
-        return ipcRenderer.invoke(Channel.requestCallGraph, path)
+    requestCallGraph({path,signalId}:{path:string, signalId:string}){
+        return ipcRenderer.invoke(Channel.requestCallGraph, {path, signalId})
     },
     requestllm({messages, chatType = 'ernie',signalId}:RequestllmParams){
         return ipcRenderer.invoke(Channel.requestllm, {messages, chatType, signalId})

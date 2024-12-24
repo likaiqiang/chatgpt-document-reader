@@ -123,8 +123,7 @@ export default function App() {
     const proxyConfigComponentRef = useRef<ProxyConfigHandler>()
     const embeddingConfigComponentRef = useRef<EmbeddingConfigHandler>()
 
-    const ingestDataSignalIdRef = useRef<string>();
-
+    const signalIdRef = useRef<string>();
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -158,6 +157,17 @@ export default function App() {
             setResources(sortedRes)
             return sortedRes
         })
+    }
+
+    const showLoading = ()=>{
+        setUploadLoading(true)
+        const id = uuidv4()
+        signalIdRef.current = id
+        return id
+    }
+
+    const hideLoading = ()=>{
+        setUploadLoading(false)
     }
 
     useEffect(() => {
@@ -257,23 +267,21 @@ export default function App() {
         })
         if(type === IngestDataType.local){
             promise = window.chatBot.selectFile().then(files=>{
-                setUploadLoading(true)
-                ingestDataSignalIdRef.current = uuidv4()
+                showLoading()
                 return window.chatBot.ingestData({
                     files,
                     embedding:urlModal.checked,
-                    signalId: ingestDataSignalIdRef.current
+                    signalId: signalIdRef.current
                 })
             })
         }
         else{
-            setUploadLoading(true)
             const url = urlModal.url.endsWith('.git') ? urlModal.url.slice(0,-4) : urlModal.url
-            ingestDataSignalIdRef.current = uuidv4()
+            showLoading()
             promise = window.chatBot.ingestData({
                 files:[url],
                 embedding: urlModal.checked,
-                signalId: ingestDataSignalIdRef.current
+                signalId: signalIdRef.current
             })
         }
         return promise.then(async ()=>{
@@ -285,7 +293,7 @@ export default function App() {
         }).catch((error)=>{
             toast.error(error.toString())
         }).finally(()=>{
-            setUploadLoading(false)
+            hideLoading()
         })
     }
     const onRemoteFileUpload = ()=>{
@@ -340,7 +348,10 @@ export default function App() {
                                 <Else>
                                     <TreeItem
                                       onClick={()=>{
-                                          window.chatBot.requestCallGraph(item.filepath).then((res)=>{
+                                          window.chatBot.requestCallGraph({
+                                              path: item.filepath,
+                                              signalId: signalIdRef.current
+                                          }).then((res)=>{
                                               const {code, dot, codeMapping, definitions} = res
                                               codeViewRef.current.setIsOpen(true)
                                               setTimeout(()=>{
@@ -504,7 +515,10 @@ export default function App() {
                                                                                                       style={{cursor: (source && checkSupportedLanguages(source)) ? 'pointer' : ''}}
                                                                                                       onClick={()=>{
                                                                                                           if(checkSupportedLanguages(source)){
-                                                                                                              window.chatBot.requestCallGraph(source).then((res)=>{
+                                                                                                              window.chatBot.requestCallGraph({
+                                                                                                                  path:source,
+                                                                                                                  signalId: signalIdRef.current
+                                                                                                              }).then((res)=>{
                                                                                                                   const {code, dot, codeMapping, definitions} = res
                                                                                                                   codeViewRef.current.setIsOpen(true)
                                                                                                                   setTimeout(()=>{
@@ -625,7 +639,7 @@ export default function App() {
                       <div className={styles.loadingMask}>
                           <ReactLoading type={'bars'} color="#000" />
                           <Button onClick={()=>{
-                              window.chatBot.sendSignalId(ingestDataSignalIdRef.current)
+                              window.chatBot.sendSignalId(signalIdRef.current)
                           }}>
                               取消
                           </Button>
