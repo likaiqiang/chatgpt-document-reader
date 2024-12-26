@@ -91,22 +91,37 @@ function getFunctionName(node: ts.Node): string | undefined {
   return null;
 }
 
+function isDef(defs:Definition[]=[], node: ts.Node, sourceFile: ts.SourceFile) {
+  const location = getLocationInFile(sourceFile,node)
+  return !!(defs.find(def=> {
+    return def.startPosition.row === location.start.line && def.startPosition.column === location.start.column;
+  }))
+}
 
-function getParentFunctionNode(node: ts.Node): ts.Node | undefined {
+function getParentFunctionNode(sourceFile:ts.SourceFile,node: ts.Node, defs: Definition[] = []): ts.Node | undefined {
   let current: ts.Node | undefined = node;
   while (current) {
     if (
-      ts.isFunctionDeclaration(current) ||
-      ts.isMethodDeclaration(current) ||
-      ts.isFunctionExpression(current) ||
-      ts.isArrowFunction(current) ||
-      ts.isConstructorDeclaration(current)
+      (ts.isFunctionDeclaration(current) ||
+        ts.isMethodDeclaration(current) ||
+        ts.isFunctionExpression(current) ||
+        ts.isArrowFunction(current) ||
+        ts.isConstructorDeclaration(current))
+      && isDef(defs, current, sourceFile)
     ) {
       return current; // 找到父函数节点
     }
     current = current.parent; // 向上查找
   }
   return undefined; // 未找到父函数节点
+}
+
+function getLineAndColumn(pos: number, sourceFile: ts.SourceFile) {
+  const { line, character } = sourceFile.getLineAndCharacterOfPosition(pos);
+  return {
+    row: line + 1,
+    column: character + 1
+  };
 }
 
 function getLocationInFile(sourceFile: ts.SourceFile, node: ts.Node) {
@@ -125,6 +140,76 @@ function getLocationInFile(sourceFile: ts.SourceFile, node: ts.Node) {
     label: getFunctionName(node) || 'anonymous',
     code: node.getText()
   };
+}
+
+function collectDefs(sourceFile: ts.SourceFile) {
+  const defs: Definition[] = [];
+
+  function visit(node: ts.Node) {
+
+    // 判断是否为回调函数
+    function isCallbackFunction(node: ts.Node): boolean {
+      const parent = node.parent;
+      if (!parent) return false;
+
+      // 如果父节点是函数调用的参数，则视为回调
+      return ts.isCallExpression(parent) && parent.arguments.includes(node as ts.Expression);
+    }
+
+    // 检查是否是函数声明或类
+    if (
+      (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isArrowFunction(node)) &&
+      !isCallbackFunction(node) // 排除回调函数
+    ) {
+      const name = ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)
+        ? node.name?.getText() ?? '<anonymous>'
+        : '<anonymous>';
+      defs.push({
+        type: 'Function',
+        name: name,
+        code: node.getText(),
+        startPosition: getLineAndColumn(node.getStart(), sourceFile),
+        endPosition: getLineAndColumn(node.getEnd(), sourceFile),
+      });
+    } else if (ts.isClassDeclaration(node)) {
+      const name = node.name?.getText() ?? '<anonymous>';
+      defs.push({
+        type: 'Class',
+        name: name,
+        code: node.getText(),
+        startPosition: getLineAndColumn(node.getStart(), sourceFile),
+        endPosition: getLineAndColumn(node.getEnd(), sourceFile),
+      });
+
+      // 遍历类成员
+      node.members.forEach((member) => {
+        if (ts.isConstructorDeclaration(member)) {
+          defs.push({
+            type: 'Constructor',
+            name: 'constructor',
+            code: member.getText(),
+            startPosition: getLineAndColumn(member.getStart(), sourceFile),
+            endPosition: getLineAndColumn(member.getEnd(), sourceFile),
+          });
+        } else if (ts.isMethodDeclaration(member)) {
+          const methodName = member.name.getText();
+          defs.push({
+            type: 'Method',
+            name: methodName,
+            code: member.getText(),
+            startPosition: getLineAndColumn(member.getStart(), sourceFile),
+            endPosition: getLineAndColumn(member.getEnd(), sourceFile),
+          });
+        }
+      });
+    }
+
+    // 遍历子节点
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return defs;
 }
 
 function analyzeAllFunctionCalls(code: string) {
@@ -174,94 +259,53 @@ function analyzeAllFunctionCalls(code: string) {
   const checker = program.getTypeChecker();
 
   const calls: DotStatement[] = [];
-  const defs: Definition[] = [];
-
+  const defs = collectDefs(sourceFile);
   // 遍历AST收集所有函数调用
   function visit(node: ts.Node) {
-    function getLineAndColumn(pos: number, sourceFile: ts.SourceFile) {
-      const { line, character } = sourceFile.getLineAndCharacterOfPosition(pos);
-      return {
-        row: line + 1,
-        column: character + 1
-      };
-    }
+
     if (ts.isCallExpression(node)) {
-      const parentNode = getParentFunctionNode(node);
-      const symbol = checker.getSymbolAtLocation(node.expression);
-      if(parentNode && symbol){
-        const head = getLocationInFile(sourceFile, parentNode)
-        const tail = getLocationInFile(sourceFile, symbol.declarations?.[0]);
-        const _node = getLocationInFile(sourceFile, node);
-        const headId = `${head.label}-${head.start.line}-${head.start.column}`
-        const tailId = `${tail.label}-${tail.start.line}-${tail.start.column}`
-        calls.push({
-          head:{
-            id: headId,
-            loc:{
-              start: head.start,
-              end: head.end
+      const parentNode = getParentFunctionNode(sourceFile,node, defs);
+      if(parentNode){
+        let symbol
+        try {
+          symbol = checker.getSymbolAtLocation(node.expression);
+        } catch (e){
+
+        }
+        if(symbol && isDef(defs, symbol.declarations?.[0], sourceFile)){
+          const head = getLocationInFile(sourceFile, parentNode)
+          const tail = getLocationInFile(sourceFile, symbol.declarations?.[0]);
+          const headId = `${head.label}-${head.start.line}-${head.start.column}`
+          const tailId = `${tail.label}-${tail.start.line}-${tail.start.column}`
+          calls.push({
+            head:{
+              id: headId,
+              loc:{
+                start: head.start,
+                end: head.end
+              },
+              code: head.code,
+              attrs:{
+                label: head.label,
+                id: headId
+              }
             },
-            code: head.code,
-            attrs:{
-              label: head.label,
-              id: headId
-            }
-          },
-          tail:{
-            id: tailId,
-            loc:{
-              start: tail.start,
-              end: tail.end
+            tail:{
+              id: tailId,
+              loc:{
+                start: tail.start,
+                end: tail.end
+              },
+              code: tail.code,
+              attrs:{
+                label: tail.label,
+                id: tailId
+              }
             },
-            code: tail.code,
-            attrs:{
-              label: tail.label,
-              id: tailId
-            }
-          },
-          attributes: {}
-        });
+            attributes: {}
+          });
+        }
       }
-    }
-    if (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) {
-      const name = node.name?.getText() ?? '<anonymous>';
-      defs.push({
-        type: 'Function',
-        name: name,
-        code: node.getText(),
-        startPosition: getLineAndColumn(node.getStart(), sourceFile),
-        endPosition: getLineAndColumn(node.getEnd(), sourceFile)
-      });
-    } else if (ts.isClassDeclaration(node)) {
-      const name = node.name?.getText() ?? '<anonymous>';
-      defs.push({
-        type: 'Class',
-        name: name,
-        code: node.getText(),
-        startPosition: getLineAndColumn(node.getStart(), sourceFile),
-        endPosition: getLineAndColumn(node.getEnd(), sourceFile)
-      });
-      node.members.forEach(member => {
-        if (ts.isConstructorDeclaration(member)) {
-          defs.push({
-            type: 'Constructor',
-            name: 'constructor',
-            code: member.getText(),
-            startPosition: getLineAndColumn(member.getStart(), sourceFile),
-            endPosition: getLineAndColumn(member.getEnd(), sourceFile),
-          });
-        }
-        else if (ts.isMethodDeclaration(member)) {
-          const methodName = member.name.getText();
-          defs.push({
-            type: 'Method',
-            name: methodName,
-            code: member.getText(),
-            startPosition: getLineAndColumn(member.getStart(), sourceFile),
-            endPosition: getLineAndColumn(member.getEnd(), sourceFile)
-          });
-        }
-      });
     }
     ts.forEachChild(node, visit);
   }
