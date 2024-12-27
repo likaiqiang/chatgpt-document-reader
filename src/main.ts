@@ -47,7 +47,7 @@ import LLM from '@/utils/llm';
 let mainWindow: BrowserWindow = null,
   searchWindow: BrowserView = null
 
-let currentRenderFile = '';
+let currentRenderFile = '', showCodeModal = false;
 
 const server = http.createServer();
 
@@ -385,6 +385,15 @@ const createWindow = () => {
   ipcMain.handle(Channel.electronStoreGet, (_, key) => {
     return getStore(key);
   });
+  ipcMain.handle(Channel.setCodeModalStatus, (_,status: boolean) => {
+    showCodeModal = status
+    if(showCodeModal){
+      globalShortcut.unregister('CommandOrControl+F')
+    }
+    else{
+      globalShortcut.register('CommandOrControl+F',onCtrlF)
+    }
+  })
   ipcMain.handle(Channel.setRenderCurrentFile, (_, file) => {
     currentRenderFile = file;
 
@@ -477,6 +486,12 @@ const createWindow = () => {
   });
 };
 
+const onCtrlF = ()=>{
+  if (searchWindow && searchWindow.webContents && !showCodeModal) {
+    mainSend(searchWindow, Channel.onFound);
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -486,11 +501,7 @@ app.on('ready', () => {
     createWindow();
     // 注册事件，ctrl + f 唤起关键字查找控件
     mainWindow.on('focus', () => {
-      globalShortcut.register('CommandOrControl+F', function() {
-        if (searchWindow && searchWindow.webContents) {
-          mainSend(searchWindow, Channel.onFound);
-        }
-      });
+      globalShortcut.register('CommandOrControl+F', onCtrlF);
       const toast = toastFactory(mainWindow)
       sharedInstance.setInstance<(message:string)=>void>('toast', toast)
 

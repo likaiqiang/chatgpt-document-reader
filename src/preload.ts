@@ -125,6 +125,9 @@ export const api = {
     setRenderCurrentFile(name: string){
         return ipcRenderer.invoke(Channel.setRenderCurrentFile, name)
     },
+    setCodeModalStatus(status: boolean){
+        return ipcRenderer.invoke(Channel.setCodeModalStatus, status)
+    },
     requestOpenFindWindow(){
         return ipcRenderer.invoke(Channel.requestOpenFindWindow)
     },

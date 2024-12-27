@@ -1,4 +1,4 @@
-import React, { useRef, forwardRef, useImperativeHandle, RefObject, useState } from 'react';
+import React, { useRef, forwardRef, useImperativeHandle, RefObject, useState, useEffect } from 'react';
 import { selectAll } from 'd3-selection';
 import { Modal } from '@mui/material';
 import Whether from '@/components/Whether';
@@ -6,7 +6,7 @@ import Whether from '@/components/Whether';
 import * as d3 from 'd3-graphviz';
 import styles from '@/styles/Home.module.css';
 import Editor from '@monaco-editor/react';
-import { editor,Range} from 'monaco-editor';
+import { editor,Range, KeyCode, KeyMod} from 'monaco-editor';
 import ChatComponent, { ChatHandle } from './components/Chat';
 
 const selectNodeConfig = {
@@ -160,6 +160,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
     }
   };
 
+  useEffect(()=>{
+    window.chatBot.setCodeModalStatus(isOpen).then()
+  },[isOpen])
+
   useImperativeHandle(ref, () => {
     return {
       setIsOpen,
@@ -203,6 +207,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
                 className={'codeEdit'}
                 onMount={(editor) => {
                   editorRef.current = editor;
+                  editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyF, () => {
+                    console.log('run');
+                    editor.getAction("actions.find").run();
+                  });
                   const {height} = getComputedStyle(editorEleRef.current)
                   setDotContainerStyle({
                     height: height

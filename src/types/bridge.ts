@@ -32,6 +32,7 @@ export enum Channel {
     electronStoreGet = 'electron_store_get',
     electronStoreSet = 'electron_store_set',
     setRenderCurrentFile = 'set_render_current_file',
+    setCodeModalStatus = 'set_code_modal_status',
     onFoundInPageResult = 'on_found_in_page_result',
     onFound = 'on_found',
     requestOpenFindWindow = 'request_open_find_window',
