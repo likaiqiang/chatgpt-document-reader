@@ -37,6 +37,87 @@ interface Definition {
   code:string
 }
 
+function getFunctionCode(node: ts.Node): string {
+  // 处理函数声明、方法声明、构造函数等
+  if (
+    ts.isFunctionDeclaration(node) ||
+    ts.isMethodDeclaration(node) ||
+    ts.isConstructorDeclaration(node)
+  ) {
+    // 如果是类成员，返回完整的修饰符信息
+    if (ts.isClassElement(node)) {
+      const modifiers = node.modifiers?.map(m => m.getText()).join(' ') || '';
+      return `${modifiers} ${node.getFullText()}`.trim();
+    }
+    return node.getFullText();
+  }
+
+  // 处理函数表达式
+  if (ts.isFunctionExpression(node)) {
+    // 如果函数表达式是变量声明的一部分，返回完整的变量声明
+    if (ts.isVariableDeclaration(node.parent)) {
+      // 获取变量声明列表节点以获取 const/let/var
+      const declarationList = node.parent.parent;
+      if (ts.isVariableDeclarationList(declarationList)) {
+        const declarationKind = declarationList.flags & ts.NodeFlags.Let ? 'let' :
+          declarationList.flags & ts.NodeFlags.Const ? 'const' : 'var';
+        return `${declarationKind} ${node.parent.getFullText()}`;
+      }
+    }
+    // 如果是对象属性的函数表达式
+    if (ts.isPropertyAssignment(node.parent)) {
+      return node.parent.getFullText();
+    }
+    return node.getFullText();
+  }
+
+  // 处理静态方法和属性
+  if (ts.isPropertyDeclaration(node)) {
+    const isStatic = node.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+    if (isStatic) {
+      return node.getFullText();
+    }
+  }
+
+  // 处理箭头函数
+  if (ts.isArrowFunction(node)) {
+    const parent = node.parent;
+
+    // 如果箭头函数是变量声明的一部分
+    if (ts.isVariableDeclaration(parent)) {
+      // 获取变量声明列表节点以获取 const/let/var
+      const declarationList = parent.parent;
+      if (ts.isVariableDeclarationList(declarationList)) {
+        const declarationKind = declarationList.flags & ts.NodeFlags.Let ? 'let' :
+          declarationList.flags & ts.NodeFlags.Const ? 'const' : 'var';
+        return `${declarationKind} ${parent.getFullText()}`;
+      }
+    }
+
+    // 如果箭头函数是对象属性赋值的一部分
+    if (ts.isPropertyAssignment(parent)) {
+      return parent.getFullText();
+    }
+
+    // 如果箭头函数是类属性声明的一部分
+    if (ts.isPropertyDeclaration(parent)) {
+      const modifiers = parent.modifiers?.map(m => m.getText()).join(' ') || '';
+      return `${modifiers} ${parent.getFullText()}`.trim();
+    }
+
+    // 默认返回箭头函数自身代码
+    return node.getFullText();
+  }
+
+  // 对于函数调用，返回调用的代码
+  if (ts.isCallExpression(node)) {
+    return node.getFullText();
+  }
+
+  // 默认返回
+  return '';
+}
+
 function getFunctionName(node: ts.Node): string | undefined {
   if (ts.isFunctionDeclaration(node)) {
     return node.name?.getText();
@@ -44,28 +125,43 @@ function getFunctionName(node: ts.Node): string | undefined {
 
   if (ts.isMethodDeclaration(node)) {
     let name = node.name.getText();
-    // 如果是类方法，加上类名
     if (ts.isClassDeclaration(node.parent)) {
-      name = `${node.parent.name?.getText()}.${name}`;
+      const className = node.parent.name?.getText();
+      const isStatic = node.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+      // 静态方法添加 "static" 前缀
+      if (isStatic) {
+        return `${className}.static.${name}`;
+      }
+      return `${className}.${name}`;
     }
     return name;
   }
 
   if (ts.isConstructorDeclaration(node)) {
-    // 构造函数，返回类名 + ".constructor"
     if (ts.isClassDeclaration(node.parent)) {
       return `${node.parent.name?.getText()}.constructor`;
     }
     return "constructor";
   }
 
+  if (ts.isPropertyDeclaration(node) && ts.isIdentifier(node.name)) {
+    if (ts.isClassDeclaration(node.parent)) {
+      const className = node.parent.name?.getText();
+      const isStatic = node.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+      // 静态属性添加 "static" 前缀
+      if (isStatic) {
+        return `${className}.static.${node.name.getText()}`;
+      }
+      return `${className}.${node.name.getText()}`;
+    }
+    return node.name.getText();
+  }
+
   if (ts.isFunctionExpression(node)) {
     if (ts.isVariableDeclaration(node.parent)) {
-      // 变量声明的函数表达式
       return node.parent.name.getText();
     }
     if (ts.isPropertyAssignment(node.parent)) {
-      // 对象属性的函数表达式
       return node.parent.name.getText();
     }
     return node.name?.getText();
@@ -78,17 +174,33 @@ function getFunctionName(node: ts.Node): string | undefined {
     if (ts.isPropertyAssignment(node.parent)) {
       return node.parent.name.getText();
     }
+    if (ts.isPropertyDeclaration(node.parent) && ts.isIdentifier(node.parent.name)) {
+      if (ts.isClassDeclaration(node.parent.parent)) {
+        const className = node.parent.parent.name?.getText();
+        const isStatic = node.parent.modifiers?.some(m => m.kind === ts.SyntaxKind.StaticKeyword);
+        // 静态箭头函数属性添加 "static" 前缀
+        if (isStatic) {
+          return `${className}.static.${node.parent.name.getText()}`;
+        }
+        return `${className}.${node.parent.name.getText()}`;
+      }
+      return node.parent.name.getText();
+    }
   }
 
   if (ts.isCallExpression(node)) {
     if (ts.isPropertyAccessExpression(node.expression)) {
-      // 对象方法调用: obj.method()
+      // 处理静态方法调用: ClassName.staticMethod()
+      if (ts.isIdentifier(node.expression.expression)) {
+        return `${node.expression.expression.getText()}.${node.expression.name.getText()}`;
+      }
+      // 处理实例方法调用: obj.method()
       return `${node.expression.expression.getText()}.${node.expression.name.getText()}`;
     }
     return node.expression.getText();
   }
 
-  return null;
+  return 'anonymous';
 }
 
 function isDef(defs:Definition[]=[], node: ts.Node, sourceFile: ts.SourceFile) {
@@ -137,8 +249,8 @@ function getLocationInFile(sourceFile: ts.SourceFile, node: ts.Node) {
       line: end.line + 1,
       column: end.character + 1
     },
-    label: getFunctionName(node) || 'anonymous',
-    code: node.getText()
+    label: getFunctionName(node),
+    code: getFunctionCode(node).trim()
   };
 }
 
@@ -155,28 +267,26 @@ function collectDefs(sourceFile: ts.SourceFile) {
       // 如果父节点是函数调用的参数，则视为回调
       return ts.isCallExpression(parent) && parent.arguments.includes(node as ts.Expression);
     }
-
+    const name = getFunctionName(node)
+    const code = getFunctionCode(node).trim()
     // 检查是否是函数声明或类
     if (
       (ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isArrowFunction(node)) &&
       !isCallbackFunction(node) // 排除回调函数
     ) {
-      const name = ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)
-        ? node.name?.getText() ?? '<anonymous>'
-        : '<anonymous>';
+
       defs.push({
         type: 'Function',
-        name: name,
-        code: node.getText(),
+        name,
+        code,
         startPosition: getLineAndColumn(node.getStart(), sourceFile),
         endPosition: getLineAndColumn(node.getEnd(), sourceFile),
       });
     } else if (ts.isClassDeclaration(node)) {
-      const name = node.name?.getText() ?? '<anonymous>';
       defs.push({
         type: 'Class',
         name: name,
-        code: node.getText(),
+        code,
         startPosition: getLineAndColumn(node.getStart(), sourceFile),
         endPosition: getLineAndColumn(node.getEnd(), sourceFile),
       });
@@ -186,17 +296,16 @@ function collectDefs(sourceFile: ts.SourceFile) {
         if (ts.isConstructorDeclaration(member)) {
           defs.push({
             type: 'Constructor',
-            name: 'constructor',
-            code: member.getText(),
+            name,
+            code,
             startPosition: getLineAndColumn(member.getStart(), sourceFile),
             endPosition: getLineAndColumn(member.getEnd(), sourceFile),
           });
         } else if (ts.isMethodDeclaration(member)) {
-          const methodName = member.name.getText();
           defs.push({
             type: 'Method',
-            name: methodName,
-            code: member.getText(),
+            name,
+            code,
             startPosition: getLineAndColumn(member.getStart(), sourceFile),
             endPosition: getLineAndColumn(member.getEnd(), sourceFile),
           });

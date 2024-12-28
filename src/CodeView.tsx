@@ -66,12 +66,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
   const isFetchRef = useRef(false);
 
   function getCommentsPrompt(code:string) {
-    return `
-      给出以下代码，在源代码的基础上逐行注释，注释的过程中不要省略代码，只返回注释后的代码，不要有其他解释
-      \`\`\`
-      ${code}
-      \`\`\`
-      `
+    return `给出以下代码，在源代码的基础上逐行注释，注释的过程中不要省略代码，只返回注释后的代码，不要有其他解释
+\`\`\`
+${code}
+\`\`\``;
   }
 
   function insertButtonAfterLine(line: number, code: string, i: number) {
