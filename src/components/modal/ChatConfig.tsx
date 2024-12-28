@@ -34,6 +34,7 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
     config: {
       baseUrl:'',
       apiKey:'',
+      model:'',
       ernie: true,
       enableProxy: true
     },
@@ -86,13 +87,6 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
   useEffect(() => {
     if(apiConfigModal.isOpen){
       getChatConfig().then()
-      if(!apiConfigModal.config.ernie){
-        getModels().then().catch(()=>{
-          setApiConfigModal(draft => {
-            draft.models = []
-          })
-        })
-      }
     }
   }, [apiConfigModal.isOpen]);
   useImperativeHandle(ref, ()=>{
@@ -144,58 +138,49 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
             />
           </div>
           <Whether value={!apiConfigModal.config.ernie}>
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <SelectValidator
-                label="选择模型"
-                size={"small"}
-                style={{ marginBottom: '20px' }}
-                onChange={(e) => {
-                  window.chatBot.replyModel((e.target as HTMLSelectElement).value)
-                }}
-                name="model"
-                value={model || ''}
-                validators={!apiConfigModal.config.ernie ? ['required'] : undefined}
-                errorMessages={!apiConfigModal.config.ernie ? ['请选择模型'] : undefined}
-                disabled={disabled}
-              >
-                {
-                  apiConfigModal.models.map(model => {
-                    return <MenuItem key={model.id} value={model.id}>{model.id}</MenuItem>
-                  })
-                }
-              </SelectValidator>
-              <LoopIcon className={modelLoading ? 'spin' : ''} onClick={() => {
-                getModels().then()
-              }} />
-            </div>
             <TextValidator
               name={'baseUrl'}
               value={apiConfigModal.config.baseUrl}
-              validators={!apiConfigModal.config.ernie ? ["required", "isURL"] : undefined}
-              errorMessages={!apiConfigModal.config.ernie ? ["请输入内容", "请输入正确的url"] : undefined}
-              label="请输入openai baseurl"
+              validators={!apiConfigModal.config.ernie ? ['required', 'isURL'] : undefined}
+              errorMessages={!apiConfigModal.config.ernie ? ['请输入内容', '请输入正确的url'] : undefined}
+              label='请输入openai baseurl'
               style={{ width: '100%', marginBottom: '20px' }}
-              size={"small"}
+              size={'small'}
               disabled={disabled}
               onChange={e => {
                 setApiConfigModal(draft => {
-                  draft.config.baseUrl = (e.target as HTMLInputElement).value
-                })
+                  draft.config.baseUrl = (e.target as HTMLInputElement).value;
+                });
               }}
             />
             <TextValidator
               name={'apiKey'}
               value={apiConfigModal.config.apiKey}
-              label="please enter apikey"
-              validators={!apiConfigModal.config.ernie ? ["required"] : undefined}
-              errorMessages={!apiConfigModal.config.ernie ? ["please enter apikey"] : undefined}
+              label='please enter apikey'
+              validators={!apiConfigModal.config.ernie ? ['required'] : undefined}
+              errorMessages={!apiConfigModal.config.ernie ? ['please enter apikey'] : undefined}
               style={{ width: '100%', marginBottom: '20px' }}
-              size={"small"}
+              size={'small'}
               disabled={disabled}
               onChange={e => {
                 setApiConfigModal(draft => {
-                  draft.config.apiKey = (e.target as HTMLInputElement).value
-                })
+                  draft.config.apiKey = (e.target as HTMLInputElement).value;
+                });
+              }}
+            />
+            <TextValidator
+              name={'model'}
+              value={apiConfigModal.config.model}
+              label='please enter model'
+              validators={!apiConfigModal.config.ernie ? ['required'] : undefined}
+              errorMessages={!apiConfigModal.config.ernie ? ['please enter model'] : undefined}
+              style={{ width: '100%', marginBottom: '20px' }}
+              size={'small'}
+              disabled={disabled}
+              onChange={e => {
+                setApiConfigModal(draft => {
+                  draft.config.model = (e.target as HTMLInputElement).value;
+                });
               }}
             />
           </Whether>
@@ -204,26 +189,26 @@ const ChatConfig = (props: ChatConfigProps, ref: React.Ref<ChatConfigHandler>)=>
             <Checkbox
               checked={apiConfigModal.config.enableProxy}
               onChange={() => {
-                const value = !apiConfigModal.config.enableProxy
+                const value = !apiConfigModal.config.enableProxy;
                 setApiConfigModal(draft => {
-                  draft.config.enableProxy = value
-                })
+                  draft.config.enableProxy = value;
+                });
               }}
             />
           </div>
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
             <Button
-              variant="contained"
-              color="secondary"
+              variant='contained'
+              color='secondary'
               disabled={disabled}
               onClick={() => {
                 window.chatBot.requestTestChatConfig(apiConfigModal.config).then(() => {
-                  toast.success('api test success')
+                  toast.success('api test success');
                 }).catch((e) => {
                   if (!e.toString().includes('AbortError')) {
-                    toast.error('api test failed')
+                    toast.error('api test failed');
                   }
-                })
+                });
               }}>
               测试
             </Button>

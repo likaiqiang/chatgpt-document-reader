@@ -10,7 +10,7 @@ interface Message{
 
 interface RequestllmParams{
     messages: Message[],
-    chatType?: 'ernie' | 'gpt3',
+    chatType?: 'ernie' | 'chatgpt',
     signalId?: string
 }
 

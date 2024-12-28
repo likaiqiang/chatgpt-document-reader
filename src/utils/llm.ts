@@ -72,10 +72,8 @@ interface LLMParams{
 
 export default class LLM extends Runnable{
   lc_namespace = ["langchain_core", "runnables"];
-  chatType: ChatType = ChatType.ERNIE
-  constructor({chatType}: LLMParams) {
+  constructor() {
     super()
-    this.chatType = chatType
   }
   async chat(messages: {content: string, role:'assistant' | 'user'}[] | string | ChatPromptValue, signalId?:string){
     if(typeof messages === 'string'){
@@ -95,19 +93,19 @@ export default class LLM extends Runnable{
     }
     const config = getApiConfig()
     const proxy = getProxy() as string;
-    if(this.chatType === ChatType.ERNIE){
+
+    if(config.ernie){
       const client = new Ernie({
         apiKey:'VvRRhjliQW4pYXLGcLIDmi96',
         secretKey:'uBf5UQFtnfgCUKWYcPnlbhexyjq7QNMN'
       })
       return client.chat(messages, abortController.signal)
     }
-    if(this.chatType === ChatType.CHATGPT){
-      const modelName = getModel()
+    else{
 
       const model = new ChatOpenAI({
         temperature: 0, // increase temperature to get more creative answers
-        modelName,
+        modelName: config.model,
         openAIApiKey: config.apiKey
       },{
         // @ts-ignore

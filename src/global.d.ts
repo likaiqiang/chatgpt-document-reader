@@ -25,7 +25,8 @@ declare global {
         apiKey:string,
         baseUrl:string,
         ernie: boolean,
-        enableProxy: boolean
+        enableProxy: boolean,
+        model:string
     }
     interface EmbeddingConfig{
         baseUrl: string,
