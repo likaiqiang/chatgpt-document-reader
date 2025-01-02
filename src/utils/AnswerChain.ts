@@ -1,14 +1,11 @@
 import { Runnable, RunnableSequence } from 'langchain/schema/runnable';
 import {Document} from '@/types/document'
-import { StringOutputParser } from 'langchain/schema/output_parser';
 import { ChatPromptTemplate } from 'langchain/prompts';
-import { getApiConfig, getModel, getProxy } from '@/electron/storage';
-import { ChatOpenAI } from 'langchain/chat_models/openai';
-import fetch from 'node-fetch';
-import {HttpsProxyAgent} from "https-proxy-agent";
+import { getApiConfig, getModel } from '@/electron/storage';
+
 import { getMaxToken, getTokenCount } from '@/electron/embeddings';
 import { encodingForModel, TiktokenModel } from 'js-tiktoken';
-import LLM,{ChatType} from '@/utils/llm';
+import LLM from '@/utils/llm';
 
 
 const ANSWER_TEMPLATE = `你是一位专家研究员。使用以下上下文来回答最后的问题.
@@ -42,10 +39,7 @@ export class AnswerChain extends Runnable{
     return getModel()
   }
   private getAnswerChain(){
-    const config = getApiConfig()
-    const llm = new LLM({
-      chatType: config.ernie ? ChatType.ERNIE : ChatType.CHATGPT
-    })
+    const llm = new LLM()
     return RunnableSequence.from([
       answerPrompt,
       llm

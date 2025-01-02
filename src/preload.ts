@@ -1,7 +1,8 @@
-import { contextBridge, ipcRenderer } from 'electron'
-import {Channel} from "@/types/bridge";
+import { contextBridge, ipcRenderer } from 'electron';
+import { Channel } from '@/types/bridge';
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
-import { FindInPageParmas, StopFindInPageParmas, WebContentsOnParams } from '@/types/webContents';
+import { FindInPageParmas, StopFindInPageParmas } from '@/types/webContents';
+import { Observable } from 'rxjs';
 
 interface Message{
     content: string,
@@ -10,8 +11,8 @@ interface Message{
 
 interface RequestllmParams{
     messages: Message[],
-    chatType?: 'ernie' | 'chatgpt',
-    signalId?: string
+    signalId?: string,
+    stream?: boolean
 }
 
 interface IngestDataParams{
@@ -104,8 +105,22 @@ export const api = {
     requestCallGraph({path,signalId}:{path:string, signalId:string}){
         return ipcRenderer.invoke(Channel.requestCallGraph, {path, signalId})
     },
-    requestllm({messages, chatType = 'ernie',signalId}:RequestllmParams){
-        return ipcRenderer.invoke(Channel.requestllm, {messages, chatType, signalId})
+    requestllm({messages,signalId, stream}:RequestllmParams){
+        const observable = new Observable(observer => {
+            ipcRenderer.on('stream-data',(e, params)=>{
+                if(params.event === Channel.requestllm){
+                    observer.next(params.data)
+                }
+            })
+            ipcRenderer.invoke(Channel.requestllm, { messages, stream, signalId }).then(() => {
+                observer.complete()
+            }).catch(e => {
+                observer.error(e)
+            })
+        })
+        return {
+            subscribe: observable.subscribe.bind(observable),
+        }
     },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)

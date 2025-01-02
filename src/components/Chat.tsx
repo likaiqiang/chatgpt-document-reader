@@ -156,21 +156,34 @@ const Chat = (props:{},ref: RefObject<ChatHandle>)=>{
         window.chatBot.sendSignalId(signalIdRef.current)
       })
     }
+    let accumulatedContent = '';
     const messages = [...humanMsgs, ...aiMsgs].sort((a, b) => a.timestamp - b.timestamp).concat({role:'user', content: message}).slice(-10)
-    return window.chatBot.requestllm({
+    const respStream = window.chatBot.requestllm({
       messages,
-      signalId: signalIdRef.current
-    }).then(content=>{
-      setAiMsgs([
-        ...aiMsgs,
-        {
-          content,
-          role:'assistant',
-          timestamp: Date.now()
-        }
-      ])
-    }).finally(()=>{
-      setTyping(false)
+      signalId: signalIdRef.current,
+      stream: true
+    })
+    respStream.subscribe({
+      next: (partialContent:string)=>{
+        accumulatedContent += partialContent;
+
+        setAiMsgs((prevMsgs) => [
+          ...prevMsgs.slice(0, -1), // 替换最后一条消息
+          {
+            content: accumulatedContent, // 实时累积内容
+            role: 'assistant',
+            timestamp: Date.now()
+          }
+        ]);
+      },
+      error: (err: any) => {
+        console.error('Error during request:', err);
+        setTyping(false); // 请求错误后设置为非打字状态
+      },
+      complete: () => {
+        console.log('Request completed');
+        setTyping(false); // 请求完成后设置为非打字状态
+      }
     })
   }
 

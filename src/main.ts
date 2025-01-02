@@ -368,9 +368,26 @@ const createWindow = () => {
     })
     return getCodeDot(path);
   });
-  ipcMain.handle(Channel.requestllm, (e, params) => {
-    const { messages, signalId } = params;
-    return new LLM().chat(messages, signalId);
+  ipcMain.handle(Channel.requestllm, (event, params) => {
+    const { messages, signalId, stream } = params;
+    return new Promise((resolve, reject) => {
+      const respStream = new LLM().chat({messages, signalId, stream});
+      respStream.on('data', chunk=>{
+        event.sender.send('stream-data', {
+          data: chunk,
+          event: Channel.requestllm
+        });
+      })
+      respStream.on('error', (err)=>{
+        reject(err)
+      })
+      respStream.on('end', ()=>{
+        event.sender.send('stream-end', {
+          event: Channel.requestllm
+        });
+        resolve('');
+      })
+    })
   });
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);

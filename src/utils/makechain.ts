@@ -1,9 +1,8 @@
 import { ChatPromptTemplate } from 'langchain/prompts';
 import { RunnableSequence } from 'langchain/schema/runnable';
 import type { VectorStoreRetriever } from 'langchain/vectorstores/base';
-import { getApiConfig, getModel, getProxy } from '@/electron/storage';
 import { AnswerChain } from '@/utils/AnswerChain';
-import LLM, { ChatType } from '@/utils/llm';
+import LLM from '@/utils/llm';
 
 const CONDENSE_TEMPLATE = `鉴于以下对话和后续问题，将后续问题改写为一个独立的问题。
 
@@ -17,15 +16,11 @@ const CONDENSE_TEMPLATE = `鉴于以下对话和后续问题，将后续问题�
 
 
 export const makeChain = (retriever: VectorStoreRetriever) => {
-    const modelName = getModel()
-    console.log('modelName',modelName);
-    const proxy = getProxy() as string;
     const condenseQuestionPrompt =
         ChatPromptTemplate.fromTemplate(CONDENSE_TEMPLATE);
 
     const llm = new LLM();
 
-    // @ts-ignore
     const standaloneQuestionChain = RunnableSequence.from([
         condenseQuestionPrompt,
         llm,
