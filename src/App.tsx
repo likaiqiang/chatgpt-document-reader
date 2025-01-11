@@ -124,6 +124,7 @@ export default function App() {
     const embeddingConfigComponentRef = useRef<EmbeddingConfigHandler>()
 
     const signalIdRef = useRef<string>();
+    const [filepath, setFilepath] = useState<string>();
 
     const initCacheByName = useMemoizedFn((name: string) => {
         if (!cacheRef.current[name]) {
@@ -145,6 +146,12 @@ export default function App() {
         return window.chatBot.getResources().then(async res=>{
             const sortedRes = res.sort((a,b)=>{
                 return a.birthtime.getTime() - b.birthtime.getTime()
+            }).map(item=>{
+                return {
+                    ...item,
+                    filename: item.filename,
+                    __filename: convertUnicodeToNormal(decodeURIComponent(item.filename))
+                }
             })
             console.log('sortedRes',sortedRes);
             if(res.length){
@@ -173,7 +180,7 @@ export default function App() {
     useEffect(() => {
         getResources().then()
         textAreaRef.current?.focus();
-        window.chatBot.onWindowFocussed(getResources)
+        // window.chatBot.onWindowFocussed(getResources)
 
         window.chatBot.onShowClearHistoryModal(()=>{
             setClearHistoryModal(draft => {
@@ -330,7 +337,7 @@ export default function App() {
     };
 
     const TreeCustomItem = useMemo(()=>{
-        return ({list = []}: {list: File[]})=>{
+        return ({list = [], curResourceName}: {list: File[], curResourceName:string})=>{
             return (
               <DataFor list={list}>
                   {
@@ -342,16 +349,20 @@ export default function App() {
                                       itemId={item.filepath}
                                       label={item.filename}
                                     >
-                                        <TreeCustomItem list={item.children || []}/>
+                                        <TreeCustomItem curResourceName={curResourceName} list={item.children || []}/>
                                     </TreeItem>
                                 </If>
                                 <Else>
                                     <TreeItem
                                       onClick={()=>{
+                                          signalIdRef.current = uuidv4()
+                                          setFilepath(item.filepath)
                                           window.chatBot.requestCallGraph({
                                               path: item.filepath,
-                                              signalId: signalIdRef.current
+                                              signalId: signalIdRef.current,
+                                              filename: curResourceName
                                           }).then((res)=>{
+                                              console.log('requestCallGraph', res);
                                               const {code, dot, codeMapping, definitions} = res
                                               codeViewRef.current.setIsOpen(true)
                                               setTimeout(()=>{
@@ -517,7 +528,8 @@ export default function App() {
                                                                                                           if(checkSupportedLanguages(source)){
                                                                                                               window.chatBot.requestCallGraph({
                                                                                                                   path:source,
-                                                                                                                  signalId: signalIdRef.current
+                                                                                                                  signalId: signalIdRef.current,
+                                                                                                                  filename: curResourceName
                                                                                                               }).then((res)=>{
                                                                                                                   const {code, dot, codeMapping, definitions} = res
                                                                                                                   codeViewRef.current.setIsOpen(true)
@@ -554,7 +566,7 @@ export default function App() {
                                             <SimpleTreeView
                                               apiRef={apiRef}
                                             >
-                                                <TreeCustomItem list={files}/>
+                                                <TreeCustomItem curResourceName={curResourceName} list={files}/>
                                             </SimpleTreeView>
                                         </Whether>
                                     </div>
@@ -757,7 +769,7 @@ export default function App() {
             <EmbeddingConfigComponent ref={embeddingConfigComponentRef}/>
             {
                 createPortal(
-                  <CodeViewModal ref={codeViewRef} />,
+                  <CodeViewModal filepath={filepath} ref={codeViewRef} />,
                   document.body
                 )
             }

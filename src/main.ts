@@ -360,14 +360,18 @@ const createWindow = () => {
     setLocalEmbeddingConfig(config);
   });
   ipcMain.handle(Channel.requestCallGraph, (e, params) => {
-    const {path, signalId} = params;
+    const {path, signalId,filename} = params;
     ipcMain.once(Channel.sendSignalId, (e, id)=>{
       if(id === signalId){
         return Promise.reject('user cancel')
       }
     })
-    return getCodeDot(path);
+    return getCodeDot(path,filename);
   });
+  ipcMain.handle(Channel.requestFileContent, (e, params) => {
+    const {filepath} = params
+    return fs.readFileSync(filepath,'utf-8')
+  })
   ipcMain.handle(Channel.requestllm, (event, params) => {
     const { messages, signalId, stream } = params;
     return new Promise((resolve, reject) => {
@@ -434,14 +438,14 @@ const createWindow = () => {
         if (stats.isDirectory()) {
           result.push({
             type: 'dir',
-            filepath: fullPath,
+            filepath: path.normalize(fullPath),
             filename: item,
             children: scan(fullPath) // 递归扫描子目录
           });
         } else {
           result.push({
             type: 'file',
-            filepath: fullPath,
+            filepath: path.normalize(fullPath),
             filename: item
           });
         }

@@ -27,6 +27,7 @@ export enum Channel {
     requestTestChatConfig = 'request_test_chat_config',
     requestTestEmbeddingConfig = 'request_test_embedding_config',
     requestCallGraph = 'request_call_graph',
+    requestFileContent='requestFileContent',
     findInPage = 'find_in_page',
     stopFindInPage = 'stop_find_in_page',
     electronStoreGet = 'electron_store_get',
