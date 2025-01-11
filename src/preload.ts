@@ -102,8 +102,8 @@ export const api = {
     requestTestEmbeddingConfig(config: EmbeddingConfig){
         return ipcRenderer.invoke(Channel.requestTestEmbeddingConfig, config)
     },
-    requestCallGraph({path,signalId}:{path:string, signalId:string}){
-        return ipcRenderer.invoke(Channel.requestCallGraph, {path, signalId})
+    requestCallGraph({path,signalId,filename}:{path:string, signalId:string,filename:string}){
+        return ipcRenderer.invoke(Channel.requestCallGraph, {path, signalId,filename})
     },
     requestllm({messages,signalId, stream}:RequestllmParams){
         const observable = new Observable(observer => {
@@ -121,6 +121,9 @@ export const api = {
         return {
             subscribe: observable.subscribe.bind(observable),
         }
+    },
+    requestFileContent({filepath}:{filepath:string}){
+        return ipcRenderer.invoke(Channel.requestFileContent, {filepath})
     },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)

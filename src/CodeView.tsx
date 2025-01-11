@@ -32,7 +32,7 @@ interface RenderCodeParams {
   dot: string,
   code: string,
   codeMapping: { [key: string]: any },
-  definitions: Definition[]
+  definitions: Record<string, Definition[]>
 }
 
 interface Definition {
@@ -47,8 +47,11 @@ export interface CodeViewHandle {
   setIsOpen: (open: boolean) => void,
   renderCode: (params: RenderCodeParams) => void,
 }
+export interface CodeViewProps {
+  filepath: string;
+}
 
-const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
+const CodeView = (props: CodeViewProps, ref: RefObject<CodeViewHandle>) => {
   const eleRef = useRef<HTMLDivElement>(null);
   const editorEleRef = useRef<HTMLDivElement>(null);
   const [dotContainerStyle, setDotContainerStyle] = useState({})
@@ -58,12 +61,17 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
   const [code, setCode] = useState('');
   const [dot, setDot] = useState('');
   const [codeMapping, setCodeMapping] = useState<{ [key: string]: any }>({});
-  const [definitions, setDefinitions] = useState<Definition[]>([]);
+  const [definitions, setDefinitions] = useState<Record<string, Definition[]>>({});
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
   const [decorationIds, setDecorationIds] = useState<string[]>([]); // 存储装饰器 ID
   const chatRef = useRef<ChatHandle>(null);
   const abortControllerRef = useRef<AbortController>();
   const isFetchRef = useRef(false);
+
+  function changeCode(code:string){
+    removeAllButtons()
+    setCode(code)
+  }
 
   function getCommentsPrompt(code:string) {
     return `给出以下代码，在源代码的基础上用中文逐行注释，注释的过程中不要省略代码，只返回注释后的代码，不要有其他解释
@@ -71,9 +79,10 @@ const CodeView = (props: {}, ref: RefObject<CodeViewHandle>) => {
 ${code}
 \`\`\``;
   }
-
+  const viewZoneIdsRef = useRef(new Map<number, string>());
   function insertButtonAfterLine(line: number, code: string, i: number) {
     if (!editorRef.current) return;
+    console.log('insertButtonAfterLine');
     const prompt = getCommentsPrompt(code)
     const button = document.createElement('button');
     button.style.pointerEvents = 'auto';
@@ -95,19 +104,45 @@ ${code}
     };
     // 使用装饰器插入按钮
     editorRef.current.changeViewZones((accessor) => {
-      accessor.addZone({
+      const viewZoneId = accessor.addZone({
         afterLineNumber: line,
         heightInLines: 1,
         domNode: button
       });
+      viewZoneIdsRef.current.set(line, viewZoneId);
     });
+  }
+
+  function insertAllButtons(filepath:string){
+    const defs = definitions[filepath] || []
+    console.log('defs',defs);
+    for (const definition of defs) {
+      const lineNumber = definition.startPosition.row;
+      if (editorRef.current && lineNumber >= 0) {
+        insertButtonAfterLine(lineNumber, definition.code, defs.indexOf(definition));
+      }
+    }
+  }
+
+  function removeAllButtons() {
+    if (!editorRef.current) return;
+
+    editorRef.current.changeViewZones((accessor) => {
+      // 移除所有存储的 view zones
+      for (const viewZoneId of viewZoneIdsRef.current.values()) {
+        accessor.removeZone(viewZoneId);
+      }
+    });
+
+    // 清空记录
+    viewZoneIdsRef.current.clear();
+    console.log('All buttons removed');
   }
 
   const renderCode = ({ dot, code, codeMapping, definitions }: RenderCodeParams) => {
     graphvizRef.current = d3.graphviz(`#${eleRef.current?.id}`);
     const graphviz = graphvizRef.current;
-
-    setCode(code);
+    changeCode(code);
     setDot(dot);
     setCodeMapping(codeMapping);
     setDefinitions(definitions);
@@ -126,33 +161,53 @@ ${code}
     node.querySelector('path')!.style.stroke = selectNodeConfig.color;
   };
 
-  const onClick = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+  const onClick = async (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    function scrollToLine(loc:any){
+      if(loc === undefined){
+        loc = {start:{line: -1, column: -1}, end:{line: -1, column: -1}}
+      }
+      const {start, end} = loc
+      if(start.line >= 0){
+        editorRef.current.revealLineInCenter(start.line);
+        if(decorationIds.length){
+          editorRef.current.deltaDecorations(decorationIds,[])
+        }
+        const ids = editorRef.current.deltaDecorations([],[
+          {
+            range: new Range(
+              start.line,
+              start.column,
+              end.line,
+              end.column
+            ),
+            options:{
+              className: 'myHighlight',
+              inlineClassName: 'myInlineHighlight',
+            }
+          }
+        ])
+        setDecorationIds(ids)
+      }
+    }
     if (isNode(e)) {
       const parentNode = (e.target as HTMLElement).parentElement;
       if (parentNode) {
         onselectNodeStyle(parentNode);
         const id = parentNode.getAttribute('id');
-        const {start, end} = id ? codeMapping[id]?.loc : {start:{line: -1, column: -1}, end:{line: -1, column: -1}};
-        if (editorRef.current && start.line >= 0) {
-          editorRef.current.revealLineInCenter(start.line);
-          if(decorationIds.length){
-            editorRef.current.deltaDecorations(decorationIds,[])
-          }
-          const ids = editorRef.current.deltaDecorations([],[
-            {
-              range: new Range(
-                start.line,
-                start.column,
-                end.line,
-                end.column
-              ),
-              options:{
-                className: 'myHighlight',
-                inlineClassName: 'myInlineHighlight',
-              }
-            }
-          ])
-          setDecorationIds(ids)
+        const path = decodeURIComponent(id.split('/')[0])
+        if(eleRef.current){
+          const disposable = editorRef.current.onDidChangeModelContent(()=>{
+            insertAllButtons(path)
+            scrollToLine(id ? codeMapping[id]?.loc: undefined)
+            disposable.dispose()
+          })
+        }
+        if(path !== props.filepath){
+          const _code = await window.chatBot.requestFileContent({filepath: path})
+          changeCode(_code)
+        }
+        else{
+          scrollToLine(id ? codeMapping[id]?.loc: undefined)
         }
       }
     }
@@ -171,11 +226,12 @@ ${code}
 
   return (
     <Modal open={isOpen}
+           keepMounted={true}
            onClose={() => {
              setIsOpen(false);
-             setCode('');
-             setDot('');
-             setCodeMapping({});
+             // changeCode('');
+             // setDot('');
+             // setCodeMapping({});
              if (graphvizRef.current) {
                graphvizRef.current.destroy();
              }
@@ -230,12 +286,12 @@ ${code}
                       }
                     }
                   });
-                  for (const definition of definitions) {
-                    const lineNumber = definition.startPosition.row;
-                    if (editor && lineNumber >= 0) {
-                      insertButtonAfterLine(lineNumber, definition.code, definitions.indexOf(definition));
-                    }
-                  }
+
+                  editorRef.current.onDidChangeModelContent(()=>{
+                    insertAllButtons(props.filepath)
+                  })
+
+                  insertAllButtons(props.filepath)
                 }}
                 options={{
                   readOnly: true
@@ -250,4 +306,4 @@ ${code}
   );
 };
 
-export default forwardRef<CodeViewHandle, {}>(CodeView);
+export default forwardRef<CodeViewHandle, CodeViewProps>(CodeView);
