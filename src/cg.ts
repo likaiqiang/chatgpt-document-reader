@@ -2,6 +2,7 @@ import * as ts from 'typescript';
 import path from 'path';
 import fs from 'fs';
 import { extractFunctionsAndClasses } from '@/utils/code';
+import {documentsOutputDir} from '@/config'
 
 interface Position {
   line: number;
@@ -24,9 +25,9 @@ interface DotStatement {
     id: string;
     attrs: { [key: string]: string };
     loc:SourceLocation,
-    code:string
+    code:string,
   };
-  attributes?: { [key: string]: string }
+  attributes?: Record<string, string>;
 }
 
 interface Definition {
@@ -36,6 +37,40 @@ interface Definition {
   endPosition: { row: number, column: number };
   code:string
 }
+
+const getId = (params: Array<string>, split='/')=>{
+  return params.reduce((acc, value,i)=>{
+    acc += encodeURIComponent(value)
+    if(i!==params.length-1) acc += split
+    return acc
+  },'')
+}
+
+
+function scanDirectory(dirPath: string): Record<string, string> {
+  const fileSystem: Record<string, string> = {};
+
+  function scan(currentPath: string) {
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = path.normalize(path.join(currentPath, entry.name));
+      // const relativePath = path.relative(dirPath, fullPath).replace(/\\/g, '/');
+
+      if (entry.isDirectory()) {
+        // 如果是目录，则递归扫描
+        scan(fullPath);
+      } else if (entry.isFile()) {
+        // 如果是文件，则读取内容并加入到 fileSystem
+        fileSystem[`${fullPath}`] = fs.readFileSync(fullPath, 'utf-8');
+      }
+    }
+  }
+
+  scan(dirPath);
+  return fileSystem;
+}
+
 
 function getFunctionCode(node: ts.Node): string {
   // 处理函数声明、方法声明、构造函数等
@@ -321,22 +356,79 @@ function collectDefs(sourceFile: ts.SourceFile) {
   return defs;
 }
 
-function analyzeAllFunctionCalls(code: string) {
-  // 创建源文件
-  const sourceFile = ts.createSourceFile(
-    'sample.ts',
-    code,
-    ts.ScriptTarget.Latest,
-    true
-  );
+function analyzeAllFunctionCalls(entryFile: string, fileSystem: Record<string, string>) {
+  const normalizedFileSystem = new Map<string, string>();
 
+  Object.entries(fileSystem).forEach(([filePath, content]) => {
+    normalizedFileSystem.set(path.normalize(filePath), content);
+  });
+
+  const compilerHost = {
+    ...ts.createCompilerHost({}),
+    getSourceFile: (fileName: string, languageVersion: ts.ScriptTarget) => {
+      const normalizedPath = path.normalize(fileName);
+      const content = normalizedFileSystem.get(normalizedPath);
+
+      if (content !== undefined) {
+        return ts.createSourceFile(fileName, content, languageVersion, true);
+      }
+
+      // 处理默认库文件
+      if (fileName.startsWith('lib.')) {
+        return undefined;
+      }
+
+      return undefined;
+    },
+
+    fileExists: (fileName: string) => {
+      const normalizedPath = path.normalize(fileName);
+      return normalizedFileSystem.has(normalizedPath);
+    },
+
+    readFile: (fileName: string) => {
+      const normalizedPath = path.normalize(fileName);
+      return normalizedFileSystem.get(normalizedPath) || '';
+    },
+    writeFile: () => {},
+    getCurrentDirectory: () => '/',
+    getDefaultLibFileName: () => 'lib.d.ts',
+    getCanonicalFileName: (f:any) => f,
+    useCaseSensitiveFileNames: () => true,
+    getNewLine: () => '\n',
+    // 添加模块解析支持
+    resolveModuleNames: (moduleNames: string[], containingFile: string) => {
+      return moduleNames.map(moduleName => {
+        // 处理相对路径
+        if (moduleName.startsWith('.')) {
+          const resolvedPath = path.join(path.dirname(containingFile), moduleName);
+          const normalizedPath = path.normalize(resolvedPath);
+
+          // 尝试不同的文件扩展名
+          const extensions = ['.ts', '.tsx', '.js'];
+          for (const ext of extensions) {
+            const fullPath = normalizedPath + ext;
+            if (normalizedFileSystem.has(fullPath)) {
+              return {
+                resolvedFileName: fullPath,
+                isExternalLibraryImport: false,
+                extension: ext
+              };
+            }
+          }
+        }
+
+        return undefined;
+      });
+    }
+  }
   // 创建程序
   const program = ts.createProgram({
-    rootNames: ['sample.ts'],
+    rootNames: [entryFile],
     options: {
       target: ts.ScriptTarget.ES2021,
       noEmitOnError: false,
-      noResolve: true,          // 不解析导入
+      noResolve: false,
       allowJs: true,            // 允许编译 JavaScript 文件
       noImplicitAny: false,     // 允许隐式 any 类型
       suppressImplicitAnyIndexErrors: true,  // 抑制隐式索引错误
@@ -350,77 +442,80 @@ function analyzeAllFunctionCalls(code: string) {
       noImplicitReturns: false,   // 允许函数不返回值
       noFallthroughCasesInSwitch: false, // 允许 switch 语句中的 fallthrough
     },
-    host: {
-      ...ts.createCompilerHost({}),
-      getSourceFile: (fileName) =>
-        fileName === 'sample.ts' ? sourceFile : undefined,
-      writeFile: () => {},
-      getCurrentDirectory: () => '',
-      getDefaultLibFileName: () => 'lib.d.ts',
-      fileExists: () => true,
-      readFile: () => '',
-      getCanonicalFileName: (f) => f,
-      useCaseSensitiveFileNames: () => true,
-      getNewLine: () => '\n',
-    }
+    host: compilerHost
   });
 
   const checker = program.getTypeChecker();
 
   const calls: DotStatement[] = [];
-  const defs = collectDefs(sourceFile);
-  // 遍历AST收集所有函数调用
-  function visit(node: ts.Node) {
+  const allDefs:Record<string, Definition[]> = {}
+  // const defs = collectDefs(sourceFile);
 
-    if (ts.isCallExpression(node)) {
-      const parentNode = getParentFunctionNode(sourceFile,node, defs);
-      if(parentNode){
-        let symbol
-        try {
-          symbol = checker.getSymbolAtLocation(node.expression);
-        } catch (e){
+  program.getSourceFiles().forEach(sourceFile => {
+    if (!sourceFile.isDeclarationFile) {
+      allDefs[path.normalize(sourceFile.fileName)] = collectDefs(sourceFile)
+      visitSourceFile(sourceFile);
+    }
+  });
+  function visitSourceFile(sourceFile: ts.SourceFile){
+    function visit(node: ts.Node) {
 
-        }
-        if(symbol && isDef(defs, symbol.declarations?.[0], sourceFile)){
-          const head = getLocationInFile(sourceFile, parentNode)
-          const tail = getLocationInFile(sourceFile, symbol.declarations?.[0]);
-          const headId = `${head.label}-${head.start.line}-${head.start.column}`
-          const tailId = `${tail.label}-${tail.start.line}-${tail.start.column}`
-          calls.push({
-            head:{
-              id: headId,
-              loc:{
-                start: head.start,
-                end: head.end
+      if (ts.isCallExpression(node)) {
+        const filepath = path.normalize(sourceFile.fileName)
+        const parentNode = getParentFunctionNode(sourceFile,node, allDefs[filepath]);
+        if(parentNode){
+          let symbol
+          try {
+            symbol = checker.getSymbolAtLocation(node.expression);
+          } catch (e){
+
+          }
+
+          if(symbol?.declarations?.[0] && isDef(allDefs[filepath], symbol.declarations?.[0], sourceFile)){
+            const defSourceFile = symbol.declarations[0].getSourceFile();
+
+            const head = getLocationInFile(sourceFile, parentNode)
+            const tail = getLocationInFile(defSourceFile, symbol.declarations?.[0]);
+
+            const headId = getId([filepath,head.label,head.start.line + '', head.start.column + ''])
+            const tailId = getId([path.normalize(defSourceFile.fileName), tail.label, tail.start.line + '', tail.start.column + ''])
+            calls.push({
+              head:{
+                id: headId,
+                loc:{
+                  start: head.start,
+                  end: head.end
+                },
+                code: head.code,
+                attrs:{
+                  label: head.label,
+                  id: headId
+                }
               },
-              code: head.code,
-              attrs:{
-                label: head.label,
-                id: headId
-              }
-            },
-            tail:{
-              id: tailId,
-              loc:{
-                start: tail.start,
-                end: tail.end
+              tail:{
+                id: tailId,
+                loc:{
+                  start: tail.start,
+                  end: tail.end
+                },
+                code: tail.code,
+                attrs:{
+                  label: tail.label,
+                  id: tailId
+                }
               },
-              code: tail.code,
-              attrs:{
-                label: tail.label,
-                id: tailId
-              }
-            },
-            attributes: {}
-          });
+              attributes: {}
+            });
+          }
         }
       }
+      ts.forEachChild(node, visit);
     }
-    ts.forEachChild(node, visit);
+    visit(sourceFile);
   }
+  // 遍历AST收集所有函数调用
 
-  visit(sourceFile);
-  return { calls, defs, code };
+  return { calls, defs: allDefs, code: fs.readFileSync(entryFile,'utf-8') };
 }
 
 function generateDotStr(statements:DotStatement[] ): string {
@@ -435,7 +530,7 @@ function generateDotStr(statements:DotStatement[] ): string {
     str += ']';
   }
 
-  const visitedId: { [key: string]: any } = {};
+  const visitedId: Record<string, any> = {};
   str += statements.reduce((acc, statement) => {
     const { head, tail } = statement;
     for (const node of [head, tail]) {
@@ -467,17 +562,18 @@ function generateDotStr(statements:DotStatement[] ): string {
   return str + '\n}';
 }
 
-export const getCodeDot= async (filepath: string)=>{
+export const getCodeDot= async (filepath: string, filename: string)=>{
   const code = fs.readFileSync(filepath, 'utf-8')
   let suffix = path.extname(filepath)
 
   if(suffix === '.ts') suffix = '.js'
 
-  let returnCode = '', dot = '', definitions:Definition[] = []
-  const codeMapping: { [key: string]: any } = {}
+  let returnCode = '', dot = '', definitions:Record<string, Definition[]> = {}
+  const codeMapping: Record<string, any> = {}
 
   if(suffix === '.js'){
-    const {calls,defs, code: compiledCode} = analyzeAllFunctionCalls(code)
+    const fileSystem = scanDirectory(path.join(documentsOutputDir,filename))
+    const {calls,defs, code: compiledCode} = analyzeAllFunctionCalls(filepath, fileSystem)
     returnCode = compiledCode
     definitions = defs
     for(const statement of calls){
@@ -490,9 +586,14 @@ export const getCodeDot= async (filepath: string)=>{
     }
     dot = generateDotStr(calls)
   }
-  else{
+  else if (suffix === '.json'){
     returnCode = code
-    definitions = await extractFunctionsAndClasses(code, suffix.slice(1))
+    definitions = {}
+  }else{
+    returnCode = code
+    definitions = {
+      [filepath]: await extractFunctionsAndClasses(code, suffix.slice(1))
+    }
   }
 
   return {
