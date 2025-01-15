@@ -26,8 +26,8 @@ export const supportedLanguages = [
 
 export const supportedDocuments = [
     ...supportedLanguages,
-    '.pdf',
-    '.txt',
+    // '.pdf',
+    // '.txt',
     // '.zip'
 ];
 
@@ -50,13 +50,12 @@ async function getDocuments({ filePath: fp, fileType, signal }: { filePath: stri
             return getCodeDocs(fp);
         }
     }
-
-    if (fp.endsWith('.pdf')) {
-        return getPdfDocs(fp);
-    }
-    if (fp.endsWith('.txt')) {
-        return getTextDocs(fp);
-    }
+    // if (fp.endsWith('.pdf')) {
+    //     return getPdfDocs(fp);
+    // }
+    // if (fp.endsWith('.txt')) {
+    //     return getTextDocs(fp);
+    // }
     // if (fp.endsWith('.zip')) {
     //     return getZipDocs(fp); // 待优化
     // }

@@ -3,6 +3,7 @@ import { Channel } from '@/types/bridge';
 import { ChatParams, ChatResponse, Resource } from '@/types/chat';
 import { FindInPageParmas, StopFindInPageParmas } from '@/types/webContents';
 import { Observable } from 'rxjs';
+import { DotStatement } from '@/cg';
 
 interface Message{
     content: string,
@@ -124,6 +125,9 @@ export const api = {
     },
     requestFileContent({filepath}:{filepath:string}){
         return ipcRenderer.invoke(Channel.requestFileContent, {filepath})
+    },
+    requestSearchCalls(params: { calls: DotStatement[]; kw: string; level: number }){
+        return ipcRenderer.invoke(Channel.searchCalls,params)
     },
     findInPage(params: FindInPageParmas){
         return ipcRenderer.invoke(Channel.findInPage, params)

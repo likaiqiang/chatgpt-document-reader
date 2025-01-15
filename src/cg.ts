@@ -2,7 +2,7 @@ import * as ts from 'typescript';
 import path from 'path';
 import fs from 'fs';
 import { extractFunctionsAndClasses } from '@/utils/code';
-import {documentsOutputDir} from '@/config'
+import { documentsOutputDir } from '@/config';
 
 interface Position {
   line: number;
@@ -14,7 +14,7 @@ interface SourceLocation {
   end: Position
 }
 
-interface DotStatement {
+export interface DotStatement {
   head: {
     id: string;
     attrs: { [key: string]: string };
@@ -30,7 +30,7 @@ interface DotStatement {
   attributes?: Record<string, string>;
 }
 
-interface Definition {
+export interface Definition {
   type: string;
   name: string;
   startPosition: { row: number, column: number };
@@ -405,7 +405,7 @@ function analyzeAllFunctionCalls(entryFile: string, fileSystem: Record<string, s
           const normalizedPath = path.normalize(resolvedPath);
 
           // 尝试不同的文件扩展名
-          const extensions = ['.ts', '.tsx', '.js'];
+          const extensions = ['.ts', '.js'];
           for (const ext of extensions) {
             const fullPath = normalizedPath + ext;
             if (normalizedFileSystem.has(fullPath)) {
@@ -568,15 +568,16 @@ export const getCodeDot= async (filepath: string, filename: string)=>{
 
   if(suffix === '.ts') suffix = '.js'
 
-  let returnCode = '', dot = '', definitions:Record<string, Definition[]> = {}
+  let returnCode = '', dot = '', definitions:Record<string, Definition[]> = {}, calls:DotStatement[] = []
   const codeMapping: Record<string, any> = {}
 
   if(suffix === '.js'){
     const fileSystem = scanDirectory(path.join(documentsOutputDir,filename))
-    const {calls,defs, code: compiledCode} = analyzeAllFunctionCalls(filepath, fileSystem)
+    const {calls: _calls,defs, code: compiledCode} = analyzeAllFunctionCalls(filepath, fileSystem)
     returnCode = compiledCode
+    calls = _calls
     definitions = defs
-    for(const statement of calls){
+    for(const statement of _calls){
       const {head, tail} = statement
       for(const node of [head, tail]){
         if(!codeMapping[node.id]){
@@ -601,6 +602,61 @@ export const getCodeDot= async (filepath: string, filename: string)=>{
     dot,
     codeMapping,
     suffix,
-    definitions
+    definitions,
+    calls
   }
 }
+
+export function searchCalls(calls: DotStatement[], kw: string, level: number): string {
+  const result: DotStatement[] = []; // 存储所有匹配到的边
+
+  // 找到初始节点，匹配 kw 的 head 或 tail 标签
+  let startIds: string[] = [];
+  for (const call of calls) {
+    const headLabel = call.head.attrs.label?.toLowerCase() || '';
+    const tailLabel = call.tail.attrs.label?.toLowerCase() || '';
+    if (headLabel.includes(kw.toLowerCase())) {
+      startIds.push(call.head.id);
+    }
+    if (tailLabel.includes(kw.toLowerCase())) {
+      startIds.push(call.tail.id);
+    }
+  }
+  startIds = [...new Set(startIds)];
+
+  if (startIds.length === 0) {
+    return ''; // 如果没有匹配的初始节点，返回空字符串
+  }
+
+  // 建立映射加速查找
+  const headToTailMap = new Map<string, DotStatement[]>();
+  calls.forEach(call => {
+    if (!headToTailMap.has(call.head.id)) {
+      headToTailMap.set(call.head.id, []);
+    }
+    headToTailMap.get(call.head.id)!.push(call);
+  });
+
+  // 递归搜索函数
+  function findNextNodes(ids: string[], currentLevel: number, result: DotStatement[]): void {
+    if (ids.length === 0 || currentLevel <= 0) {
+      return;
+    }
+    let nextIds: string[] = [];
+    ids.forEach(id => {
+      const connected = headToTailMap.get(id) || [];
+      nextIds.push(...connected.map(call => call.tail.id));
+      result.push(...connected);
+    });
+
+    nextIds = [...new Set(nextIds)];
+    // 递归查找下一层
+    findNextNodes(nextIds, currentLevel - 1, result);
+  }
+
+  findNextNodes(startIds, level, result);
+
+  // 转换结果为 DOT 格式字符串
+  return generateDotStr(result);
+}
+

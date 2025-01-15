@@ -3338,6 +3338,11 @@
     "@types/babel__core" "^7.20.4"
     react-refresh "^0.14.0"
 
+"@viz-js/viz@^3.11.0":
+  version "3.11.0"
+  resolved "https://registry.yarnpkg.com/@viz-js/viz/-/viz-3.11.0.tgz#516a3fb644ca871762bcb86e2b41b6d107869c20"
+  integrity sha512-3zoKLQUqShIhTPvBAIIgJUf5wO9aY0q+Ftzw1u26KkJX1OJjT7Z5VUqgML2GIzXJYFgjqS6a2VREMwrgChuubA==
+
 "@xmldom/xmldom@^0.8.8":
   version "0.8.10"
   resolved "https://r.cnpmjs.org/@xmldom/xmldom/-/xmldom-0.8.10.tgz"
@@ -4859,7 +4864,7 @@ d3-path@^3.1.0:
 
 "d3-transition@2 - 3", d3-transition@^3.0.1:
   version "3.0.1"
-  resolved "https://registry.npmjs.org/d3-transition/-/d3-transition-3.0.1.tgz#6869fdde1448868077fdd5989200cb61b2a1645f"
+  resolved "https://registry.yarnpkg.com/d3-transition/-/d3-transition-3.0.1.tgz#6869fdde1448868077fdd5989200cb61b2a1645f"
   integrity sha512-ApKvfjsSR6tg06xrL434C0WydLr7JewBB3V+/39RMHsaXTOG0zmt/OAXeng5M5LBm0ojmxJrpomQVZ1aPvBL4w==
   dependencies:
     d3-color "1 - 3"
@@ -10870,14 +10875,7 @@ run-waterfall@^1.1.7:
   resolved "https://r2.cnpmjs.org/run-waterfall/-/run-waterfall-1.1.7.tgz"
   integrity sha512-iFPgh7SatHXOG1ClcpdwHI63geV3Hc/iL6crGSyBlH2PY7Rm/za+zoKz6FfY/Qlw5K7JwSol8pseO8fN6CMhhQ==
 
-rxjs@^7.8.0:
-  version "7.8.1"
-  resolved "https://r.cnpmjs.org/rxjs/-/rxjs-7.8.1.tgz"
-  integrity sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==
-  dependencies:
-    tslib "^2.1.0"
-
-rxjs@^7.8.1:
+rxjs@^7.8.0, rxjs@^7.8.1:
   version "7.8.1"
   resolved "https://registry.yarnpkg.com/rxjs/-/rxjs-7.8.1.tgz#6f6f3d99ea8044291efd92e7c7fcf562c4057543"
   integrity sha512-AA3TVj+0A2iuIoQkWEK/tqFjBq2j+6PO6Y0zJcvzLAFhEFIO3HL0vls9hWLncZbAAbK0mar7oZ4V079I/qPMxg==
@@ -11593,6 +11591,11 @@ supports-preserve-symlinks-flag@^1.0.0:
   version "1.0.0"
   resolved "https://r.cnpmjs.org/supports-preserve-symlinks-flag/-/supports-preserve-symlinks-flag-1.0.0.tgz"
   integrity sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==
+
+svg-pan-zoom@^3.6.2:
+  version "3.6.2"
+  resolved "https://registry.yarnpkg.com/svg-pan-zoom/-/svg-pan-zoom-3.6.2.tgz#be136506211b242627a234a9656f8128fcbbabed"
+  integrity sha512-JwnvRWfVKw/Xzfe6jriFyfey/lWJLq4bUh2jwoR5ChWQuQoOH8FEh1l/bEp46iHHKHEJWIyFJETbazraxNWECg==
 
 systeminformation@^5.23.15:
   version "5.23.15"

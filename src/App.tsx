@@ -363,10 +363,10 @@ export default function App() {
                                               filename: curResourceName
                                           }).then((res)=>{
                                               console.log('requestCallGraph', res);
-                                              const {code, dot, codeMapping, definitions} = res
+                                              const {code, dot, codeMapping, definitions, calls} = res
                                               codeViewRef.current.setIsOpen(true)
                                               setTimeout(()=>{
-                                                  codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
+                                                  codeViewRef.current.renderCode({dot, code, codeMapping, definitions, calls})
                                               },0)
                                           })
                                       }}
@@ -531,10 +531,10 @@ export default function App() {
                                                                                                                   signalId: signalIdRef.current,
                                                                                                                   filename: curResourceName
                                                                                                               }).then((res)=>{
-                                                                                                                  const {code, dot, codeMapping, definitions} = res
+                                                                                                                  const {code, dot, codeMapping, definitions, calls} = res
                                                                                                                   codeViewRef.current.setIsOpen(true)
                                                                                                                   setTimeout(()=>{
-                                                                                                                      codeViewRef.current.renderCode({dot, code, codeMapping, definitions})
+                                                                                                                      codeViewRef.current.renderCode({dot, code, codeMapping, definitions, calls})
                                                                                                                   },0)
                                                                                                               })
                                                                                                           }

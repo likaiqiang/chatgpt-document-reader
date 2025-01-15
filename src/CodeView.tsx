@@ -1,13 +1,14 @@
 import React, { useRef, forwardRef, useImperativeHandle, RefObject, useState, useEffect } from 'react';
-import { selectAll } from 'd3-selection';
 import { Modal } from '@mui/material';
 import Whether from '@/components/Whether';
-//@ts-ignore
-import * as d3 from 'd3-graphviz';
+import { instance } from "@viz-js/viz";
 import styles from '@/styles/Home.module.css';
 import Editor from '@monaco-editor/react';
 import { editor,Range, KeyCode, KeyMod} from 'monaco-editor';
 import ChatComponent, { ChatHandle } from './components/Chat';
+import SearchComponent from '@/components/SearchComponent';
+import { type Definition, DotStatement } from '@/cg';
+import svgPanZoom from 'svg-pan-zoom';
 
 const selectNodeConfig = {
   color: 'red'
@@ -33,15 +34,9 @@ interface RenderCodeParams {
   code: string,
   codeMapping: { [key: string]: any },
   definitions: Record<string, Definition[]>
+  calls: DotStatement[]
 }
 
-interface Definition {
-  type: string;
-  name: string;
-  startPosition: { row: number, column: number };
-  endPosition: { row: number, column: number };
-  code: string;
-}
 
 export interface CodeViewHandle {
   setIsOpen: (open: boolean) => void,
@@ -60,13 +55,18 @@ const CodeView = (props: CodeViewProps, ref: RefObject<CodeViewHandle>) => {
   const [isOpen, setIsOpen] = useState(false);
   const [code, setCode] = useState('');
   const [dot, setDot] = useState('');
+  const allDotRef = useRef<string>(null);
+  const allCallsRef = useRef<DotStatement[]>([]);
+  const svgPanZoomRef = useRef(null);
   const [codeMapping, setCodeMapping] = useState<{ [key: string]: any }>({});
   const [definitions, setDefinitions] = useState<Record<string, Definition[]>>({});
+
   const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
   const [decorationIds, setDecorationIds] = useState<string[]>([]); // 存储装饰器 ID
   const chatRef = useRef<ChatHandle>(null);
   const abortControllerRef = useRef<AbortController>();
   const isFetchRef = useRef(false);
+  const previousSelectNodeRef = useRef(null);
 
   function changeCode(code:string){
     removeAllButtons()
@@ -115,7 +115,6 @@ ${code}
 
   function insertAllButtons(filepath:string){
     const defs = definitions[filepath] || []
-    console.log('defs',defs);
     for (const definition of defs) {
       const lineNumber = definition.startPosition.row;
       if (editorRef.current && lineNumber >= 0) {
@@ -139,15 +138,30 @@ ${code}
     console.log('All buttons removed');
   }
 
-  const renderCode = ({ dot, code, codeMapping, definitions }: RenderCodeParams) => {
-    graphvizRef.current = d3.graphviz(`#${eleRef.current?.id}`);
-    const graphviz = graphvizRef.current;
+  const renderCode = ({ dot, code, codeMapping, definitions, calls }: RenderCodeParams) => {
+    console.log('calls', calls);
+
     changeCode(code);
     setDot(dot);
     setCodeMapping(codeMapping);
     setDefinitions(definitions);
     if (dot) {
-      graphviz.renderDot(dot);
+      allDotRef.current = dot
+      allCallsRef.current = calls
+      eleRef.current.innerHTML = ''
+      if(svgPanZoomRef.current){
+        svgPanZoomRef.current.destroy()
+      }
+      instance().then(viz => {
+        const result = viz.renderSVGElement(dot)
+        eleRef.current.appendChild(result)
+        svgPanZoomRef.current = svgPanZoom(result, {
+          zoomEnabled: true,
+          controlIconsEnabled: false,
+          fit: true,
+          center: true,
+        });
+      });
     }
   };
 
@@ -157,7 +171,10 @@ ${code}
   };
 
   const onselectNodeStyle = (node: HTMLElement) => {
-    selectAll('g.node').select('path').style('stroke', 'black');
+    if(previousSelectNodeRef.current) {
+      previousSelectNodeRef.current.querySelector('path')!.style.stroke = '';
+    }
+    previousSelectNodeRef.current = node
     node.querySelector('path')!.style.stroke = selectNodeConfig.color;
   };
 
@@ -237,6 +254,9 @@ ${code}
              }
              if (eleRef.current) {
                eleRef.current.innerHTML = '';
+               if(svgPanZoomRef.current){
+                 svgPanZoomRef.current.destroy()
+               }
              }
              if (abortControllerRef.current) {
                abortControllerRef.current.abort();
@@ -244,14 +264,62 @@ ${code}
            }}>
       <div style={modelStyle}>
         <div ref={containerRef} style={{ display: 'flex', alignItems: 'flex-start' }}>
-          <div
-            ref={eleRef}
-            id={'graphviz'}
-            className={styles.graphviz}
-            style={Object.assign({}, { flex: dot ? 1 : '', overflow:"auto" },dotContainerStyle)}
-            onClick={onClick}
-          />
-          <div className={styles.codeContent} ref={editorEleRef} style={{ width: dot ? '50%' : '100%', height: '100%' }}>
+          <div className='graphvizContainer' style={{ flex: dot ? 1 : undefined, display:'flex', flexDirection: 'column', ...dotContainerStyle }}>
+            <SearchComponent
+              onReset={()=>{
+                const graphviz = graphvizRef.current;
+                eleRef.current.innerHTML = '';
+                if(svgPanZoomRef.current){
+                  svgPanZoomRef.current.destroy()
+                }
+
+                setTimeout(()=>{
+                  instance().then(viz => {
+                    const result = viz.renderSVGElement(allDotRef.current);
+                    eleRef.current.appendChild(result)
+                    svgPanZoomRef.current = svgPanZoom(result, {
+                      zoomEnabled: true,
+                      controlIconsEnabled: false,
+                      fit: true,
+                      center: true,
+                    });
+                  });
+                },300)
+              }}
+              onSearch={(query)=>{
+                const {inputValue,selectValue} = query
+                window.chatBot.requestSearchCalls({
+                  calls: allCallsRef.current,
+                  kw: inputValue,
+                  level: parseInt(selectValue)
+                }).then((dot: string)=>{
+                  const graphviz = graphvizRef.current;
+                  eleRef.current.innerHTML = '';
+                  setTimeout(()=>{
+                    instance().then(viz => {
+                      const result = viz.renderSVGElement(dot)
+                      eleRef.current.appendChild(result)
+                      svgPanZoomRef.current = svgPanZoom(result, {
+                        zoomEnabled: true,
+                        controlIconsEnabled: false,
+                        fit: true,
+                        center: true,
+                      });
+                    });
+                  },300)
+                })
+              }}
+            />
+            <div
+              ref={eleRef}
+              id={'graphviz'}
+              className={styles.graphviz}
+              style={{flex: 1, overflow: 'auto'}}
+              onClick={onClick}
+            />
+          </div>
+          <div className={styles.codeContent} ref={editorEleRef}
+               style={{ width: dot ? '50%' : '100%', height: '100%' }}>
             <Whether value={!!code}>
               <Editor
                 width={'100%'}
@@ -261,10 +329,13 @@ ${code}
                 className={'codeEdit'}
                 onMount={(editor) => {
                   editorRef.current = editor;
-                  editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyF, () => {
-                    console.log('run');
+                  // editor.addCommand(KeyMod.CtrlCmd | KeyCode.KeyF, () => {
+                  //   console.log('run');
+                  //   editor.getAction("actions.find").run();
+                  // });
+                  window.chatBot.onFind(()=>{
                     editor.getAction("actions.find").run();
-                  });
+                  })
                   const {height} = getComputedStyle(editorEleRef.current)
                   setDotContainerStyle({
                     height: height

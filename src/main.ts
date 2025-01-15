@@ -40,7 +40,7 @@ import {
   setStore
 } from './electron/storage';
 import { FindInPageParmas, StopFindInPageParmas } from '@/types/webContents';
-import { getCodeDot } from './cg';
+import { DotStatement, getCodeDot, searchCalls } from './cg';
 import http from 'http';
 import LLM from '@/utils/llm';
 
@@ -49,9 +49,9 @@ let mainWindow: BrowserWindow = null,
 
 let currentRenderFile = '', showCodeModal = false;
 
-const server = http.createServer();
-
-const wss = new Server(server);
+// const server = http.createServer();
+//
+// const wss = new Server(server);
 
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=8192');
 
@@ -393,6 +393,10 @@ const createWindow = () => {
       })
     })
   });
+  ipcMain.handle(Channel.searchCalls, (event, params:{calls: DotStatement[],kw:string,level:number}) => {
+    const {calls=[], kw='', level=1} = params
+    return searchCalls(calls, kw, level);
+  })
   ipcMain.handle(Channel.findInPage, (e, params: FindInPageParmas) => {
     return mainWindow.webContents.findInPage(params.text, params.options);
   });
@@ -511,27 +515,28 @@ const onCtrlF = ()=>{
   if (searchWindow && searchWindow.webContents && !showCodeModal) {
     mainSend(searchWindow, Channel.onFound);
   }
+  if(showCodeModal){
+    mainSend(mainWindow, Channel.onFound)
+  }
 }
 
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
-  server.listen(7765, '127.0.0.1', () => {
-    global.wss = wss;
-    createWindow();
-    // 注册事件，ctrl + f 唤起关键字查找控件
-    mainWindow.on('focus', () => {
-      globalShortcut.register('CommandOrControl+F', onCtrlF);
-      const toast = toastFactory(mainWindow)
-      sharedInstance.setInstance<(message:string)=>void>('toast', toast)
+  // global.wss = wss;
+  createWindow();
+  // 注册事件，ctrl + f 唤起关键字查找控件
+  mainWindow.on('focus', () => {
+    globalShortcut.register('CommandOrControl+F', onCtrlF);
+    const toast = toastFactory(mainWindow)
+    sharedInstance.setInstance<(message:string)=>void>('toast', toast)
 
-      mainSend(mainWindow, Channel.onWindowFocussed);
-    });
+    mainSend(mainWindow, Channel.onWindowFocussed);
+  });
 
-    mainWindow.on('blur', () => {
-      globalShortcut.unregisterAll();
-    });
+  mainWindow.on('blur', () => {
+    globalShortcut.unregisterAll();
   });
 });
 

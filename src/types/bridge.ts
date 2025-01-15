@@ -42,5 +42,6 @@ export enum Channel {
     replyClearHistory = 'reply_clear_history',
     replyDeleteFile = 'reply_delete_file',
     requestllm = 'requestllm',
-    sendSignalId = 'send_signal_id'
+    sendSignalId = 'send_signal_id',
+    searchCalls = 'search_calls',
 }
